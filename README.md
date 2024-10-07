@@ -1,4 +1,3 @@
-
 ```mermaid
 graph TD;
     User[User] --> |Submits Request| DRT_with_Django;
@@ -9,13 +8,13 @@ graph TD;
     Cache --> DRT_with_Django;
     DRT_with_Django --> |Updates/Stores Files| GitHub;
 
-    subgraph "DaRT System"
+    subgraph "DRT System"
         DRT_with_Django
         Cache
         PostgreSQL
     end
 
-    subgraph "External Systems"
+    subgraph "Data Store"
         GitHub
     end
 ```
@@ -31,7 +30,7 @@ graph TD;
    - This improves performance by reducing the need to fetch data directly from **GitHub** each time.
    
 3. **Cache Update from GitHub**:
-   - **GitHub** serves as the **central data store** for static files like **questionnaires**, **licenses**, and **metadata**.
+   - **GitHub** serves as the **central data store** for static files like **questionnaires**, **licenses**, and **metadata**. (You can find an example of the data store here: https://github.com/ClimateSmartAgCollab/DRT-DS-test)
    - **trigger mechanism**: when a file or relevant data in GitHub is modified, GitHub sends an **alert** to DaRT, notifying it to **refresh its cache**. Alternatively, DaRT can periodically check for updates if webhooks aren’t set up in GitHub.
 
 4. **Django to PostgreSQL**:
