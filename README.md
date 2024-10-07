@@ -1,3 +1,26 @@
+
+```mermaid
+graph TD;
+    User[User] --> |Submits Request| DRT_with_Django;
+    DRT_with_Django --> |Reads/Writes Data| PostgreSQL;
+    DRT_with_Django --> |Fetches Data from Cache| Cache;
+    Cache --> |Regularly Updated from GitHub| GitHub;
+    GitHub --Trigger--> Cache;
+    Cache --> DRT_with_Django;
+    DRT_with_Django --> |Updates/Stores Files| GitHub;
+
+    subgraph "DaRT System"
+        DRT_with_Django
+        Cache
+        PostgreSQL
+    end
+
+    subgraph "External Systems"
+        GitHub
+    end
+```
+
+---
 ### **Explanation of the Diagram with Cache**:
 
 1. **User Interaction**:
@@ -58,23 +81,3 @@
 4. **Source of Truth**: GitHub remains the **source of truth** for static data like questionnaires and licenses, while PostgreSQL manages dynamic data.
 
 ---
-
-```mermaid
-graph TD;
-    User[User] --> |Submits Request| DRT_with_Django;
-    DRT_with_Django --> |Reads/Writes Data| PostgreSQL;
-    DRT_with_Django --> |Fetches Data from Cache| Cache;
-    Cache --> |Regularly Updated from GitHub| GitHub;
-    GitHub --Trigger--> Cache;
-    Cache --> DRT_with_Django;
-    DRT_with_Django --> |Updates/Stores Files| GitHub;
-
-    subgraph "DaRT System"
-        DRT_with_Django
-        Cache
-        PostgreSQL
-    end
-
-    subgraph "External Systems"
-        GitHub
-    end
