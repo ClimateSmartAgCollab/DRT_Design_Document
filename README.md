@@ -76,7 +76,7 @@ graph TD;
 
 The following tables are the Data Structure of the DRT system.
 
-## Images
+## Data Structure Tables
 
 ### Requestor Table
 ![Flowchart](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/requestor_OTP.png)
