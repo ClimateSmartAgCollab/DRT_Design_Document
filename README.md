@@ -35,7 +35,7 @@ graph TD;
 
 4. **Django to PostgreSQL**:
    - For dynamic data, such as ongoing negotiations, **Django** reads/writes directly to **PostgreSQL**.
-   - PostgreSQL handles relational data in DRT system.
+   - PostgreSQL handles relational data in the DRT system.
 
 5. **Django to GitHub**:
    - When the output documents (like **licenses** or **completed questionnaires**) are generated, **Django** uploads these to **GitHub** for persistent storage.
@@ -57,16 +57,40 @@ graph TD;
    - **Trigger from GitHub**: Whenever a change happens in GitHub, a **trigger** or webhook sends an alert to DaRT, prompting it to **refresh its cache**. (If triggers aren’t set up, DaRT regularly **polls GitHub** for changes.)
 
 3. **Data Fetching from GitHub**:
-   - When new data is needed, **Django** checks the **cache** first. If data is not in the cache or is outdated, Django fetches it from **GitHub** and updates the cache.
+   - When new data is needed, Django checks the cache first. If data is not in the cache or is outdated, Django fetches it from GitHub and updates the cache.
    - This ensures DaRT always has the latest data while avoiding unnecessary traffic to GitHub.
 
 4. **Handling Negotiations**:
    - **Django** manages **negotiation data** (requestor-owner interactions) by reading/writing negotiation states to **PostgreSQL**.
-   - Each negotiation is tracked in **PostgreSQL**, and its related documents (like licenses or query outputs) are stored back into **GitHub** after approval.
+   - Each negotiation is tracked in **PostgreSQL**, and related documents (like licenses or query outputs) are stored back into **GitHub** after approval.
 
 5. **Updating GitHub**:
    - Once a negotiation is completed or a license is generated, **Django** saves the final documents (Archive) into **GitHub** for record-keeping.
    
 6. **Serving Data Efficiently**:
-   - As DaRT continues to serve requestors and owners, it uses the **cache** to minimize frequent pulls from GitHub while ensuring that cached data is always up-to-date when changes are made in the **GitHub repository**.
+   - As DaRT continues to serve requestors and owners, it uses the cache to minimize frequent pulls from GitHub while ensuring that cached data is always up-to-date when changes are made in the GitHub repository.
+
+---
+
+# DRT Data Structure
+
+The following tables are the Data Structure of the DRT system.
+
+## Images
+
+### Requestor Table
+![Flowchart](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/requestor_OTP.png)
+
+### NLink Table
+![Diagram](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/NLink.png)
+
+### Negotiation Table
+![Screenshot](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/Negotiation.png)
+
+### Archive Table
+![Screenshot](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/Archive.png)
+
+### Summary Statistics Table
+![Screenshot](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/summaryStat.png)
+
 
