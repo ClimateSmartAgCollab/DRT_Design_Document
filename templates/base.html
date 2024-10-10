@@ -1,0 +1,33 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DaRT System{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+    <header>
+        <h1>Data Request Tracker (DaRT)</h1>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        {% block content %}
+        <!-- Page-specific content will go here -->
+        {% endblock %}
+    </div>
+
+    <footer>
+        <p>&copy; 2024 DaRT Project</p>
+    </footer>
+
+</body>
+</html>
