@@ -10,10 +10,10 @@ class Owner(models.Model):
 
 
 class Requestor(models.Model):
-    # requestor_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requestor_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     requestor_email = models.EmailField(unique=True)
     otp = models.CharField(max_length=6)
-    otp_expiray = models.CharField(default=False)
+    otp_expiray = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
 
 # Questionnaire model for storing questionnaire data
@@ -40,7 +40,7 @@ class NLink(models.Model):
 
 class Negotiation(models.Model):
     negotiation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     requestor_responses = models.JSONField() 
     owner_responses = models.JSONField() 
     # nlink = models.ForeignKey(NLink, on_delete=models.CASCADE)
@@ -51,14 +51,14 @@ class Negotiation(models.Model):
 
 
 class Archive(models.Model):
-    # id = models.BigAutoField(primary_key=True)  # Explicit BigAutoField for primary key
+    id = models.BigAutoField(primary_key=True)  # Explicit BigAutoField for primary key
     negotiation_id = models.ForeignKey(Negotiation, on_delete=models.CASCADE)
     archived_timestamp = models.DateTimeField(auto_now_add=True)
     archived_data = models.JSONField() 
 
 
 class SummaryStatistics(models.Model):
-    # id = models.BigAutoField(primary_key=True)  # Explicit BigAutoField for primary key
+    id = models.BigAutoField(primary_key=True)  # Explicit BigAutoField for primary key
     owner_id = models.ForeignKey(Owner, on_delete=models.CASCADE)
     summary_date = models.DateTimeField(auto_now_add=True)
     datasets_requested = models.JSONField() 
