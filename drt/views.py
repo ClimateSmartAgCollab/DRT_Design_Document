@@ -17,58 +17,50 @@ def generate_nlinks(request):
     if not link_table:
         return JsonResponse({'error': 'Link table not found in cache'}, status=404)
 
-    # Assume a specific link is selected (for simplicity, let's pick one)
-    example_link = next(iter(link_table.values()))  # Fetch any link entry for demo
+    # Select a sample link from the cache (for demonstration)
+    example_link = next(iter(link_table.values()))
 
-    # Generate new links for owner and requestor
-    owner_link_id = str(uuid.uuid4())
-    requestor_link_id = str(uuid.uuid4())
+    # Generate unique IDs for requestor and owner links
+    owner_link = uuid.uuid4()
+    requestor_link = uuid.uuid4()
 
-    # Create the NLink entry in the DB with the owner ID from the cache
+    # Create the NLink entry in the DB
     nlink = NLink.objects.create(
-        link_id=owner_link_id,  # Owner link ID
-        owner_id=example_link['owner_id'],  # Owner ID from the cache
+        owner_id=example_link['owner_id'],  # Owner ID from cache
+        requestor_link=requestor_link, 
+        owner_link=owner_link,
         questionnaire_SAID=example_link['questionnaire_id'],  # From cache
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
     )
 
-    # Create a separate NLink entry for the requestor link
-    NLink.objects.create(
-        link_id=requestor_link_id,  # Requestor link ID
-        questionnaire_SAID=example_link['questionnaire_id'],  # From cache
-        expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
-    )
-
-    # Return the generated links to the frontend
     return JsonResponse({
-        'owner_link': f'/verify/owner/{owner_link_id}',
-        'requestor_link': f'/verify/requestor/{requestor_link_id}'
+        'owner_link': f'/verify/owner/{owner_link}',
+        'requestor_link': f'/verify/requestor/{requestor_link}'
     })
-
 
 # Step 2: Requestor submits email, and OTP is generated
 def requestor_email_entry(request, link_id):
     if request.method == 'POST':
         email = request.POST.get('email')
-        otp = get_random_string(6, '0123456789')  # Generate a 6-digit OTP
+        otp = get_random_string(6, '0123456789')  # Generate 6-digit OTP
 
-        # Create the requestor entry in the DB
+        # Store requestor email and OTP in DB
         requestor = Requestor.objects.create(
             requestor_email=email,
             otp=otp,
-            otp_expiray=False,  # Initially false until verified
-            is_verified=False  # Initially not verified
+            otp_expiry=False,  # Set to False initially
+            is_verified=False  # Not verified yet
         )
 
-        # Store requestor_id in the nlink table for this link
-        nlink = get_object_or_404(NLink, link_id=link_id)
-        nlink.requestor_id = requestor  # ForeignKey assignment
+        # Update the NLink with the requestor email
+        nlink = NLink.objects.get(requestor_link=link_id)
+        nlink.requestor_email = email
         nlink.save()
 
         # Simulate sending OTP (for now, just print it)
         print(f"OTP sent to {email}: {otp}")
 
-        return JsonResponse({'status': 'OTP sent to your email. Please verify.'})
+        return JsonResponse({'status': 'OTP sent. Please verify.'})
 
     return render(request, 'email_entry.html', {'link_id': link_id})
 
@@ -77,18 +69,15 @@ def requestor_email_entry(request, link_id):
 def verify_otp(request, link_id):
     if request.method == 'POST':
         otp = request.POST.get('otp')
-        nlink = get_object_or_404(NLink, link_id=link_id)
 
-        # Correct the reference to requestor
-        requestor = nlink.requestor_id
+        # Fetch the NLink entry based on the requestor link
+        nlink = NLink.objects.get(requestor_link=link_id)
+        requestor = Requestor.objects.get(requestor_email=nlink.requestor_email)
 
-        # Check if the OTP matches and handle expiration
         if requestor.otp == otp:
-            if requestor.otp_expiry and requestor.otp_expiry < datetime.datetime.now():
-                return JsonResponse({'error': 'OTP has expired'}, status=400)
-            
-            requestor.otp_expiry = True  # OTP is now expired
-            requestor.is_verified = True  # Mark as verified
+            # Mark requestor as verified and expire the OTP
+            requestor.is_verified = True
+            requestor.otp_expiry = True
             requestor.save()
 
             return JsonResponse({'status': 'Email verified successfully!'})
