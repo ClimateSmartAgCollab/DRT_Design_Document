@@ -1,0 +1,6 @@
+<form method="post">
+    {% csrf_token %}
+    <label for="otp">Enter the OTP:</label>
+    <input type="text" name="otp" maxlength="6" required>
+    <button type="submit">Verify</button>
+</form>
