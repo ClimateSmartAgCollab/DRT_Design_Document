@@ -4,7 +4,6 @@ import requests
 import base64
 import csv
 import io
-from drt.models import Owner, Questionnaire 
 from django.views.decorators.csrf import csrf_exempt
 
 GITHUB_API_URL = "https://api.github.com/repos/ClimateSmartAgCollab/DRT-DS-test/contents"
@@ -21,14 +20,11 @@ def fetch_file_from_github(file_path):
         return content
     return None
 
-# View to load GitHub data and store it in the cache and database
+# View to load GitHub data and store it only in cache
 def load_github_data(request):
     owner_table_csv = fetch_file_from_github('owner_table.csv')
-    
     link_table_csv = fetch_file_from_github('linktable.csv')
-
     questionnaire_table_csv = fetch_file_from_github('source_library/questionnaire_table.csv')
-
     sample_questionnaire_json = fetch_file_from_github('source_library/sample_questionnaire_package.json')
 
     if owner_table_csv:
@@ -36,8 +32,7 @@ def load_github_data(request):
         reader = csv.DictReader(io.StringIO(owner_table_csv))
         for row in reader:
             owner_table[row['username']] = row['owner_email']
-            owner, created = Owner.objects.get_or_create(owner_id=row['username'], email=row['owner_email'])
-        cache.set('owner_table', owner_table)
+        cache.set('owner_table', owner_table, timeout=86400)  # Cache for 1 day
 
     if link_table_csv:
         link_table = {} 
@@ -50,21 +45,26 @@ def load_github_data(request):
                 'expiry': row['expiry'],
                 'data_label': row['data_label']
             }
-        cache.set('link_table', link_table)
+        cache.set('link_table', link_table, timeout=86400)  # Cache for 1 day
 
     if questionnaire_table_csv:
         questionnaire_table = {}
         reader = csv.DictReader(io.StringIO(questionnaire_table_csv))
         for row in reader:
             questionnaire_table[row['questionnaire_SAID']] = row['questionnaire_filename']
-        cache.set('questionnaire_table', questionnaire_table)
+        cache.set('questionnaire_table', questionnaire_table, timeout=86400)  # Cache for 1 day
 
     if sample_questionnaire_json:
-        # questionnaire_json_data = base64.b64decode(sample_questionnaire_json).decode('utf-8')
-        cache.set('sample_questionnaire_package', sample_questionnaire_json)
+        cache.set('sample_questionnaire_package', sample_questionnaire_json, timeout=86400)  # Cache for 1 day
 
     return JsonResponse({'status': 'GitHub data loaded successfully and cached'})
 
+# View to retrieve cached data (for later use in the implementation)
+def get_cached_data(request, key):
+    cached_data = cache.get(key)
+    if cached_data is None:
+        return JsonResponse({'error': f'No cached data found for key: {key}'}, status=404)
+    return JsonResponse({key: cached_data})
 
 # GitHub webhook to receive and handle updates from the GitHub repository
 @csrf_exempt
