@@ -4,8 +4,8 @@ from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
 from django.core.cache import cache
-from .models import Requestor, NLink
-from .forms import RequestorEmailForm, QuestionnaireForm
+from .models import Requestor, NLink, Negotiation
+from .forms import QuestionnaireForm
 import uuid
 import datetime
 
@@ -37,6 +37,15 @@ def generate_nlinks(request, link_id):
         owner_link=owner_link_id,
         questionnaire_SAID=example_link['questionnaire_id'],  # Questionnaire ID from cache
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
+    )
+
+    # Create the corresponding Negotiation entry if it doesn't exist
+    negotiation, created = Negotiation.objects.get_or_create(
+        questionnaire_SAID=nlink.questionnaire_SAID,
+        defaults={
+            'state': 'requestor_open',
+            'negotiation_status': 'open',
+        }
     )
 
     # Redirect the requestor to the email entry page
@@ -84,8 +93,10 @@ def verify_otp(request, link_id):
             requestor.is_verified = True
             requestor.otp_expiry = True
             requestor.save()
-
-            return JsonResponse({'status': 'Email verified successfully!'})
+            
+            # Redirect to the request_access view with the link_id
+            access_url = reverse('request_access', kwargs={'link_id': link_id})
+            return redirect(access_url)
 
         return JsonResponse({'error': 'Invalid OTP'}, status=400)
 
@@ -93,48 +104,53 @@ def verify_otp(request, link_id):
 
 
 
-def request_access(request):
-    if request.method == 'POST':
-        form = RequestorEmailForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data['email']
-            requestor, created = Requestor.objects.get_or_create(
-                requestor_email=email
-            )
-            link_uuid = uuid.uuid4()
-            NLink.objects.create(
-                link_id=link_uuid,
-                requestor_id=requestor,
-                owner_id=None,  
-                questionnaire_SAID=None,  
-            )
-            link = request.build_absolute_uri(
-                reverse('fill_questionnaire', kwargs={'uuid': link_uuid})
-            )
-            send_mail(
-                'Your Questionnaire Link',
-                f'Click the following link to access the questionnaire: {link}',
-                'your-email@example.com',
-                [email],
-            )
-            return HttpResponse('An email with the access link has been sent.')
-    else:
-        form = RequestorEmailForm()
-    return render(request, 'request_access.html', {'form': form})
+# Step 4: After verification send the requestor a direct link to access the questionnaire.
+def request_access(request, link_id):
+    """Send the requestor a direct link to access the questionnaire."""
+    
+    # Fetch the NLink entry using the provided link_id (requestor_link)
+    nlink = get_object_or_404(NLink, requestor_link=link_id)
 
+    # Build the URL to access the questionnaire using the requestor's link_id
+    questionnaire_url = request.build_absolute_uri(
+        reverse('fill_questionnaire', kwargs={'uuid': nlink.requestor_link})
+    )
+
+    # Simulate sending the questionnaire link (or print for demo purposes)
+    print(f"Questionnaire Link: {questionnaire_url}")
+
+    return JsonResponse({'status': 'Link sent successfully!', 'link': questionnaire_url})
+
+
+
+# Step 5: Displays the form to the requestor based on the UUID link.
 def fill_questionnaire(request, uuid):
-    """Displays the form to the requestor based on the UUID link."""
-    link = get_object_or_404(NLink, link_id=uuid)
-    questionnaire = link.questionnaire_SAID 
-    print(questionnaire)
+    """Displays the form to the requestor or owner based on the UUID link."""
 
+    # Fetch the NLink entry using the requestor link ID (UUID)
+    nlink = get_object_or_404(NLink, requestor_link=uuid)
+
+    # Fetch the corresponding negotiation using the questionnaire SAID
+    negotiation = get_object_or_404(Negotiation, questionnaire_SAID=nlink.questionnaire_SAID)
+
+    # Check if the form is already submitted (state = 'owner open')
+    if negotiation.state == 'owner_open':
+        return HttpResponse('The questionnaire is submitted and cannot be edited.')
+
+    # Handle form submission or save
     if request.method == 'POST':
-        form = QuestionnaireForm(request.POST, instance=questionnaire)
+        form = QuestionnaireForm(request.POST, instance=negotiation, questionnaire_SAID=nlink.questionnaire_SAID)
         if form.is_valid():
-            questionnaire.is_submitted = True 
+            if 'submit' in request.POST:  # Check if the requestor clicked 'Submit'
+                negotiation.state = 'owner_open'  # Change state to 'owner_open'
+                negotiation.negotiation_status = 'completed'  # Mark as completed
             form.save()
-            return HttpResponse('Questionnaire submitted successfully!')
+            return HttpResponse('Questionnaire saved successfully!')
+
     else:
-        form = QuestionnaireForm(instance=questionnaire)
+        form = QuestionnaireForm(instance=negotiation, questionnaire_SAID=nlink.questionnaire_SAID)
 
     return render(request, 'fill_questionnaire.html', {'form': form})
+
+
+
