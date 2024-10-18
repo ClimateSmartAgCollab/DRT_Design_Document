@@ -12,7 +12,6 @@ import datetime
 
 # Step 1: Fetch the link from cache and generate NLink entries in the database
 def generate_nlinks(request):
-    # Get link table from cache
     link_table = cache.get('link_table')
     if not link_table:
         return JsonResponse({'error': 'Link table not found in cache'}, status=404)
@@ -26,17 +25,15 @@ def generate_nlinks(request):
 
     # Create the NLink entry in the DB
     nlink = NLink.objects.create(
-        owner_id=example_link['owner_id'],  # Owner ID from cache
+        owner_id=example_link['owner_id'], 
         requestor_link=requestor_link, 
         owner_link=owner_link,
-        questionnaire_SAID=example_link['questionnaire_id'],  # From cache
+        questionnaire_SAID=example_link['questionnaire_id'],  
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
     )
 
-    return JsonResponse({
-        'owner_link': f'/verify/owner/{owner_link}',
-        'requestor_link': f'/verify/requestor/{requestor_link}'
-    })
+    # Redirect requestor to email entry page using the new requestor link
+    return redirect('requestor_email_entry', link_id=requestor_link)
 
 # Step 2: Requestor submits email, and OTP is generated
 def requestor_email_entry(request, link_id):
@@ -60,7 +57,9 @@ def requestor_email_entry(request, link_id):
         # Simulate sending OTP (for now, just print it)
         print(f"OTP sent to {email}: {otp}")
 
-        return JsonResponse({'status': 'OTP sent. Please verify.'})
+        # Redirect to the OTP verification page
+        otp_verification_url = reverse('verify_otp', kwargs={'link_id': link_id})
+        return redirect(otp_verification_url)
 
     return render(request, 'email_entry.html', {'link_id': link_id})
 
@@ -70,12 +69,10 @@ def verify_otp(request, link_id):
     if request.method == 'POST':
         otp = request.POST.get('otp')
 
-        # Fetch the NLink entry based on the requestor link
         nlink = NLink.objects.get(requestor_link=link_id)
         requestor = Requestor.objects.get(requestor_email=nlink.requestor_email)
 
         if requestor.otp == otp:
-            # Mark requestor as verified and expire the OTP
             requestor.is_verified = True
             requestor.otp_expiry = True
             requestor.save()
@@ -100,8 +97,8 @@ def request_access(request):
             NLink.objects.create(
                 link_id=link_uuid,
                 requestor_id=requestor,
-                owner_id=None,  # Adjust based on ownership logic
-                questionnaire_SAID=None,  # Placeholder for now
+                owner_id=None,  
+                questionnaire_SAID=None,  
             )
             link = request.build_absolute_uri(
                 reverse('fill_questionnaire', kwargs={'uuid': link_uuid})

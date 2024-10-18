@@ -9,7 +9,6 @@ class Requestor(models.Model):
     otp_expiry = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
 
-
 class Negotiation(models.Model):
     negotiation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     conversation_id = models.UUIDField(default=uuid.uuid4, editable=False)  # Conversation round ID
@@ -20,7 +19,6 @@ class Negotiation(models.Model):
     questionnaire_SAID = models.CharField(max_length=255)  # SAID of the questionnaire
     timestamps = models.DateTimeField(auto_now_add=True)  # Track conversation start time
 
-    
 class NLink(models.Model):
     link_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     negotiation_id = models.ForeignKey(Negotiation, on_delete=models.CASCADE, null=True, blank=True)
@@ -33,8 +31,6 @@ class NLink(models.Model):
     expiration_date = models.DateTimeField(auto_now_add=True)
     last_activity = models.DateTimeField(auto_now=True)
     dataset_ID = models.CharField(max_length=255, null=True, blank=True)  # Dataset identifier
-
-
 
 class Archive(models.Model):
     id = models.BigAutoField(primary_key=True)
