@@ -23,6 +23,8 @@ class NLink(models.Model):
     link_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     negotiation_id = models.ForeignKey(Negotiation, on_delete=models.CASCADE, null=True, blank=True)
     owner_id = models.CharField(max_length=255, null=True, blank=True)  # Fetched from cache
+    license_id = models.CharField(max_length=255, null=True, blank=True)  # Fetched from cache
+    dataset_ID = models.CharField(max_length=255, null=True, blank=True)  # Fetched from cache
     requestor_email = models.EmailField(null=True, blank=True)  # Set after verification
     requestor_link = models.UUIDField(default=uuid.uuid4, editable=False)  # Unique requestor link
     owner_link = models.UUIDField(default=uuid.uuid4, editable=False)  # Unique owner link
@@ -30,7 +32,6 @@ class NLink(models.Model):
     state = models.CharField(max_length=50, default='requestor_open')  # Tracks current state
     expiration_date = models.DateTimeField(auto_now_add=True)
     last_activity = models.DateTimeField(auto_now=True)
-    dataset_ID = models.CharField(max_length=255, null=True, blank=True)  # Dataset identifier
 
 class Archive(models.Model):
     id = models.BigAutoField(primary_key=True)
