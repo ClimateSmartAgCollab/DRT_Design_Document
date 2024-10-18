@@ -31,6 +31,8 @@ def generate_nlinks(request, link_id):
 
     nlink = NLink.objects.create(
         owner_id=example_link['owner_id'],  # Owner ID from cache
+        license_id = example_link['license_id'],  # Owner ID from cache
+        dataset_ID = example_link['data_label'],  # Owner ID from cache
         requestor_link=requestor_link_id,
         owner_link=owner_link_id,
         questionnaire_SAID=example_link['questionnaire_id'],  # Questionnaire ID from cache
