@@ -10,30 +10,36 @@ import uuid
 import datetime
 
 
-# Step 1: Fetch the link from cache and generate NLink entries in the database
-def generate_nlinks(request):
+def generate_nlinks(request, link_id):
     link_table = cache.get('link_table')
     if not link_table:
         return JsonResponse({'error': 'Link table not found in cache'}, status=404)
 
-    # Select a sample link from the cache (for demonstration)
-    example_link = next(iter(link_table.values()))
+    # Search for the row that contains the given link_id in its key
+    example_link = None
+    for url, link_data in link_table.items():
+        if link_id in url:
+            example_link = link_data
+            break
 
-    # Generate unique IDs for requestor and owner links
-    owner_link = uuid.uuid4()
-    requestor_link = uuid.uuid4()
+    if not example_link:
+        return JsonResponse({'error': f'Link ID {link_id} not found in cache'}, status=404)
 
-    # Create the NLink entry in the DB
+    # Generate unique links for owner and requestor
+    owner_link_id = uuid.uuid4()
+    requestor_link_id = uuid.uuid4()
+
     nlink = NLink.objects.create(
-        owner_id=example_link['owner_id'], 
-        requestor_link=requestor_link, 
-        owner_link=owner_link,
-        questionnaire_SAID=example_link['questionnaire_id'],  
+        owner_id=example_link['owner_id'],  # Owner ID from cache
+        requestor_link=requestor_link_id,
+        owner_link=owner_link_id,
+        questionnaire_SAID=example_link['questionnaire_id'],  # Questionnaire ID from cache
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
     )
 
-    # Redirect requestor to email entry page using the new requestor link
-    return redirect('requestor_email_entry', link_id=requestor_link)
+    # Redirect the requestor to the email entry page
+    return redirect('requestor_email_entry', link_id=requestor_link_id)
+
 
 # Step 2: Requestor submits email, and OTP is generated
 def requestor_email_entry(request, link_id):
