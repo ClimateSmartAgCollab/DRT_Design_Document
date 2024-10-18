@@ -12,8 +12,8 @@ class Requestor(models.Model):
 class Negotiation(models.Model):
     negotiation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     conversation_id = models.UUIDField(default=uuid.uuid4, editable=False)  # Conversation round ID
-    requestor_responses = models.JSONField()  # Requestor’s answers
-    owner_responses = models.JSONField()  # Owner’s feedback
+    requestor_responses = models.JSONField(null=True, blank=True)  # Requestor’s answers
+    owner_responses = models.JSONField(null=True, blank=True)  # Owner’s feedback
     state = models.CharField(max_length=50, default='requestor_open')  # Tracks current state
     negotiation_status = models.CharField(max_length=50, default='open')  # open/completed/archived
     questionnaire_SAID = models.CharField(max_length=255)  # SAID of the questionnaire
@@ -30,6 +30,7 @@ class NLink(models.Model):
     owner_link = models.UUIDField(default=uuid.uuid4, editable=False)  # Unique owner link
     questionnaire_SAID = models.CharField(max_length=255, null=True, blank=True)
     state = models.CharField(max_length=50, default='requestor_open')  # Tracks current state
+    negotiation_status = models.CharField(max_length=50, default='open')  # Status: open, completed, archived
     expiration_date = models.DateTimeField(auto_now_add=True)
     last_activity = models.DateTimeField(auto_now=True)
 
