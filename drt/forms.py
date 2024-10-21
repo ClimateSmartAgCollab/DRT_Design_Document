@@ -10,3 +10,4 @@ class QuestionnaireForm(forms.ModelForm):
     class Meta:
         model = Negotiation
         fields = ['requestor_responses', 'questionnaire_SAID']  # Adjust as needed
+
