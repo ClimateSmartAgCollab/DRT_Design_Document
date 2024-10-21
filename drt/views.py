@@ -4,16 +4,19 @@ from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
 from django.core.cache import cache
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 from .models import Requestor, NLink, Negotiation
 from .forms import QuestionnaireForm
 import uuid
 import datetime
 
-
+@api_view()
 def generate_nlinks(request, link_id):
     link_table = cache.get('link_table')
     if not link_table:
-        return JsonResponse({'error': 'Link table not found in cache'}, status=404)
+        return Response({'error': 'Link table not found in cache'}, status=404)
 
     # Search for the row that contains the given link_id in its key
     example_link = None
@@ -23,7 +26,7 @@ def generate_nlinks(request, link_id):
             break
 
     if not example_link:
-        return JsonResponse({'error': f'Link ID {link_id} not found in cache'}, status=404)
+        return Response({'error': f'Link ID {link_id} not found in cache'}, status=404)
 
     # Generate unique links for owner and requestor
     owner_link_id = uuid.uuid4()
@@ -53,6 +56,8 @@ def generate_nlinks(request, link_id):
 
 
 # Step 2: Requestor submits email, and OTP is generated
+@csrf_exempt
+@api_view(['GET', 'POST'])
 def requestor_email_entry(request, link_id):
     if request.method == 'POST':
         email = request.POST.get('email')
@@ -82,6 +87,8 @@ def requestor_email_entry(request, link_id):
 
 
 # Step 3: Verify OTP and update the requestor’s status
+@csrf_exempt
+@api_view(['GET', 'POST'])
 def verify_otp(request, link_id):
     if request.method == 'POST':
         otp = request.POST.get('otp')
@@ -98,13 +105,14 @@ def verify_otp(request, link_id):
             access_url = reverse('request_access', kwargs={'link_id': link_id})
             return redirect(access_url)
 
-        return JsonResponse({'error': 'Invalid OTP'}, status=400)
+        return Response({'error': 'Invalid OTP'}, status=400)
 
     return render(request, 'otp_verification.html', {'link_id': link_id})
 
 
 
 # Step 4: After verification send the requestor a direct link to access the questionnaire.
+@api_view()
 def request_access(request, link_id):
     """Send the requestor a direct link to access the questionnaire."""
     
@@ -119,11 +127,13 @@ def request_access(request, link_id):
     # Simulate sending the questionnaire link (or print for demo purposes)
     print(f"Questionnaire Link: {questionnaire_url}")
 
-    return JsonResponse({'status': 'Link sent successfully!', 'link': questionnaire_url})
+    return Response({'status': 'Link sent successfully!', 'link': questionnaire_url})
 
 
 
 # Step 5: Displays the form to the requestor based on the UUID link.
+@csrf_exempt
+@api_view(['GET', 'POST'])
 def fill_questionnaire(request, uuid):
     """Displays the form to the requestor or owner based on the UUID link."""
 
@@ -135,7 +145,7 @@ def fill_questionnaire(request, uuid):
 
     # Check if the form is already submitted (state = 'owner open')
     if negotiation.state == 'owner_open':
-        return HttpResponse('The questionnaire is submitted and cannot be edited.')
+        return Response('The questionnaire is submitted and cannot be edited.')
 
     # Handle form submission or save
     if request.method == 'POST':
@@ -145,7 +155,7 @@ def fill_questionnaire(request, uuid):
                 negotiation.state = 'owner_open'  # Change state to 'owner_open'
                 negotiation.negotiation_status = 'completed'  # Mark as completed
             form.save()
-            return HttpResponse('Questionnaire saved successfully!')
+            return Response('Questionnaire saved successfully!')
 
     else:
         form = QuestionnaireForm(instance=negotiation, questionnaire_SAID=nlink.questionnaire_SAID)
