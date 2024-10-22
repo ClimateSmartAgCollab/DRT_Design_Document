@@ -2,5 +2,11 @@
     {% csrf_token %}
     <label for="otp">Enter the OTP:</label>
     <input type="text" name="otp" maxlength="6" required>
+
+    <!-- Show an error message if OTP is wrong or expired -->
+    {% if error_message %}
+        <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+
     <button type="submit">Verify</button>
 </form>

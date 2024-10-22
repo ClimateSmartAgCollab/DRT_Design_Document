@@ -1,36 +1,3 @@
-{% comment %} <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Review Data Request</title>
-</head>
-<body>
-    <h1>Review Data Request</h1>
-    
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-
-        <!-- Comment section for each question -->
-        {% for question in questions %}
-            <div>
-                <label for="{{ question.id_for_label }}">{{ question.label }}</label>
-                {{ question }}
-                <textarea name="comment_{{ forloop.counter }}" placeholder="Leave a comment here..."></textarea>
-            </div>
-        {% endfor %}
-
-        <!-- Buttons for the owner to act on the request -->
-        <button type="submit" name="save_review">Save Review</button>
-        <button type="submit" name="submit_review">Submit Review</button>
-        <button type="submit" name="reject_request">Reject Request</button>
-        <button type="submit" name="accept_request">Accept Request</button>
-    </form>
-</body>
-</html> {% endcomment %}
-
-
 <form method="POST">
     {% csrf_token %}
     <textarea name="owner_responses" placeholder="Leave your feedback..."></textarea>
