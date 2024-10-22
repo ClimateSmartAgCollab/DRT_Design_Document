@@ -4,6 +4,8 @@ from django.urls import reverse
 from django.http import HttpResponseNotFound, JsonResponse
 from django.utils.crypto import get_random_string
 from django.core.cache import cache
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from rest_framework.decorators import api_view
@@ -61,6 +63,18 @@ def generate_nlinks(request, link_id):
 def requestor_email_entry(request, link_id):
     if request.method == 'POST':
         email = request.POST.get('email')
+
+        # Validate the email format
+        try:
+            validate_email(email)
+        except ValidationError:
+            # Email format is invalid, re-render the form with an error message
+            return render(request, 'email_entry.html', {
+                'link_id': link_id,
+                'error_message': 'Please enter a valid email address.'
+            })
+        
+
         otp = get_random_string(6, '0123456789')  # Generate 6-digit OTP
 
         # Store requestor email and OTP in DB
@@ -92,21 +106,46 @@ def verify_otp(request, link_id):
     if request.method == 'POST':
         otp = request.POST.get('otp')
 
-        nlink = NLink.objects.get(requestor_link=link_id)
-        requestor = Requestor.objects.get(requestor_email=nlink.requestor_email)
+        try:
+            nlink = NLink.objects.get(requestor_link=link_id)
+            requestor = Requestor.objects.get(requestor_email=nlink.requestor_email)
+        except (NLink.DoesNotExist, Requestor.DoesNotExist):
+            return Response({'error': 'Invalid request'}, status=400)
 
+        # Check if OTP has expired
+        if timezone.now() > requestor.otp_expiry:
+            # OTP has expired, generate a new one
+            new_otp = get_random_string(6, '0123456789')
+            requestor.otp = new_otp
+            requestor.otp_expiry = timezone.now() + datetime.timedelta(minutes=10)
+            requestor.save()
+
+            # Simulate sending new OTP (for now, just print it)
+            print(f"New OTP sent to {requestor.requestor_email}: {new_otp}")
+
+            return render(request, 'otp_verification.html', {
+                'link_id': link_id,
+                'error_message': 'OTP expired. A new OTP has been sent to your email.'
+            })
+
+        # Check if the provided OTP is correct
         if requestor.otp == otp:
             requestor.is_verified = True
-            requestor.otp_expiry = timezone.now() 
+            requestor.otp_expiry = timezone.now()  # Clear the OTP expiration
             requestor.save()
-            
+
             # Redirect to the request_access view with the link_id
             access_url = reverse('request_access', kwargs={'link_id': link_id})
             return redirect(access_url)
 
-        return Response({'error': 'Invalid OTP'}, status=400)
+        # If OTP is incorrect, show error message
+        return render(request, 'otp_verification.html', {
+            'link_id': link_id,
+            'error_message': 'Invalid OTP. Please try again.'
+        })
 
     return render(request, 'otp_verification.html', {'link_id': link_id})
+
 
 
 @api_view()
@@ -129,9 +168,15 @@ def request_access(request, link_id):
 def fill_questionnaire(request, uuid):
     nlink = get_object_or_404(NLink, requestor_link=uuid)
     negotiation = nlink.negotiation
-
+ 
     if negotiation.state == 'owner_open':
         return Response('The questionnaire is submitted and cannot be edited.')
+    
+    if negotiation.state == 'completed':
+        return Response('The negotiation is completed and cannot be edited.')  
+
+    if negotiation.state == 'rejected':
+        return Response('The negotiation is rejected and cannot be edited.')         
 
     if request.method == 'POST':
         form = QuestionnaireForm(request.POST, instance=negotiation)
@@ -177,6 +222,12 @@ def fill_questionnaire(request, uuid):
 def owner_review(request, uuid):
     nlink = get_object_or_404(NLink, owner_link=uuid)
     negotiation = nlink.negotiation
+
+    if negotiation.state == 'requestor_open':
+        return Response('The questionnaire is requestor_open and cannot be edited by the owner.')
+
+    if negotiation.state == 'completed':
+        return Response('The negotiation is completed and cannot be edited.')    
 
     if request.method == 'POST':
         if 'save' in request.POST:
