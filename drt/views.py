@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.mail import send_mail
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.http import HttpResponseNotFound, JsonResponse
 from django.utils.crypto import get_random_string
 from django.core.cache import cache
@@ -8,14 +8,19 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.db import transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Requestor, NLink, Negotiation
+from .models import Requestor, NLink, Negotiation, Archive, SummaryStatistics
 from .forms import QuestionnaireForm
 import uuid
 import datetime
-
 import logging
+
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -300,3 +305,96 @@ def cancel_request(request, link_id):
 
 def generate_license_document(responses):
     return f"License Document:\n{responses}"
+
+
+
+# Archive a completed, canceled, or rejected negotiation.
+def archive_negotiation(negotiation):
+    Archive.objects.create(
+        negotiation=negotiation,
+        archived_data={
+            'requestor_responses': negotiation.requestor_responses,
+            'owner_responses': negotiation.owner_responses,
+            'comments': negotiation.comments,
+            'state': negotiation.state,
+        }
+    )  
+    negotiation.archived = True
+    negotiation.save()
+
+    # Construct the URL for archive negotiation
+    try:
+        archive_url = reverse('archive_negotiation', kwargs={'negotiation_id': negotiation.negotiation_id})
+        return JsonResponse({'archive_url': archive_url})
+    except NoReverseMatch as e:
+        logger.error(f"Reverse URL error: {e}")
+        return JsonResponse({'error': 'Invalid negotiation ID'}, status=400)    
+
+def export_summary_to_drt(negotiation):
+    datasets = (negotiation.requestor_responses or {}).get('datasets', [])
+    nlink = NLink.objects.get(negotiation=negotiation)
+    SummaryStatistics.objects.create(
+        owner_id=nlink,  
+        datasets_requested=datasets,
+        overall_stat={'responses_count': len(datasets)}
+    )
+    
+    print(f"Anonymized summary exported to DRT for negotiation {negotiation.negotiation_id}")
+
+
+
+# Delete negotiations older than one month.
+def delete_old_negotiations():
+    one_month_ago = timezone.now() - datetime.timedelta(days=30)
+    with transaction.atomic():
+        negotiations = Negotiation.objects.filter(
+            timestamps__lt=one_month_ago,
+            state__in=['completed', 'canceled', 'rejected'],
+            archived=True
+        )
+        negotiations.delete()
+    return JsonResponse({'message': 'Old negotiations deleted successfully'})
+
+# Generate anonymized statistics and archive if necessary.
+@receiver(post_save, sender=Negotiation)
+def generate_summary_statistics(sender, instance, **kwargs):
+    if instance.state in ['completed', 'canceled', 'rejected']:
+        # Export anonymized summary statistics to DRT
+        export_summary_to_drt(instance)
+
+        # Archive if not already archived
+        if not instance.archived:
+            archive_negotiation(instance)
+
+# View to manually trigger deletion of a negotiation's files, while retaining summary statistics
+def delete_negotiation_files(request, negotiation_id):
+    negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+    with transaction.atomic():
+        archive = Archive.objects.filter(negotiation=negotiation).first()
+        if archive:
+            archive.delete()
+        negotiation.delete()
+    return JsonResponse({'message': f'Negotiation {negotiation_id} deleted successfully'})
+
+# View to manually archive a negotiation
+def archive_view(request, negotiation_id):
+    negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+
+    if negotiation.state in ['completed', 'canceled', 'rejected']:
+        archive_negotiation(negotiation)
+        export_summary_to_drt(negotiation)
+        return JsonResponse({'message': f'Negotiation {negotiation_id} archived successfully'})
+    else:
+        return JsonResponse({'message': 'Only completed, canceled, or rejected negotiations can be archived'}, status=400)
+
+# View for displaying the list of negotiations for manual testing
+def negotiation_list(request):
+    negotiations = Negotiation.objects.all()
+    for negotiation in negotiations:
+        print(f"Negotiation ID: {negotiation.negotiation_id}")
+    return render(request, 'list.html', {'negotiations': negotiations})
+
+# View for deleting old negotiations manually
+def delete_old_negotiations_view(request):
+    delete_old_negotiations()
+    return JsonResponse({'message': 'Old negotiations have been deleted successfully'})

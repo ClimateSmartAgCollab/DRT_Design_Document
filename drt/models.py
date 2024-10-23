@@ -46,14 +46,21 @@ class Negotiation(models.Model):
     reminder_sent = models.BooleanField(default=False)
     questionnaire_SAID = models.CharField(max_length=255)
     timestamps = models.DateTimeField(auto_now_add=True)
+    archived = models.BooleanField(default=False)
 
 class Archive(models.Model):
-    negotiation = models.ForeignKey(Negotiation, on_delete=models.CASCADE)
+    negotiation = models.OneToOneField(Negotiation, on_delete=models.CASCADE)
     archived_timestamp = models.DateTimeField(auto_now_add=True)
     archived_data = models.JSONField()
 
+    def __str__(self):
+        return f"Archived Negotiation: {self.negotiation_id}"    
+
 class SummaryStatistics(models.Model):
-    owner_id = models.CharField(max_length=255)
+    owner_id = models.ForeignKey(NLink, on_delete=models.CASCADE)
     summary_date = models.DateTimeField(auto_now_add=True)
     datasets_requested = models.JSONField()
     overall_stat = models.JSONField()
+
+    def __str__(self):
+        return f"Statistics for Owner: {self.owner_id} on {self.summary_date}"
