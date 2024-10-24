@@ -31,7 +31,10 @@ def load_github_data(request):
         owner_table = {}  
         reader = csv.DictReader(io.StringIO(owner_table_csv))
         for row in reader:
-            owner_table[row['username']] = row['owner_email']
+            owner_table[row['owner_id']] = {
+                'username': row['username'],
+                'owner_email': row['owner_email']
+            }
         cache.set('owner_table', owner_table, timeout=86400)  # Cache for 1 day
 
     if link_table_csv:

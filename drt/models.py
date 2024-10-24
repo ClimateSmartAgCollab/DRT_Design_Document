@@ -16,7 +16,7 @@ class NLink(models.Model):
     requestor_email = models.EmailField(null=True, blank=True)
     requestor_link = models.UUIDField(default=uuid.uuid4, editable=False)
     owner_link = models.UUIDField(default=uuid.uuid4, editable=False)
-    state = models.CharField(max_length=50, default='requestor_open')
+    # state = models.CharField(max_length=50, default='requestor_open')
     expiration_date = models.DateTimeField(default=default_expiration_date)
     last_activity = models.DateTimeField(auto_now=True)
 
@@ -54,7 +54,8 @@ class Archive(models.Model):
     archived_data = models.JSONField()
 
     def __str__(self):
-        return f"Archived Negotiation: {self.negotiation_id}"    
+        return f"Archived Negotiation: {self.negotiation}" 
+      
 
 class SummaryStatistics(models.Model):
     owner_id = models.ForeignKey(NLink, on_delete=models.CASCADE)
