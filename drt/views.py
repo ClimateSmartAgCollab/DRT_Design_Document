@@ -201,7 +201,8 @@ def fill_questionnaire(request, uuid):
                     [nlink.requestor_email]
                 )
 
-                owner_email = nlink.owner_id
+                owner_table = cache.get("owner_table")
+                owner_email = owner_table[nlink.owner_id]["owner_email"]
 
                 owner_review_url = request.build_absolute_uri(
                     reverse('owner_review', kwargs={'uuid': nlink.owner_link})

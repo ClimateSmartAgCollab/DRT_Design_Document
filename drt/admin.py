@@ -9,9 +9,9 @@ class RequestorAdmin(admin.ModelAdmin):
 
 @admin.register(NLink)
 class NLinkAdmin(admin.ModelAdmin):
-    list_display = ('link_id', 'owner_id', 'license_id', 'state', 'expiration_date', 'last_activity')
+    list_display = ('link_id', 'owner_id', 'license_id', 'expiration_date', 'last_activity')
     search_fields = ('owner_id', 'license_id', 'requestor_email')
-    list_filter = ('state', 'expiration_date')
+    list_filter = ('expiration_date',)
 
 @admin.register(Negotiation)
 class NegotiationAdmin(admin.ModelAdmin):
