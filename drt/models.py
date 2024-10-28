@@ -57,7 +57,7 @@ class Archive(models.Model):
         return f"Archived Negotiation: {self.negotiation}" 
       
 
-class SummaryStatistics(models.Model):
+class SummaryStatistic(models.Model):
     owner_id = models.ForeignKey(NLink, on_delete=models.CASCADE)
     summary_date = models.DateTimeField(auto_now_add=True)
     datasets_requested = models.JSONField()

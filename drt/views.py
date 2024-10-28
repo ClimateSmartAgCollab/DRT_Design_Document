@@ -5,15 +5,18 @@ from django.http import HttpResponseNotFound, JsonResponse
 from django.utils.crypto import get_random_string
 from django.core.cache import cache
 from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db import transaction
 from django.db.models.signals import post_save
+from django.db.models import Avg, Count, F, Q
+from django.utils.translation import gettext_lazy as _
 from django.dispatch import receiver
 from rest_framework.decorators import api_view
+from django.contrib.auth.decorators import login_required
 from rest_framework.response import Response
-from .models import Requestor, NLink, Negotiation, Archive, SummaryStatistics
+from .models import Requestor, NLink, Negotiation, Archive, SummaryStatistic
 from .forms import QuestionnaireForm
 import uuid
 import datetime
@@ -262,18 +265,25 @@ def owner_review(request, uuid):
     return render(request, 'owner_review.html', {'negotiation': negotiation})
 
 
+
+
+# def generate_license_document(responses):
+#     return f"License Document:\n{responses}"
+
+
 def generate_license_and_notify_owner(nlink):
-    # negotiation = nlink.negotiation
-    
     negotiation = nlink.negotiation
 
-    license_content = generate_license_document(negotiation.requestor_responses)
+    owner_table = cache.get("owner_table")
+    owner_email = owner_table[nlink.owner_id]["owner_email"]    
+
+    # license_content = generate_license_document(negotiation.requestor_responses)
     
     send_mail(
         'Your License Agreement',
         f'Please review the attached license agreement.\nRequestor Email: {nlink.requestor_email}',
         'noreply@dart-system.com',
-        [nlink.owner_id],
+        [owner_email],
         # attachments=[license_content]
     )
 
@@ -288,29 +298,41 @@ def send_clarification_email(requestor_email, link_id):
     )
 
 
-@api_view(['POST'])
-def cancel_request(request, link_id):
-    nlink = get_object_or_404(NLink, requestor_link=link_id)
-    negotiation = nlink.negotiation
-    negotiation.state = 'canceled'
-    negotiation.save()
+# @api_view(['POST'])
+# def cancel_request(request, link_id):
+#     nlink = get_object_or_404(NLink, requestor_link=link_id)
+#     negotiation = nlink.negotiation
+#     negotiation.state = 'canceled'
+#     negotiation.save()
 
-    send_mail(
-        'Request Canceled',
-        'The requestor has canceled the data request.',
-        'noreply@dart-system.com',
-        [nlink.owner_id]
-    )
-    return JsonResponse({'message': 'Request canceled successfully!'})
-
-
-def generate_license_document(responses):
-    return f"License Document:\n{responses}"
+#     send_mail(
+#         'Request Canceled',
+#         'The requestor has canceled the data request.',
+#         'noreply@dart-system.com',
+#         [nlink.owner_id]
+#     )
+#     return JsonResponse({'message': 'Request canceled successfully!'})
 
 
 
-# Archive a completed, canceled, or rejected negotiation.
+
+# Utility function to handle archiving and exporting statistics
+def handle_negotiation_archive_and_summary(negotiation):
+    """Archives the negotiation and exports summary statistics."""
+    try:
+        with transaction.atomic():
+            export_summary_to_drt(negotiation)
+            if not negotiation.archived:
+                archive_negotiation(negotiation)
+    except Exception as e:
+        logger.error(f"Error processing negotiation {negotiation.negotiation_id}: {e}")
+        return JsonResponse({'error': _('An error occurred while processing negotiation.')}, status=500)
+    return JsonResponse({'message': _('Negotiation processed successfully')})
+
+
+# Archive a negotiation
 def archive_negotiation(negotiation):
+    """Archive the negotiation and save relevant data."""
     Archive.objects.create(
         negotiation=negotiation,
         archived_data={
@@ -319,83 +341,158 @@ def archive_negotiation(negotiation):
             'comments': negotiation.comments,
             'state': negotiation.state,
         }
-    )  
+    )
     negotiation.archived = True
     negotiation.save()
 
-    # Construct the URL for archive negotiation
     try:
         archive_url = reverse('archive_negotiation', kwargs={'negotiation_id': negotiation.negotiation_id})
         return JsonResponse({'archive_url': archive_url})
     except NoReverseMatch as e:
-        logger.error(f"Reverse URL error: {e}")
-        return JsonResponse({'error': 'Invalid negotiation ID'}, status=400)    
+        logger.error(f"Reverse URL error for negotiation {negotiation.negotiation_id}: {e}")
+        return JsonResponse({'error': _('Invalid negotiation ID')}, status=400)
 
+# Export summary statistics to DaRT system
 def export_summary_to_drt(negotiation):
-    datasets = (negotiation.requestor_responses or {}).get('datasets', [])
-    nlink = NLink.objects.get(negotiation=negotiation)
-    SummaryStatistics.objects.create(
-        owner_id=nlink,  
-        datasets_requested=datasets,
-        overall_stat={'responses_count': len(datasets)}
-    )
-    
-    print(f"Anonymized summary exported to DRT for negotiation {negotiation.negotiation_id}")
+    """Collect and store anonymized, aggregated summary statistics."""
+    try:
+        # Fetch the related NLink object and extract the dataset_ID
+        nlink = NLink.objects.get(negotiation=negotiation)
+        datasets = [nlink.dataset_ID]  # Store dataset_ID in a list
+        if not datasets:
+            logger.warning(f"No dataset_ID found for negotiation {negotiation.negotiation_id}")
 
+        # Aggregating key statistics across negotiations
+        aggregated_stats = (
+            Negotiation.objects
+            .filter(state__in=['completed', 'canceled', 'rejected'])
+            .aggregate(
+                total_requests=Count('negotiation_id'),
+                accepted_requests=Count('negotiation_id', filter=Q(state='completed')),
+                rejected_requests=Count('negotiation_id', filter=Q(state='rejected')),
+                average_response_time=Avg(F('timestamps') - F('timestamps'))
+            )
+        )
 
+        # Collect anonymized requestor domains from NLink model
+        requestor_domains = (
+            NLink.objects
+            .values(domain=F('requestor_email'))
+            .annotate(request_count=Count('negotiation'))
+        )
 
-# Delete negotiations older than one month.
+        # Convert datetime objects to strings for JSON serialization
+        summary_data = {
+            'owner_id': nlink,
+            'datasets_requested': datasets,
+            'overall_stat': {
+                'total_requests': aggregated_stats['total_requests'],
+                'accepted_requests': aggregated_stats['accepted_requests'],
+                'rejected_requests': aggregated_stats['rejected_requests'],
+                'average_response_time': str(aggregated_stats['average_response_time']),
+                'requestor_domains': {
+                    entry['domain']: entry['request_count'] for entry in requestor_domains
+                },
+                'generated_at': timezone.now().isoformat()  # Convert datetime to ISO 8601 string
+            }
+        }
+
+        # Create a SummaryStatistics instance
+        SummaryStatistic.objects.create(**summary_data)
+
+        logger.info(f"Summary statistics exported for negotiation {negotiation.negotiation_id}")
+
+    except NLink.DoesNotExist:
+        logger.error(f"NLink not found for negotiation {negotiation.negotiation_id}")
+    except Exception as e:
+        logger.error(f"Failed to export summary statistics: {e}")
+
+# Delete old negotiations
 def delete_old_negotiations():
-    one_month_ago = timezone.now() - datetime.timedelta(days=30)
+    """Delete negotiations older than 30 days."""
+    cutoff_date = timezone.now() - datetime.timedelta(days=30)
     with transaction.atomic():
         negotiations = Negotiation.objects.filter(
-            timestamps__lt=one_month_ago,
+            timestamps__lt=cutoff_date,
             state__in=['completed', 'canceled', 'rejected'],
             archived=True
         )
+        count = negotiations.count()
         negotiations.delete()
-    return JsonResponse({'message': 'Old negotiations deleted successfully'})
+    return JsonResponse({'message': _('Old negotiations deleted successfully'), 'deleted_count': count})
 
-# Generate anonymized statistics and archive if necessary.
 @receiver(post_save, sender=Negotiation)
 def generate_summary_statistics(sender, instance, **kwargs):
+    """Generate summary statistics and archive negotiation upon state change."""
     if instance.state in ['completed', 'canceled', 'rejected']:
-        # Export anonymized summary statistics to DRT
-        export_summary_to_drt(instance)
+        handle_negotiation_archive_and_summary(instance)
 
-        # Archive if not already archived
-        if not instance.archived:
-            archive_negotiation(instance)
-
-# View to manually trigger deletion of a negotiation's files, while retaining summary statistics
+# Manually delete a negotiation's files and archive entry
 def delete_negotiation_files(request, negotiation_id):
+    """Delete a negotiation's files and corresponding archive."""
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
     with transaction.atomic():
         archive = Archive.objects.filter(negotiation=negotiation).first()
         if archive:
             archive.delete()
         negotiation.delete()
-    return JsonResponse({'message': f'Negotiation {negotiation_id} deleted successfully'})
+    return JsonResponse({'message': _('Negotiation %(id)s deleted successfully') % {'id': negotiation_id}})
 
-# View to manually archive a negotiation
+
+# Manually archive a negotiation
 def archive_view(request, negotiation_id):
+    """Manually archive a negotiation if it meets the required state."""
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
-
     if negotiation.state in ['completed', 'canceled', 'rejected']:
-        archive_negotiation(negotiation)
-        export_summary_to_drt(negotiation)
-        return JsonResponse({'message': f'Negotiation {negotiation_id} archived successfully'})
+        return handle_negotiation_archive_and_summary(negotiation)
     else:
-        return JsonResponse({'message': 'Only completed, canceled, or rejected negotiations can be archived'}, status=400)
+        return JsonResponse(
+            {'message': _('Only completed, canceled, or rejected negotiations can be archived')}, status=400
+        )
 
-# View for displaying the list of negotiations for manual testing
+# View to display a list of negotiations
 def negotiation_list(request):
+    """Display a list of all negotiations."""
     negotiations = Negotiation.objects.all()
-    for negotiation in negotiations:
-        print(f"Negotiation ID: {negotiation.negotiation_id}")
     return render(request, 'list.html', {'negotiations': negotiations})
 
-# View for deleting old negotiations manually
+# Manually trigger deletion of old negotiations
 def delete_old_negotiations_view(request):
-    delete_old_negotiations()
-    return JsonResponse({'message': 'Old negotiations have been deleted successfully'})
+    """Manually trigger the deletion of old negotiations."""
+    return delete_old_negotiations()
+
+
+@receiver(post_save, sender=Negotiation)
+def generate_summary_statistics(sender, instance, **kwargs):
+    """Auto-archive and export statistics when a negotiation is completed, canceled, or rejected."""
+    if instance.state in ['completed', 'canceled', 'rejected'] and not instance.archived:
+        handle_negotiation_archive_and_summary(instance)
+
+
+@login_required
+def summary_statistics_view(request, owner_id):
+    """Endpoint for retrieving summary statistics based on the provided owner_id (string)."""
+    try:
+        # Retrieve summary statistics using the string `owner_id`
+        summary_statistics = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)  # Adjust if owner_id is the field in NLink
+
+        # If no statistics found, return an error
+        if not summary_statistics.exists():
+            return JsonResponse({'error': 'Owner statistics not found.'}, status=404)
+
+        # Serialize the summary data
+        statistics_data = [
+            {
+                'dataset_id': stat.datasets_requested,
+                'total_requests': stat.overall_stat.get('total_requests', 0),
+                'accepted_requests': stat.overall_stat.get('accepted_requests', 0),
+                'rejected_requests': stat.overall_stat.get('rejected_requests', 0),
+                'average_response_time': stat.overall_stat.get('average_response_time', 'N/A'),
+                'generated_at': stat.summary_date.isoformat()
+            }
+            for stat in summary_statistics
+        ]
+        return JsonResponse({'summary_statistics': statistics_data})
+
+    except ObjectDoesNotExist:
+        return JsonResponse({'error': 'Owner statistics not found.'}, status=404)

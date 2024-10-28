@@ -15,6 +15,8 @@ urlpatterns = [
     path('negotiations/', views.negotiation_list, name='negotiation_list'),  # Display all negotiations
     path('negotiations/archive/<uuid:negotiation_id>/', views.archive_view, name='archive_negotiation'),  # Archive a negotiation
     path('negotiations/delete/<uuid:negotiation_id>/', views.delete_negotiation_files, name='delete_negotiation_files'),  # Delete negotiation files
-    path('negotiations/delete-old/', views.delete_old_negotiations_view, name='delete_old_negotiations'),  # Delete old negotiations
+    path('negotiations/delete-old/', views.delete_old_negotiations_view, name='delete_old_negotiations'), 
+    path('summary-statistics/<str:owner_id>/', views.summary_statistics_view, name='summary_statistics'),
+
 
 ]

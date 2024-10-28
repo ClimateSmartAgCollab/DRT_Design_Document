@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Requestor, NLink, Negotiation, Archive, SummaryStatistics
+from .models import Requestor, NLink, Negotiation, Archive, SummaryStatistic
 
 @admin.register(Requestor)
 class RequestorAdmin(admin.ModelAdmin):
@@ -26,8 +26,8 @@ class ArchiveAdmin(admin.ModelAdmin):
     search_fields = ('negotiation__negotiation_id',)
     list_filter = ('archived_timestamp',)
     
-@admin.register(SummaryStatistics)
-class SummaryStatisticsAdmin(admin.ModelAdmin):
+@admin.register(SummaryStatistic)
+class SummaryStatisticAdmin(admin.ModelAdmin):
     list_display = ('owner_id', 'summary_date')
     search_fields = ('owner_id__owner_id', 'summary_date')
     list_filter = ('summary_date',)
