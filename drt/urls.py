@@ -19,4 +19,5 @@ urlpatterns = [
     path('summary-statistics/<str:owner_id>/', views.summary_statistics_view, name='summary_statistics'),
 
 
+    path('api/data/', views.get_data),
 ]

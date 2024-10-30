@@ -25,6 +25,13 @@ import logging
 
 
 
+@api_view(['GET'])
+def get_data(request):
+    data = {'message': 'Hello from Django!'}
+    return Response(data)
+
+
+
 logger = logging.getLogger(__name__)
 
 
