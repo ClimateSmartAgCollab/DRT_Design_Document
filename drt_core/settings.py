@@ -55,10 +55,13 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
 ]
 
+# Allow CORS from the frontend's origin
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    'http://localhost:3000',  # Frontend origin
 ]
 
+# Allow credentials (cookies) to be sent in CORS requests
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'drt_core.urls'
 

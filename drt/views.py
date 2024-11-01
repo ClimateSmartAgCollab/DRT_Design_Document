@@ -35,7 +35,8 @@ def get_data(request):
 logger = logging.getLogger(__name__)
 
 
-@api_view()
+@csrf_exempt
+@api_view(['GET'])
 def generate_nlinks(request, link_id):
     link_table = cache.get('link_table')
     if not link_table:
@@ -69,9 +70,12 @@ def generate_nlinks(request, link_id):
     )
 
 
-    # Redirect the requestor to the email entry page
-    return redirect('requestor_email_entry', link_id=requestor_link_id)
-
+    # # Redirect the requestor to the email entry page
+    # return redirect('requestor_email_entry', link_id=requestor_link_id)
+    # Instead of redirecting, return the requestor_link_id as JSON
+    return JsonResponse({
+        'requestor_link_id': str(requestor_link_id)
+    })
 
 @csrf_exempt
 @api_view(['GET', 'POST'])
