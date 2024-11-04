@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import api from '@/app/api/apiHelper';
+import fetchApi from '@/app/api/apiHelper';
 
 const GenerateLinkPage = () => {
   const router = useRouter();
@@ -12,15 +12,26 @@ const GenerateLinkPage = () => {
 
   const generateLink = async () => {
     try {
-      // Call the Django backend to generate the link
-      const response = await api.get(`/generate_nlinks/${link_id}/`);
+      // Make the API call using fetchApi
+      const response = await fetchApi(`/generate_nlinks/${link_id}/`, {
+        method: 'GET',
+      });
 
-      // Check for `requestor_link_id` in the response
-      if (response.data && response.data.requestor_link_id) {
-        const requestorLinkId = response.data.requestor_link_id;
-        router.push(`/negotiation/${requestorLinkId}/email-entry`);
+      // Check if the response was successful
+      if (response.ok) {
+        const data = await response.json();
+
+        // Check for `requestor_link_id` in the parsed JSON response
+        if (data && data.requestor_link_id) {
+          const requestorLinkId = data.requestor_link_id;
+          router.push(`/negotiation/${requestorLinkId}/email-entry`);
+        } else {
+          throw new Error('Invalid response format or missing requestor_link_id');
+        }
       } else {
-        throw new Error('Invalid response format or missing requestor_link_id');
+        // Parse the JSON error message if response is not ok
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to generate link. Please try again later.');
       }
     } catch (err) {
       console.error('Error during link generation:', err);

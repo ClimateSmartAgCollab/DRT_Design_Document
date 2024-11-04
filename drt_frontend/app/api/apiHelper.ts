@@ -1,12 +1,28 @@
 // app/api/apiHelper.ts
-import axios from 'axios';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/drt';
 
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/drt', // Django backend URL
-  withCredentials: true, // Include cookies if required by Django
-  validateStatus: function (status) {
-    return status < 500; // Resolve only if the status code is less than 500
-  },
-});
+const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
+  const url = `${baseURL}${endpoint}`;
+  
+  const defaultOptions: RequestInit = {
+    credentials: 'include', // Includes cookies for cross-origin requests
+    ...options,
+  };
 
-export default api;
+  try {
+    const response = await fetch(url, defaultOptions);
+
+    // Validate status (similar to axios's `validateStatus` function)
+    if (response.status >= 500) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
+    return response; // Return raw response to handle in calling function
+  } catch (error) {
+    // Handle fetch errors
+    console.error('Fetch API error:', error);
+    throw error;
+  }
+};
+
+export default fetchApi;

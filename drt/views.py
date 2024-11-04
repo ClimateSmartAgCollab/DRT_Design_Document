@@ -14,6 +14,7 @@ from django.db.models import Avg, Count, F, Q
 from django.utils.translation import gettext_lazy as _
 from django.dispatch import receiver
 from rest_framework.decorators import api_view
+from rest_framework import status
 from django.contrib.auth.decorators import login_required
 from rest_framework.response import Response
 from .models import Requestor, NLink, Negotiation, Archive, SummaryStatistic
@@ -81,59 +82,60 @@ def generate_nlinks(request, link_id):
 @api_view(['GET', 'POST'])
 def requestor_email_entry(request, link_id):
     if request.method == 'POST':
-        email = request.POST.get('email')
+        email = request.data.get('email')  # Use request.data for JSON
 
         # Validate the email format
         try:
             validate_email(email)
         except ValidationError:
-            # Email format is invalid, re-render the form with an error message
-            return render(request, 'email_entry.html', {
-                'link_id': link_id,
-                'error_message': 'Please enter a valid email address.'
-            })
-        
+            # Email format is invalid, respond with error message
+            return Response({'error': 'Please enter a valid email address.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        otp = get_random_string(6, '0123456789')  # Generate 6-digit OTP
+        # Generate a 6-digit OTP
+        otp = get_random_string(6, '0123456789')
 
-        # Store requestor email and OTP in DB
+        # Store the requestor's email and OTP in the database
         requestor = Requestor.objects.create(
             requestor_email=email,
             otp=otp,
-            otp_expiry= timezone.now() + datetime.timedelta(minutes=10), 
-            is_verified=False  # Not verified yet
+            otp_expiry=timezone.now() + datetime.timedelta(minutes=10), 
+            is_verified=False
         )
 
-        # Update the NLink with the requestor email
-        nlink = NLink.objects.get(requestor_link=link_id)
-        nlink.requestor_email = email
-        nlink.save()
+        # Update the NLink object with the requestor's email
+        try:
+            nlink = NLink.objects.get(requestor_link=link_id)
+            nlink.requestor_email = email
+            nlink.save()
+        except NLink.DoesNotExist:
+            return Response({'error': 'Invalid link ID provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Simulate sending OTP (for now, just print it)
         print(f"OTP sent to {email}: {otp}")
 
-        # Redirect to the OTP verification page
+        # Redirect URL for OTP verification
         otp_verification_url = reverse('verify_otp', kwargs={'link_id': link_id})
-        return redirect(otp_verification_url)
+        return Response({'redirect_url': otp_verification_url})
 
-    return render(request, 'email_entry.html', {'link_id': link_id})
+    return Response({'error': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
 @api_view(['GET', 'POST'])
 def verify_otp(request, link_id):
     if request.method == 'POST':
-        otp = request.POST.get('otp')
+        otp = request.data.get('otp')  # Use request.data for JSON
 
+        # Retrieve the requestor details based on link ID
         try:
             nlink = NLink.objects.get(requestor_link=link_id)
             requestor = Requestor.objects.get(requestor_email=nlink.requestor_email)
         except (NLink.DoesNotExist, Requestor.DoesNotExist):
-            return Response({'error': 'Invalid request'}, status=400)
+            return Response({'error': 'Invalid request. Link ID or email not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if OTP has expired
         if timezone.now() > requestor.otp_expiry:
-            # OTP has expired, generate a new one
+            # OTP has expired, generate and send a new one
             new_otp = get_random_string(6, '0123456789')
             requestor.otp = new_otp
             requestor.otp_expiry = timezone.now() + datetime.timedelta(minutes=10)
@@ -142,29 +144,22 @@ def verify_otp(request, link_id):
             # Simulate sending new OTP (for now, just print it)
             print(f"New OTP sent to {requestor.requestor_email}: {new_otp}")
 
-            return render(request, 'otp_verification.html', {
-                'link_id': link_id,
-                'error_message': 'OTP expired. A new OTP has been sent to your email.'
-            })
+            return Response({'error': 'OTP expired. A new OTP has been sent to your email.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if the provided OTP is correct
         if requestor.otp == otp:
             requestor.is_verified = True
-            requestor.otp_expiry = timezone.now()  # Clear the OTP expiration
+            requestor.otp_expiry = timezone.now()  # Clear OTP expiration
             requestor.save()
 
-            # Redirect to the request_access view with the link_id
+            # Redirect to the access request page with the link ID
             access_url = reverse('request_access', kwargs={'link_id': link_id})
-            return redirect(access_url)
+            return Response({'redirect_url': access_url})
+        else:
+            # OTP is incorrect, prompt to re-enter a valid OTP
+            return Response({'error': 'Invalid OTP. Please enter the correct OTP.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # If OTP is incorrect, show error message
-        return render(request, 'otp_verification.html', {
-            'link_id': link_id,
-            'error_message': 'Invalid OTP. Please try again.'
-        })
-
-    return render(request, 'otp_verification.html', {'link_id': link_id})
-
+    return Response({'error': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @api_view()
