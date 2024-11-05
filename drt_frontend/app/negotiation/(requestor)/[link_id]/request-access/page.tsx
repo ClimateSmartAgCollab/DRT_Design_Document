@@ -8,20 +8,16 @@ import fetchApi from '@/app/api/apiHelper';
 const RequestAccessPage = () => {
   const [accessLink, setAccessLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { link_id } = useParams(); // Access `link_id` with `useParams`
+  const { link_id } = useParams();
 
   useEffect(() => {
     const fetchAccessLink = async () => {
       try {
-        // Make the API call using fetchApi
         const response = await fetchApi(`/request_access/${link_id}/`);
-
         if (response.ok) {
-          // Parse JSON response if successful
           const data = await response.json();
-          setAccessLink(data.link);
+          setAccessLink(`/negotiation/${link_id}/fill-questionnaire`);
         } else {
-          // Parse error message if response is not ok
           const errorData = await response.json();
           setError(errorData.error || 'Failed to load access link.');
         }
@@ -30,7 +26,6 @@ const RequestAccessPage = () => {
         setError('Failed to load access link.');
       }
     };
-
     fetchAccessLink();
   }, [link_id]);
 
@@ -41,7 +36,7 @@ const RequestAccessPage = () => {
         {error ? (
           <p className="text-red-500">{error}</p>
         ) : accessLink ? (
-          <p>
+          <p className="text-gray-700">
             You can now proceed to the questionnaire at: <br />
             <a href={accessLink} className="text-blue-500 underline">
               {accessLink}

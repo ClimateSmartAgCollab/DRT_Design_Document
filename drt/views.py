@@ -177,39 +177,61 @@ def request_access(request, link_id):
     return Response({'status': 'Link sent successfully!', 'link': questionnaire_url})
 
 
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
+from django.shortcuts import get_object_or_404
+from .models import NLink
+from .forms import QuestionnaireForm
+from django.core.mail import send_mail
+
 @csrf_exempt
 @api_view(['GET', 'POST'])
 def fill_questionnaire(request, uuid):
     nlink = get_object_or_404(NLink, requestor_link=uuid)
     negotiation = nlink.negotiation
- 
-    if negotiation.state == 'owner_open':
-        return Response('The questionnaire is submitted and cannot be edited.')
-    
-    if negotiation.state == 'completed':
-        return Response('The negotiation is completed and cannot be edited.')  
 
-    if negotiation.state == 'rejected':
-        return Response('The negotiation is rejected and cannot be edited.')         
+    # Handle questionnaire submission state checks
+    if negotiation.state in ['owner_open', 'completed', 'rejected']:
+        state_messages = {
+            'owner_open': 'The questionnaire is submitted and cannot be edited.',
+            'completed': 'The negotiation is completed and cannot be edited.',
+            'rejected': 'The negotiation is rejected and cannot be edited.'
+        }
+        return JsonResponse({'error': state_messages[negotiation.state]}, status=400)
 
+    # Handle POST request for saving/submitting the questionnaire
     if request.method == 'POST':
-        form = QuestionnaireForm(request.POST, instance=negotiation)
+        # Parse JSON data from the request body
+        try:
+            data = json.loads(request.body)
+            print("Received data:", data)  # Log received data for debugging
+        except json.JSONDecodeError:
+            print("JSON decode error")
+            return JsonResponse({'error': 'Invalid JSON data provided.'}, status=400)
+
+        print("Data for form:", data)
+        # Update the form with the parsed JSON data
+        form = QuestionnaireForm(data, instance=negotiation)
+
+        
         if form.is_valid():
-            if 'save' in request.POST:
+            if data.get('save'):
                 form.save()
-                return Response('Questionnaire saved successfully!')
-            
-            elif 'submit' in request.POST:
+                return JsonResponse({'message': 'Questionnaire saved successfully!'})
+
+            elif data.get('submit'):
                 negotiation.state = 'owner_open'
                 form.save()
 
+                # Send confirmation to requestor and notification to owner
                 send_mail(
                     'Your Data Request Submission Confirmation',
                     f'Your request has been submitted successfully.\n\nSubmission Details:\n{negotiation.requestor_responses}',
                     'noreply@dart-system.com',
                     [nlink.requestor_email]
                 )
-
                 owner_table = cache.get("owner_table")
                 owner_email = owner_table[nlink.owner_id]["owner_email"]
 
@@ -224,53 +246,70 @@ def fill_questionnaire(request, uuid):
                 )
 
                 negotiation.save()
-                return Response('Questionnaire submitted successfully!')
+                return JsonResponse({'message': 'Questionnaire submitted successfully!'})
+
+        # Respond with form errors if validation fails
+        return JsonResponse({'errors': form.errors}, status=400)
 
     else:
-        # Initialize the form with existing negotiation data
+        # For GET requests, return the current negotiation data in JSON format
         form = QuestionnaireForm(instance=negotiation)
+        form_data = {field.name: field.value() for field in form}
+        return JsonResponse({'formData': form_data})
 
-    return render(request, 'fill_questionnaire.html', {'form': form})
-
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from django.shortcuts import get_object_or_404
 
 @api_view(['GET', 'POST'])
 def owner_review(request, uuid):
     nlink = get_object_or_404(NLink, owner_link=uuid)
     negotiation = nlink.negotiation
 
-    if negotiation.state == 'requestor_open':
-        return Response('The questionnaire is requestor_open and cannot be edited by the owner.')
+    # Handle GET request and return JSON data
+    if request.method == 'GET':
+        if negotiation.state == 'requestor_open':
+            return Response({'error': 'The questionnaire is requestor_open and cannot be edited by the owner.'}, status=403)
 
-    if negotiation.state == 'completed':
-        return Response('The negotiation is completed and cannot be edited.')    
+        if negotiation.state == 'completed':
+            return Response({'error': 'The negotiation is completed and cannot be edited.'}, status=403)
 
+        # Return negotiation details as JSON
+        return Response({
+            'owner_responses': negotiation.owner_responses,
+            'comments': negotiation.comments,
+            'requestor_responses': negotiation.requestor_responses,
+            'state': negotiation.state,
+        })
+
+    # Handle POST requests for different actions
     if request.method == 'POST':
-        if 'save' in request.POST:
-            negotiation.owner_responses = request.POST.get('owner_responses')
-            negotiation.comments = request.POST.get('comments')
+        data = request.data  # Use `request.data` to access JSON body
+
+        if 'save' in data:
+            negotiation.owner_responses = data.get('owner_responses', '')
+            negotiation.comments = data.get('comments', '')
             negotiation.save()
             return Response({'message': 'Review saved successfully!'})
 
-        elif 'request_clarification' in request.POST:
+        elif 'request_clarification' in data:
             negotiation.state = 'requestor_open'
             send_clarification_email(nlink.requestor_email, nlink.link_id)
             negotiation.save()
             return Response({'message': 'Clarification requested!'})
 
-        elif 'accept' in request.POST:
+        elif 'accept' in data:
             negotiation.state = 'completed'
             negotiation.save()
             generate_license_and_notify_owner(nlink)
             return Response({'message': 'Request accepted, license generated!'})
 
-        elif 'reject' in request.POST:
+        elif 'reject' in data:
             negotiation.state = 'rejected'
             negotiation.save()
             return Response({'message': 'Request rejected!'})
 
-    return render(request, 'owner_review.html', {'negotiation': negotiation})
-
-
+        return Response({'error': 'Invalid action.'}, status=400)
 
 
 # def generate_license_document(responses):
