@@ -22,6 +22,7 @@ from .forms import QuestionnaireForm
 import uuid
 import datetime
 import logging
+import json
 
 
 
@@ -177,15 +178,6 @@ def request_access(request, link_id):
     return Response({'status': 'Link sent successfully!', 'link': questionnaire_url})
 
 
-import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.decorators import api_view
-from django.shortcuts import get_object_or_404
-from .models import NLink
-from .forms import QuestionnaireForm
-from django.core.mail import send_mail
-
 @csrf_exempt
 @api_view(['GET', 'POST'])
 def fill_questionnaire(request, uuid):
@@ -251,15 +243,17 @@ def fill_questionnaire(request, uuid):
         # Respond with form errors if validation fails
         return JsonResponse({'errors': form.errors}, status=400)
 
+    # else:
+    #     # For GET requests, return the current negotiation data in JSON format
+    #     form = QuestionnaireForm(instance=negotiation)
+    #     form_data = {field.name: field.value() for field in form}
+    #     return JsonResponse({'formData': form_data})
     else:
-        # For GET requests, return the current negotiation data in JSON format
-        form = QuestionnaireForm(instance=negotiation)
-        form_data = {field.name: field.value() for field in form}
-        return JsonResponse({'formData': form_data})
+        # For GET requests, retrieve the cached JSON data
+        sample_questionnaire = cache.get("sample_questionnaire_package")
+        return JsonResponse({'questionnaire': sample_questionnaire})
 
-from rest_framework.response import Response
-from rest_framework.decorators import api_view
-from django.shortcuts import get_object_or_404
+
 
 @api_view(['GET', 'POST'])
 def owner_review(request, uuid):

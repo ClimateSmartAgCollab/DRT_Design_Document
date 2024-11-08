@@ -1,0 +1,319 @@
+{
+  "d": "############################################",
+  "type": "oca_package/1.0",
+  "oca_bundle": {
+    "bundle": {
+      "v": "OCAM10JSON001587_",
+      "d": "EA52Mi2ShXGYN2BCMsJkW6L7Xy15yKIOZweBMJEojQto",
+      "capture_base": {
+        "d": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+        "type": "spec/capture_base/1.0",
+        "classification": "RDF509",
+        "attributes": {
+          "q1": "Text",
+          "q2": "DateTime",
+          "q3": "Numeric",
+          "q4": [
+            "Text"
+          ],
+          "q5": "Boolean",
+          "q6": "Text"
+        },
+        "flagged_attributes": []
+      },
+      "overlays": {
+        "character_encoding": {
+          "d": "EPaNiO1QfOV7BAL5iswIgpo44Tx7CvMltQmb7cPyLaWc",
+          "type": "spec/overlays/character_encoding/1.0",
+          "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+          "attribute_character_encoding": {
+            "q1": "utf-8",
+            "q2": "utf-8",
+            "q3": "utf-8",
+            "q4": "utf-8",
+            "q5": "utf-8",
+            "q6": "utf-8"
+          }
+        },
+        "format": {
+          "d": "EAUXysu-a1JKPzD6xa-4uBtfRYlaHP_GCaATRIVSIPqg",
+          "type": "spec/overlays/format/1.0",
+          "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+          "attribute_formats": {
+            "q1": "^[A-Za-z]{1,50}$",
+            "q2": "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$",
+            "q3": "^-?[0-9]+$",
+            "q4": "^[A-Z]*$",
+            "q6": "^.{0,800}$"
+          }
+        },
+        "meta": [
+          {
+            "d": "EBRoKW6GhOHgCry6FxepsDUM-5214KruSmbQ1UANz9s3",
+            "language": "eng",
+            "type": "spec/overlays/meta/1.0",
+            "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+            "description": "A sample questionnaire for the development of the DRT.",
+            "name": "sample_questionnaire"
+          },
+          {
+            "d": "EKJNqrTyB7hljkcTa8Nc1DOr1CVmcXGCxVCWvunO_l0-",
+            "language": "fra",
+            "type": "spec/overlays/meta/1.0",
+            "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+            "description": "Un exemple de questionnaire pour le développement du DRT.",
+            "name": "exemple_de_questionnaire"
+          }
+        ],
+        "label": [
+          {
+            "d": "EITrabT4GWIIU2lgnw5KcrEAjC7ZFzW3qbU5GO-w6v-z",
+            "language": "eng",
+            "type": "spec/overlays/label/1.0",
+            "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+            "attribute_labels": {
+              "q1": "What is your name?",
+              "q2": "Enter a date",
+              "q3": "What is your favourite colour?",
+              "q4": "Select which research fields apply.",
+              "q5": "Yes or no?",
+              "q6": "Write a paragraph explaining your reasoning."
+            },
+            "attribute_categories": [],
+            "category_labels": {}
+          },
+          {
+            "d": "ENCcFh49BKQwnv1H9Kxgd3tkqcpduLBeCm8llg6Nxko9",
+            "language": "fra",
+            "type": "spec/overlays/label/1.0",
+            "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+            "attribute_labels": {
+              "q1": "Quel est ton nom?",
+              "q2": "Entrez une date",
+              "q3": "Quelle est ta couleur préférée ?",
+              "q4": "Sélectionnez les domaines de recherche qui s'appli",
+              "q5": "Oui ou non ?",
+              "q6": "Écrivez un paragraphe expliquant votre raisonnemen"
+            },
+            "attribute_categories": [],
+            "category_labels": {}
+          }
+        ],
+        "conformance": {
+          "d": "EPjXvXm-fDCVwKN-duTsloIydabTGA6nmA4Eue712iYf",
+          "type": "spec/overlays/conformance/1.0",
+          "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+          "attribute_conformance": {
+            "q1": "M",
+            "q2": "M",
+            "q3": "O",
+            "q4": "O",
+            "q5": "M",
+            "q6": "O"
+          }
+        },
+        "entry_code": {
+          "d": "EKqm0ZVxx2_TTpHaf0Ymi5mAH0X1wfATM_9iNa1dADPn",
+          "type": "spec/overlays/entry_code/1.0",
+          "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+          "attribute_entry_codes": {
+            "q3": [
+              "001",
+              "002",
+              "003",
+              "004",
+              "005"
+            ],
+            "q4": [
+              "5G",
+              "AI",
+              "AIH",
+              "BA",
+              "BL",
+              "CC",
+              "CG",
+              "CT",
+              "DP",
+              "FRW",
+              "MLPA",
+              "NB",
+              "QC",
+              "RA",
+              "RE",
+              "RES",
+              "SE",
+              "SM",
+              "US",
+              "VR"
+            ]
+          }
+        },
+        "entry": [
+          {
+            "d": "ENrMiqVNmVmTdHywtqeGOLTmuzOc67ZAQqV_EZNsOCf3",
+            "language": "eng",
+            "type": "spec/overlays/entry/1.0",
+            "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+            "attribute_entries": {
+              "q3": {
+                "001": "Red",
+                "002": "Green",
+                "003": "Blue",
+                "004": "Yellow",
+                "005": "Orange"
+              },
+              "q4": {
+                "5G": "5G Networks and Telecommunications",
+                "AI": "Artificial Intelligence and Ethics",
+                "AIH": "AI in Healthcare Diagnostics",
+                "BA": "Blockchain Applications in Finance",
+                "BL": "Biodiversity Loss and Conservation Efforts",
+                "CC": "Climate Change and Global Warming",
+                "CG": "CRISPR and Genetic Engineering",
+                "CT": "Cybersecurity Threats and Solutions",
+                "DP": "Data Privacy and Protection",
+                "FRW": "The Future of Remote Work",
+                "MLPA": "Machine Learning in Predictive Analytics",
+                "NB": "Neuroscience and Brain Mapping",
+                "QC": "Quantum Computing Advancements",
+                "RA": "Robotics and Automation in Industry",
+                "RE": "Renewable Energy Technologies",
+                "RES": "Renewable Energy Storage Systems",
+                "SE": "Space Exploration and Mars Colonization",
+                "SM": "Social Media Impact on Mental Health",
+                "US": "Urbanization and Sustainable Cities",
+                "VR": "Virtual Reality in Education"
+              }
+            }
+          },
+          {
+            "d": "EK_h5BW3YqIao1Z1MYDarXVKYbXEwmlDMEiZNx78E6Lg",
+            "language": "fra",
+            "type": "spec/overlays/entry/1.0",
+            "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+            "attribute_entries": {
+              "q3": {
+                "001": "Rouge",
+                "002": "Vert",
+                "003": "Bleu",
+                "004": "Jaune",
+                "005": "Orange"
+              },
+              "q4": {
+                "5G": "Réseaux 5G et télécommunications",
+                "AI": "Intelligence artificielle et éthique",
+                "AIH": "IA dans les diagnostics de santé",
+                "BA": "Applications de la blockchain en finance",
+                "BL": "Perte de biodiversité et efforts de conservation",
+                "CC": "Changement climatique et réchauffement global",
+                "CG": "CRISPR et génie génétique",
+                "CT": "Menaces et solutions en cybersécurité",
+                "DP": "Protection et confidentialité des données",
+                "FRW": "L'avenir du travail à distance",
+                "MLPA": "Apprentissage automatique en analyse prédictive",
+                "NB": "Neurosciences et cartographie cérébrale",
+                "QC": "Avancées en calcul quantique",
+                "RA": "Robotiques et automatisation dans l'industrie",
+                "RE": "Technologies des énergies renouvelables",
+                "RES": "Systèmes de stockage d'énergie renouvelable",
+                "SE": "Exploration spatiale et colonisation de Mars",
+                "SM": "Impact des médias sociaux sur la santé mentale",
+                "US": "Urbanisation et villes durables",
+                "VR": "Réalité virtuelle dans l'éducation"
+              }
+            }
+          }
+        ],
+        "cardinality": {
+          "d": "EENbhc_YtT4CXAYFpG-aSgJGNh_DRhfN9dyJBap8hPqK",
+          "type": "spec/overlays/cardinality/1.0",
+          "capture_base": "EM2wjfvO9Kb-LjBHaqi15iRbVon7JHDdsavZTFxTYPNj",
+          "attribute_cardinality": {
+            "q4": "1-5"
+          }
+        }
+      }
+    },
+    "dependencies": []
+  },
+  "extensions": {
+    "presentation": {
+      "d": "###presentationDigest###",
+      "type": "community/adc/presentation/v1.0",
+      "bundle_base": "EA52Mi2ShXGYN2BCMsJkW6L7Xy15yKIOZweBMJEojQto",
+      "l": [
+        "eng",
+        "fra"
+      ],
+      "p": [
+        {
+          "ns": "section-1",
+          "ao": [
+            {
+              "ns": "q1q2",
+              "ao": [
+                "q1",
+                "q2"
+              ]
+            },
+            {
+              "ns": "rest",
+              "ao": [
+                "q3",
+                "q4",
+                "q5",
+                "q6"
+              ]
+            }
+          ]
+        }
+      ],
+      "po": [
+        "Section-1"
+      ],
+      "pl": [
+        {
+          "eng": {
+            "section-1": "Section 1: all the questions",
+            "q1q2": "Q1 and Q2 section",
+            "rest": "The rest of the questions"
+          },
+          "fra": {
+            "section-1": "Section 1 : toutes les questions",
+            "q1q2": "Section Q1 et Q2",
+            "rest": "Le reste des questions"
+          }
+        }
+      ],
+      "i": [
+        {
+          "m": "web",
+          "c": "capture",
+          "a": {
+            "q1": {
+              "t": "textarea"
+            },
+            "q2": {
+              "t": "textarea"
+            },
+            "q3": {
+              "t": "radio",
+              "o": "vertical"
+            },
+            "q4": {
+              "t": "select",
+              "va": "multiple"
+            },
+            "q5": {
+              "t": "radio",
+              "o": "vertical"
+            },
+            "q6": {
+              "t": "textarea"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
