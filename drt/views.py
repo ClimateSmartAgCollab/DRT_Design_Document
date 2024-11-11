@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.mail import send_mail
 from django.urls import NoReverseMatch, reverse
-from django.http import HttpResponseNotFound, JsonResponse
+from django.http import JsonResponse
 from django.utils.crypto import get_random_string
 from django.core.cache import cache
 from django.core.validators import validate_email
@@ -250,7 +250,7 @@ def fill_questionnaire(request, uuid):
     #     return JsonResponse({'formData': form_data})
     else:
         # For GET requests, retrieve the cached JSON data
-        sample_questionnaire = cache.get("sample_questionnaire_package")
+        sample_questionnaire = cache.get("OCA_package_schema_paper")
         return JsonResponse({'questionnaire': sample_questionnaire})
 
 

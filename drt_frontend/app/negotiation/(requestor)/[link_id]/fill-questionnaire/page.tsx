@@ -21,11 +21,12 @@ const FillQuestionnairePage = () => {
         const response = await fetchApi(`/fill_questionnaire/${link_id}/`);
         const data = await response.json();
         
-        // console.log(data)
+        console.log(data)
         // Parse the questionnaire string to JSON
-        const parsedQuestionnaire1 = JSON.parse(data.questionnaire);
-        const parsedQuestionnaire = parsedQuestionnaire1.oca_package
-        // console.log("hereeee", parsedQuestionnaire.oca_package)
+        const parsedQuestionnaire = JSON.parse(data.questionnaire);
+        console.log("questionnaire", parsedQuestionnaire)
+        // const parsedQuestionnaire = parsedQuestionnaire1.oca_package
+        // console.log("oca_package", parsedQuestionnaire1.oca_package)
         
         if (response.ok) {
           setQuestionnaire(parsedQuestionnaire as Questionnaire);

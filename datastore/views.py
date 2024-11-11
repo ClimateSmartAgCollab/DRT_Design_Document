@@ -7,13 +7,15 @@ import io
 from django.views.decorators.csrf import csrf_exempt
 
 GITHUB_API_URL = "https://api.github.com/repos/ClimateSmartAgCollab/DRT-DS-test/contents"
-GITHUB_TOKEN = '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'
+GITHUB_TOKEN = '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'
 
 # Helper function to fetch a file from GitHub
 def fetch_file_from_github(file_path):
     url = f"{GITHUB_API_URL}/{file_path}"
     headers = {'Authorization': f'token {GITHUB_TOKEN}'}
     response = requests.get(url, headers=headers)
+    
+    # print(response) 
 
     if response.status_code == 200:
         content = base64.b64decode(response.json()['content']).decode('utf-8')
@@ -26,6 +28,7 @@ def load_github_data(request):
     link_table_csv = fetch_file_from_github('linktable.csv')
     questionnaire_table_csv = fetch_file_from_github('source_library/questionnaire_table.csv')
     sample_questionnaire_json = fetch_file_from_github('source_library/sample_questionnaire_package.json')
+    sample_questionnaire_json_1 = fetch_file_from_github('source_library/OCA_package_schema_paper.json')
 
     if owner_table_csv:
         owner_table = {}  
@@ -59,6 +62,8 @@ def load_github_data(request):
 
     if sample_questionnaire_json:
         cache.set('sample_questionnaire_package', sample_questionnaire_json, timeout=86400)  # Cache for 1 day
+    if sample_questionnaire_json_1:
+        cache.set('OCA_package_schema_paper', sample_questionnaire_json_1, timeout=86400)  # Cache for 1 day
 
     return JsonResponse({'status': 'GitHub data loaded successfully and cached'})
 
