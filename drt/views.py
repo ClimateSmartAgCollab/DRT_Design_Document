@@ -193,40 +193,33 @@ def fill_questionnaire(request, uuid):
         }
         return JsonResponse({'error': state_messages[negotiation.state]}, status=400)
 
-    # Handle POST request for saving/submitting the questionnaire
     if request.method == 'POST':
         # Parse JSON data from the request body
         try:
             data = json.loads(request.body)
-            print("Received data:", data)  # Log received data for debugging
         except json.JSONDecodeError:
-            print("JSON decode error")
             return JsonResponse({'error': 'Invalid JSON data provided.'}, status=400)
 
-        print("Data for form:", data)
-        # Update the form with the parsed JSON data
-        form = QuestionnaireForm(data, instance=negotiation)
+        if data.get('save'):
+            negotiation.requestor_responses = data
+            negotiation.save()
+            return JsonResponse({'message': 'Questionnaire saved successfully!'})
 
-        
-        if form.is_valid():
-            if data.get('save'):
-                form.save()
-                return JsonResponse({'message': 'Questionnaire saved successfully!'})
+        elif data.get('submit'):
+            negotiation.requestor_responses = data
+            negotiation.state = 'owner_open'
+            negotiation.save()
 
-            elif data.get('submit'):
-                negotiation.state = 'owner_open'
-                form.save()
+            send_mail(
+                'Your Data Request Submission Confirmation',
+                f'Your request has been submitted successfully.\n\nSubmission Details:\n{negotiation.requestor_responses}',
+                'noreply@dart-system.com',
+                [nlink.requestor_email]
+            )
 
-                # Send confirmation to requestor and notification to owner
-                send_mail(
-                    'Your Data Request Submission Confirmation',
-                    f'Your request has been submitted successfully.\n\nSubmission Details:\n{negotiation.requestor_responses}',
-                    'noreply@dart-system.com',
-                    [nlink.requestor_email]
-                )
-                owner_table = cache.get("owner_table")
+            owner_table = cache.get("owner_table")
+            if owner_table and nlink.owner_id in owner_table:
                 owner_email = owner_table[nlink.owner_id]["owner_email"]
-
                 owner_review_url = request.build_absolute_uri(
                     reverse('owner_review', kwargs={'uuid': nlink.owner_link})
                 )
@@ -237,21 +230,21 @@ def fill_questionnaire(request, uuid):
                     [owner_email]
                 )
 
-                negotiation.save()
-                return JsonResponse({'message': 'Questionnaire submitted successfully!'})
+            return JsonResponse({'message': 'Questionnaire submitted successfully!'})
 
-        # Respond with form errors if validation fails
-        return JsonResponse({'errors': form.errors}, status=400)
+        return JsonResponse({'error': 'Invalid action specified.'}, status=400)
 
-    # else:
-    #     # For GET requests, return the current negotiation data in JSON format
-    #     form = QuestionnaireForm(instance=negotiation)
-    #     form_data = {field.name: field.value() for field in form}
-    #     return JsonResponse({'formData': form_data})
     else:
-        # For GET requests, retrieve the cached JSON data
+        # For GET requests, retrieve both the questionnaire schema and the saved answers
         sample_questionnaire = cache.get("OCA_package_schema_paper")
-        return JsonResponse({'questionnaire': sample_questionnaire})
+        saved_responses = negotiation.requestor_responses if negotiation.requestor_responses else {}
+
+        # Return both the questionnaire structure and saved answers
+        return JsonResponse({
+            'questionnaire': sample_questionnaire,
+            'saved_responses': saved_responses
+        })
+
 
 
 

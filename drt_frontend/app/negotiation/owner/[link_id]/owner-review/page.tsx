@@ -6,9 +6,11 @@ import { useParams, useRouter } from 'next/navigation';
 import fetchApi from '@/app/api/apiHelper';
 
 type NegotiationData = {
-  owner_responses: string;
-  comments: string;
-  requestor_responses: string;
+  owner_responses: string | null;
+  comments: string | null;
+  requestor_responses: {
+    [key: string]: string | boolean;
+  };
   state: string;
 };
 
@@ -85,7 +87,17 @@ const OwnerReviewPage = () => {
           <>
             <div className="mb-4">
               <h3 className="text-xl font-semibold">Requestor Responses</h3>
-              <p className="bg-gray-100 p-4 rounded">{negotiation.requestor_responses}</p>
+              {typeof negotiation.requestor_responses === 'object' && negotiation.requestor_responses !== null ? (
+                <div className="bg-gray-100 p-4 rounded">
+                  {Object.entries(negotiation.requestor_responses).map(([key, value]) => (
+                    <p key={key} className="mb-2">
+                      <span className="font-semibold">{key}:</span> {String(value)}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="bg-gray-100 p-4 rounded">No responses available</p>
+              )}
             </div>
 
             <div className="mb-4">
@@ -93,7 +105,7 @@ const OwnerReviewPage = () => {
               <textarea
                 id="owner_responses"
                 name="owner_responses"
-                value={negotiation.owner_responses}
+                value={negotiation.owner_responses ?? ''}
                 onChange={handleChange}
                 className="mt-1 p-2 border border-gray-300 rounded w-full"
               />
@@ -104,7 +116,7 @@ const OwnerReviewPage = () => {
               <textarea
                 id="comments"
                 name="comments"
-                value={negotiation.comments}
+                value={negotiation.comments ?? ''}
                 onChange={handleChange}
                 className="mt-1 p-2 border border-gray-300 rounded w-full"
               />

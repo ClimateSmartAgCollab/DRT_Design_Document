@@ -1,4 +1,5 @@
 // app/negotiation/[link_id]/fill-questionnaire/page.tsx
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -20,27 +21,33 @@ const FillQuestionnairePage = () => {
       try {
         const response = await fetchApi(`/fill_questionnaire/${link_id}/`);
         const data = await response.json();
-        
-        console.log(data)
-        // Parse the questionnaire string to JSON
-        const parsedQuestionnaire = JSON.parse(data.questionnaire);
-        console.log("questionnaire", parsedQuestionnaire)
-        // const parsedQuestionnaire = parsedQuestionnaire1.oca_package
-        // console.log("oca_package", parsedQuestionnaire1.oca_package)
-        
-        if (response.ok) {
+  
+        console.log('Raw questionnaire data:', data);
+  
+        // Parse the questionnaire JSON string if it exists
+        const parsedQuestionnaire = data.questionnaire ? JSON.parse(data.questionnaire) : null;
+  
+        console.log('Parsed questionnaire structure:', parsedQuestionnaire);
+  
+        if (response.ok && parsedQuestionnaire) {
           setQuestionnaire(parsedQuestionnaire as Questionnaire);
+          
+          // Set the saved responses if they exist
+          if (data.saved_responses) {
+            setAnswers(data.saved_responses);
+          }
         } else {
-          setError(parsedQuestionnaire.error || 'Failed to load questionnaire.');
+          setError(parsedQuestionnaire?.error || 'Failed to load questionnaire.');
         }
       } catch (err) {
         console.error('Fetch questionnaire error:', err);
         setError('Failed to load questionnaire.');
       }
     };
-
+  
     fetchQuestionnaire();
   }, [link_id]);
+  
 
   const handleInputChange = (questionId: string, value: any) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -53,11 +60,15 @@ const FillQuestionnairePage = () => {
     try {
       const response = await fetchApi(`/fill_questionnaire/${link_id}/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
         body: JSON.stringify({
           ...answers,
           submit: isSubmit,
           save: !isSubmit,
+          // Add any other necessary fields
         }),
       });
       const result = await response.json();
@@ -65,7 +76,7 @@ const FillQuestionnairePage = () => {
       if (response.ok) {
         setStatusMessage(
           isSubmit
-            ? 'Your questionnaire is now under the owner\'s review. You will be informed via email when there is an update.'
+            ? "Your questionnaire is now under the owner's review. You will be informed via email when there is an update."
             : 'Questionnaire saved successfully!'
         );
       } else {
@@ -76,6 +87,7 @@ const FillQuestionnairePage = () => {
       setError('Failed to submit questionnaire.');
     }
   };
+
 
   if (!questionnaire) {
     return <div>Loading...</div>;

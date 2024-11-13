@@ -19,7 +19,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({ questionnaire, an
       className="mt-1 p-2 border border-gray-300 rounded w-full"
     />
   );
-
+  
   const renderDateInput = (questionId: string) => (
     <input
       type="date"
@@ -28,7 +28,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({ questionnaire, an
       className="mt-1 p-2 border border-gray-300 rounded w-full"
     />
   );
-
+  
   const renderNumberInput = (questionId: string) => (
     <input
       type="number"
@@ -37,7 +37,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({ questionnaire, an
       className="mt-1 p-2 border border-gray-300 rounded w-full"
     />
   );
-
+  
   const renderBooleanSelect = (questionId: string) => (
     <select
       value={answers[questionId] || ''}
@@ -48,7 +48,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({ questionnaire, an
       <option value="true">Yes</option>
       <option value="false">No</option>
     </select>
-  );
+  );  
 
   const renderCheckboxGroup = (questionId: string, options: string[]) => (
     <div className="flex flex-col mt-1">
@@ -87,22 +87,21 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({ questionnaire, an
       case 'Boolean':
         return renderBooleanSelect(questionId);
       default:
-        return renderTextInput(questionId); // Fallback to text input for unexpected types
+        return <div>Unsupported question type</div>;
     }
   };
 
-  console.log(questionnaire);  // Inspect the structure and see if it's populated as expected
+  console.log('Questionnaire structure:', questionnaire);
 
-  // Ensure questionnaire and necessary nested properties exist
   if (!questionnaire?.oca_bundle?.bundle?.capture_base?.attributes) {
     return <div>Loading...</div>;
   }
-  
+
   return (
     <div className="p-6">
       {Object.entries(questionnaire.oca_bundle.bundle.capture_base.attributes).map(
         ([questionId, type]) => {
-          const label =
+          const label = 
             questionnaire.oca_bundle.bundle.overlays.label?.[0]?.attribute_labels?.[questionId] ||
             'Question';
           return (
