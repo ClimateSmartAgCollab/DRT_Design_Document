@@ -18,6 +18,4 @@ urlpatterns = [
     path('negotiations/delete-old/', views.delete_old_negotiations_view, name='delete_old_negotiations'), 
     path('summary-statistics/<str:owner_id>/', views.summary_statistics_view, name='summary_statistics'),
 
-
-    path('api/data/', views.get_data),
 ]

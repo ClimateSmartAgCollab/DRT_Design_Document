@@ -79,16 +79,16 @@ const OwnerReviewPage = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-6 rounded shadow-md w-full max-w-lg">
-        <h2 className="text-2xl font-bold mb-4">Owner Review</h2>
+        <h2 className="text-2xl font-bold mb-4 text-black">Owner Review</h2>
 
         {error ? (
           <p className="text-red-500">{error}</p>
         ) : negotiation ? (
           <>
             <div className="mb-4">
-              <h3 className="text-xl font-semibold">Requestor Responses</h3>
+              <h3 className="text-xl font-semibold text-black">Requestor Responses</h3>
               {typeof negotiation.requestor_responses === 'object' && negotiation.requestor_responses !== null ? (
-                <div className="bg-gray-100 p-4 rounded">
+                <div className="bg-gray-100 p-4 rounded  text-gray-700">
                   {Object.entries(negotiation.requestor_responses).map(([key, value]) => (
                     <p key={key} className="mb-2">
                       <span className="font-semibold">{key}:</span> {String(value)}
@@ -96,7 +96,7 @@ const OwnerReviewPage = () => {
                   ))}
                 </div>
               ) : (
-                <p className="bg-gray-100 p-4 rounded">No responses available</p>
+                <p className="bg-gray-100 p-4 rounded text-black">No responses available</p>
               )}
             </div>
 
@@ -107,7 +107,7 @@ const OwnerReviewPage = () => {
                 name="owner_responses"
                 value={negotiation.owner_responses ?? ''}
                 onChange={handleChange}
-                className="mt-1 p-2 border border-gray-300 rounded w-full"
+                className="mt-1 p-2 border border-gray-300 rounded w-full  text-gray-700"
               />
             </div>
 
@@ -118,7 +118,7 @@ const OwnerReviewPage = () => {
                 name="comments"
                 value={negotiation.comments ?? ''}
                 onChange={handleChange}
-                className="mt-1 p-2 border border-gray-300 rounded w-full"
+                className="mt-1 p-2 border border-gray-300 rounded w-full  text-gray-700"
               />
             </div>
 

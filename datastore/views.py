@@ -7,7 +7,7 @@ import io
 from django.views.decorators.csrf import csrf_exempt
 
 GITHUB_API_URL = "https://api.github.com/repos/ClimateSmartAgCollab/DRT-DS-test/contents"
-GITHUB_TOKEN = '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'
+GITHUB_TOKEN = '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' #Expires on Sun, Dec 8 2024.
 
 # Helper function to fetch a file from GitHub
 def fetch_file_from_github(file_path):
@@ -38,7 +38,7 @@ def load_github_data(request):
                 'username': row['username'],
                 'owner_email': row['owner_email']
             }
-        cache.set('owner_table', owner_table, timeout=86400)  # Cache for 1 day
+        cache.set('owner_table', owner_table)
 
     if link_table_csv:
         link_table = {} 
@@ -51,23 +51,23 @@ def load_github_data(request):
                 'expiry': row['expiry'],
                 'data_label': row['data_label']
             }
-        cache.set('link_table', link_table, timeout=86400)  # Cache for 1 day
+        cache.set('link_table', link_table)
 
     if questionnaire_table_csv:
         questionnaire_table = {}
         reader = csv.DictReader(io.StringIO(questionnaire_table_csv))
         for row in reader:
             questionnaire_table[row['questionnaire_SAID']] = row['questionnaire_filename']
-        cache.set('questionnaire_table', questionnaire_table, timeout=86400)  # Cache for 1 day
+        cache.set('questionnaire_table', questionnaire_table)
 
     if sample_questionnaire_json:
-        cache.set('sample_questionnaire_package', sample_questionnaire_json, timeout=86400)  # Cache for 1 day
+        cache.set('sample_questionnaire_package', sample_questionnaire_json)  
     if sample_questionnaire_json_1:
-        cache.set('OCA_package_schema_paper', sample_questionnaire_json_1, timeout=86400)  # Cache for 1 day
+        cache.set('OCA_package_schema_paper', sample_questionnaire_json_1)
 
     return JsonResponse({'status': 'GitHub data loaded successfully and cached'})
 
-# View to retrieve cached data (for later use in the implementation)
+# View to retrieve cached data
 def get_cached_data(request, key):
     cached_data = cache.get(key)
     if cached_data is None:

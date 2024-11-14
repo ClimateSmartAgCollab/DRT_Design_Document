@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.views.decorators.csrf import csrf_exempt
+# from django.views.decorators.cache import cache_page
 from django.utils import timezone
 from django.db import transaction
 from django.db.models.signals import post_save
@@ -18,20 +19,10 @@ from rest_framework import status
 from django.contrib.auth.decorators import login_required
 from rest_framework.response import Response
 from .models import Requestor, NLink, Negotiation, Archive, SummaryStatistic
-from .forms import QuestionnaireForm
 import uuid
 import datetime
 import logging
 import json
-
-
-
-
-@api_view(['GET'])
-def get_data(request):
-    data = {'message': 'Hello from Django!'}
-    return Response(data)
-
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 @api_view(['GET'])
+# todo: using cahce decorator ---> @cache_page(86400)
 def generate_nlinks(request, link_id):
     link_table = cache.get('link_table')
     if not link_table:
@@ -47,7 +39,7 @@ def generate_nlinks(request, link_id):
 
     # Find the appropriate link data
     example_link = next((data for url, data in link_table.items() if link_id in url), None)
-    if not example_link:
+    if example_link == None:
         logger.warning(f"Link ID {link_id} not found in cache.")
         return Response({'error': f'Link ID {link_id} not found'}, status=404)
 
@@ -58,6 +50,7 @@ def generate_nlinks(request, link_id):
     )
     logger.info(f"Negotiation created with ID: {negotiation.negotiation_id}")
 
+    # todo: use uuid7 that includes embedded timestamp data,to manage time-related functionality for link expiration.
     # Create NLink and associate it with the Negotiation
     owner_link_id, requestor_link_id = uuid.uuid4(), uuid.uuid4()
 
@@ -74,6 +67,7 @@ def generate_nlinks(request, link_id):
 
     # # Redirect the requestor to the email entry page
     # return redirect('requestor_email_entry', link_id=requestor_link_id)
+
     # Instead of redirecting, return the requestor_link_id as JSON
     return JsonResponse({
         'requestor_link_id': str(requestor_link_id)
@@ -83,7 +77,7 @@ def generate_nlinks(request, link_id):
 @api_view(['GET', 'POST'])
 def requestor_email_entry(request, link_id):
     if request.method == 'POST':
-        email = request.data.get('email')  # Use request.data for JSON
+        email = request.data.get('email') 
 
         # Validate the email format
         try:
