@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/backend.Dockerfile
+    labels:
+      - drt_backend
     command: python manage.py runserver 0.0.0.0:8080
     env_file:
       - path: local.env
