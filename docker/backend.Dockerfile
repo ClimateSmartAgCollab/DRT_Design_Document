@@ -11,6 +11,10 @@ COPY Pipfile.lock Pipfile ./
 ENV PIPENV_VENV_IN_PROJECT=1
 RUN pipenv install --system
 
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
 COPY . .
 
 RUN chmod -R 775 .
