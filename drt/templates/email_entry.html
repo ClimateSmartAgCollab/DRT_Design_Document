@@ -1,0 +1,12 @@
+<form method="post">
+    {% csrf_token %}
+    <label for="email">Enter your email:</label>
+    <input type="email" name="email" required>
+
+    <!-- Show an error message if server-side validation fails -->
+    {% if error_message %}
+        <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+    
+    <button type="submit">Submit</button>
+</form>
