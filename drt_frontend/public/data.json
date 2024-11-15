@@ -1,0 +1,355 @@
+{
+    "d": "############################################",
+    "type": "oca_package/1.0",
+    "oca_bundle": {
+      "bundle": {
+        "v": "OCAM10JSON00054b_",
+        "d": "EKui_7KqXjlq_q9WDqLkvU-rFQP2oGh6vFl_4YouQc8a",
+        "capture_base": {
+          "d": "EOX2mVB7qJGFH4miKlCP8YzcUB9OkL5Et2l-dwpQtAMa",
+          "type": "spec/capture_base/1.0",
+          "classification": "RDF508",
+          "attributes": {
+            "q1": "Text",
+            "q2": "DateTime",
+            "q3": "refs:EI7XQ1MHSomHbXLEgTOVRjlTYfArjtUmcQsF41dpi2uc"
+          },
+          "flagged_attributes": []
+        },
+        "overlays": {
+          "character_encoding": {
+            "d": "EEhZpg5_tpL6_-IL0dudwb0LElrK5jihI7El6yuLmZja",
+            "type": "spec/overlays/character_encoding/1.0",
+            "capture_base": "EOX2mVB7qJGFH4miKlCP8YzcUB9OkL5Et2l-dwpQtAMa",
+            "attribute_character_encoding": {
+              "q1": "utf-8",
+              "q2": "utf-8",
+              "q3": "utf-8"
+            }
+          },
+          "format": {
+            "d": "EN1L4q1qsps4pCu6-Q1tEPu46eN3um9SM7frgYGnTovA",
+            "type": "spec/overlays/format/1.0",
+            "capture_base": "EOX2mVB7qJGFH4miKlCP8YzcUB9OkL5Et2l-dwpQtAMa",
+            "attribute_formats": {
+              "q1": "^.{0,250}$",
+              "q2": "^(\\d{4})$"
+            }
+          },
+          "meta": [
+            {
+              "d": "EGLo7i5RzyVRexjzYBusCwnj_jRX21T5ME07hsz0Ucy0",
+              "language": "eng",
+              "type": "spec/overlays/meta/1.0",
+              "capture_base": "EOX2mVB7qJGFH4miKlCP8YzcUB9OkL5Et2l-dwpQtAMa",
+              "description": "name, year and authors of a paper.",
+              "name": "Paper"
+            }
+          ],
+          "label": [
+            {
+              "d": "EA1wKQYrVCu_rMz5096bFcKXzCUdoWBTzhkoJ5rFW-c4",
+              "language": "eng",
+              "type": "spec/overlays/label/1.0",
+              "capture_base": "EOX2mVB7qJGFH4miKlCP8YzcUB9OkL5Et2l-dwpQtAMa",
+              "attribute_labels": {
+                "q1": "Name of paper",
+                "q2": "Year of publication",
+                "q3": "Author(s)"
+              },
+              "attribute_categories": [],
+              "category_labels": {}
+            }
+          ]
+        }
+      },
+      "dependencies": [
+        {
+          "v": "OCAM10JSON00052d_",
+          "d": "EI7XQ1MHSomHbXLEgTOVRjlTYfArjtUmcQsF41dpi2uc",
+          "capture_base": {
+            "d": "ELnbrqkv6aQsMWNEos_tk2Ow_SOmwOdBN02Wk27XkCO6",
+            "type": "spec/capture_base/1.0",
+            "classification": "RDF508",
+            "attributes": {
+              "q1": "Text",
+              "q2": "Text",
+              "q3": "refs:EOsvTVITIUeWFzDupEJybkr-BWQs09d0SAwSmNPucMEs"
+            },
+            "flagged_attributes": []
+          },
+          "overlays": {
+            "character_encoding": {
+              "d": "EGDaw_EEvvsiDpVOmikjim_jRCl8_00oCAL0CaGNEvXF",
+              "type": "spec/overlays/character_encoding/1.0",
+              "capture_base": "ELnbrqkv6aQsMWNEos_tk2Ow_SOmwOdBN02Wk27XkCO6",
+              "attribute_character_encoding": {
+                "q1": "utf-8",
+                "q2": "utf-8",
+                "q3": "utf-8"
+              }
+            },
+            "format": {
+              "d": "EBTTgejIN-r8986s-1jDllBZKOzUmSPXiMLLU2Jmsyea",
+              "type": "spec/overlays/format/1.0",
+              "capture_base": "ELnbrqkv6aQsMWNEos_tk2Ow_SOmwOdBN02Wk27XkCO6",
+              "attribute_formats": {
+                "q1": "^.{0,50}$",
+                "q2": "^.{0,250}$"
+              }
+            },
+            "meta": [
+              {
+                "d": "ECgwb0bz3CjjNqQMM_HfVg5qFyC9YnRXyhEGagP8aBD4",
+                "language": "eng",
+                "type": "spec/overlays/meta/1.0",
+                "capture_base": "ELnbrqkv6aQsMWNEos_tk2Ow_SOmwOdBN02Wk27XkCO6",
+                "description": "Details about person",
+                "name": "person"
+              }
+            ],
+            "label": [
+              {
+                "d": "EH52du1x827Kk10U7qfzrUkm3sCWyP0a63fawSLHB6d7",
+                "language": "eng",
+                "type": "spec/overlays/label/1.0",
+                "capture_base": "ELnbrqkv6aQsMWNEos_tk2Ow_SOmwOdBN02Wk27XkCO6",
+                "attribute_labels": {
+                  "q1": "First name",
+                  "q2": "Last name",
+                  "q3": "Identifier"
+                },
+                "attribute_categories": [],
+                "category_labels": {}
+              }
+            ]
+          }
+        },
+        {
+          "v": "OCAM10JSON00070f_",
+          "d": "EOsvTVITIUeWFzDupEJybkr-BWQs09d0SAwSmNPucMEs",
+          "capture_base": {
+            "d": "EAn7yvrTy9ip2srWVUc-Yf-XehBtDCCkOqNIAd-VdCzu",
+            "type": "spec/capture_base/1.0",
+            "classification": "RDF508",
+            "attributes": {
+              "q1": "Text",
+              "q2": "Text"
+            },
+            "flagged_attributes": []
+          },
+          "overlays": {
+            "character_encoding": {
+              "d": "EO1D2vIn3itbEfB1InhHU8FqY49fG8euVWetIpAAF0mk",
+              "type": "spec/overlays/character_encoding/1.0",
+              "capture_base": "EAn7yvrTy9ip2srWVUc-Yf-XehBtDCCkOqNIAd-VdCzu",
+              "attribute_character_encoding": {
+                "q1": "utf-8",
+                "q2": "utf-8"
+              }
+            },
+            "format": {
+              "d": "EOBFQ0SReYKwtCRALEhCW-9qn1U-4EOmtC6Ad80iAc4W",
+              "type": "spec/overlays/format/1.0",
+              "capture_base": "EAn7yvrTy9ip2srWVUc-Yf-XehBtDCCkOqNIAd-VdCzu",
+              "attribute_formats": {
+                "q1": "^.{0,50}$",
+                "q2": "^.{0,50}$"
+              }
+            },
+            "meta": [
+              {
+                "d": "EANTF6uj7JqIRxg_CTj6oeyXRyfomEpX1iWUX2aewctY",
+                "language": "eng",
+                "type": "spec/overlays/meta/1.0",
+                "capture_base": "EAn7yvrTy9ip2srWVUc-Yf-XehBtDCCkOqNIAd-VdCzu",
+                "description": "Identifiers for people.",
+                "name": "identifier"
+              }
+            ],
+            "label": [
+              {
+                "d": "EFIKlnhDBODAIB_0CUaXUeOvlzQRiBrSCOm8PiwlblDg",
+                "language": "eng",
+                "type": "spec/overlays/label/1.0",
+                "capture_base": "EAn7yvrTy9ip2srWVUc-Yf-XehBtDCCkOqNIAd-VdCzu",
+                "attribute_labels": {
+                  "q1": "Identifier",
+                  "q2": "value"
+                },
+                "attribute_categories": [],
+                "category_labels": {}
+              }
+            ],
+            "entry_code": {
+              "d": "EEY-3d2P1iGf5joCCgYuqlu63zLsw1mI_9ARG2PlyKov",
+              "type": "spec/overlays/entry_code/1.0",
+              "capture_base": "EAn7yvrTy9ip2srWVUc-Yf-XehBtDCCkOqNIAd-VdCzu",
+              "attribute_entry_codes": {
+                "q1": [
+                  "Google",
+                  "ISNI",
+                  "ORCiD",
+                  "ResearcherID",
+                  "Scopus"
+                ]
+              }
+            },
+            "entry": [
+              {
+                "d": "ENzWzcY89yKWdVIjYZ9osryqYBYljXAXCK3J5nCs09cg",
+                "language": "eng",
+                "type": "spec/overlays/entry/1.0",
+                "capture_base": "EAn7yvrTy9ip2srWVUc-Yf-XehBtDCCkOqNIAd-VdCzu",
+                "attribute_entries": {
+                  "q1": {
+                    "Google": "Google Scholar ID",
+                    "ISNI": "ISNI",
+                    "ORCiD": "ORCiD",
+                    "ResearcherID": "ResearcherID",
+                    "Scopus": "Scopus Author ID"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "extensions": {
+      "presentation": [
+        {
+          "d": "###presentationDigest###",
+          "type": "community/adc/presentation/v1.0",
+          "bundle_base": "EKui_7KqXjlq_q9WDqLkvU-rFQP2oGh6vFl_4YouQc8a",
+          "l": [
+            "eng"
+          ],
+          "p": [
+            {
+              "ns": "section-1",
+              "ao": [
+                "q1",
+                "q2",
+                "q3"
+              ]
+            }
+          ],
+          "po": [
+            "Section-1"
+          ],
+          "pl": [
+            {
+              "eng": {
+                "section-1": "Section 1: Paper"
+              }
+            }
+          ],
+          "i": [
+            {
+              "m": "web",
+              "c": "capture",
+              "a": {
+                "q1": {
+                  "t": "textarea"
+                },
+                "q2": {
+                  "t": "textarea"
+                },
+                "q3": {
+                  "t": "reference"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "d": "###presentationDigest###",
+          "type": "community/adc/presentation/v1.0",
+          "bundle_base": "EI7XQ1MHSomHbXLEgTOVRjlTYfArjtUmcQsF41dpi2uc",
+          "l": [
+            "eng"
+          ],
+          "p": [
+            {
+              "ns": "section-1",
+              "ao": [
+                "q1",
+                "q2",
+                "q3"
+              ]
+            }
+          ],
+          "po": [
+            "Section-1"
+          ],
+          "pl": [
+            {
+              "eng": {
+                "section-1": "Section 1: Author"
+              }
+            }
+          ],
+          "i": [
+            {
+              "m": "web",
+              "c": "capture",
+              "a": {
+                "q1": {
+                  "t": "textarea"
+                },
+                "q2": {
+                  "t": "textarea"
+                },
+                "q3": {
+                  "t": "reference"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "d": "###presentationDigest###",
+          "type": "community/adc/presentation/v1.0",
+          "bundle_base": "EOsvTVITIUeWFzDupEJybkr-BWQs09d0SAwSmNPucMEs",
+          "l": [
+            "eng"
+          ],
+          "p": [
+            {
+              "ns": "section-1",
+              "ao": [
+                "q1",
+                "q2"
+              ]
+            }
+          ],
+          "po": [
+            "Section-1"
+          ],
+          "pl": [
+            {
+              "eng": {
+                "section-1": "Section 1: Author IDs"
+              }
+            }
+          ],
+          "i": [
+            {
+              "m": "web",
+              "c": "capture",
+              "a": {
+                "q1": {
+                  "t": "select",
+                  "va": "single"
+                },
+                "q2": {
+                  "t": "textarea"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }

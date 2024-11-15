@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fill Questionnaire</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-top: 20px;
+            max-width: 600px;
+            background-color: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+        }
+        button[type="button"] {
+            background-color: #2196F3;
+            color: white;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Fill Out the Questionnaire</h1>
+
+    <form id="questionnaireForm" method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <button type="submit" name="save">Save</button>
+        <button type="submit" name="submit">Submit</button>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Lock the form if it's already submitted (server can provide info about locked form)
+            {% if form_locked %}
+                const form = document.getElementById('questionnaireForm');
+                form.querySelectorAll('input, textarea, select').forEach(function(input) {
+                    input.disabled = true;
+                });
+                form.querySelector('button[type="submit"]').disabled = true;
+                form.querySelector('button[name="save"]').disabled = true;
+            {% endif %}
+        });
+    </script>
+
+</body>
+</html>
