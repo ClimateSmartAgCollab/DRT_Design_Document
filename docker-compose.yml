@@ -22,7 +22,7 @@ services:
     build:
       context: ./drt_frontend
       dockerfile: Dockerfile
-    command: npm run devs
+    command: npm run dev
     ports:
       - "3000:3000" 
     # environment:
