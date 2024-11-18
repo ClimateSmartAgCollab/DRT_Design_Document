@@ -29,6 +29,22 @@ services:
   #   depends_on:
   #     - backend
 
+  frontend:
+    build:
+      context: ./drt_frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000" # Map port 3000 to host
+    # environment:
+    #   - NODE_ENV=production
+    env_file:
+      - ./drt_frontend/.env      
+    volumes:
+      - ./drt_frontend:/app
+      - /app/node_modules # Prevents overwriting the node_modules in the container
+    depends_on:
+      - backend
+
   postgres:
     image: postgres:13
     env_file:

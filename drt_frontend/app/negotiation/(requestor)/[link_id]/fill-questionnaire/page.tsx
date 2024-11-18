@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import fetchApi from '@/app/api/apiHelper';
 import QuestionnaireForm from '../../../../components/QuestionnaireForm';
 import { Questionnaire } from '../../../../../types/types';
@@ -14,7 +14,7 @@ const FillQuestionnairePage = () => {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  // const router = useRouter();
 
   useEffect(() => {
     const fetchQuestionnaire = async () => {

@@ -15,7 +15,7 @@ const RequestAccessPage = () => {
       try {
         const response = await fetchApi(`/drt/request_access/${link_id}/`);
         if (response.ok) {
-          const data = await response.json();
+          // const data = await response.json();
           setAccessLink(`/negotiation/${link_id}/fill-questionnaire`);
         } else {
           const errorData = await response.json();

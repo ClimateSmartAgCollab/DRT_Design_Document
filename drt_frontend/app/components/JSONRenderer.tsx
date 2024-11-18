@@ -6,6 +6,7 @@ import { JSONData } from '../../types/JSONData';
 
 const JSONRenderer: React.FC = () => {
     const [data, setData] = useState<JSONData | null>(null);
+    /* eslint-disable @typescript-eslint/no-unused-vars */
     const [formData, setFormData] = useState<Record<string, string>>({});
     const [activeSection, setActiveSection] = useState(0); // Track the active section
   
@@ -18,9 +19,9 @@ const JSONRenderer: React.FC = () => {
   
     if (!data) return <div className="text-center p-6">Loading...</div>;
   
-    const handleInputChange = (key: string, value: string) => {
-      setFormData((prevData) => ({ ...prevData, [key]: value }));
-    };
+    // const handleInputChange = (key: string, value: string) => {
+    //   setFormData((prevData) => ({ ...prevData, [key]: value }));
+    // };
   
     // Navigate to the next section
     const handleNextSection = () => {
