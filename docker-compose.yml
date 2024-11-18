@@ -33,6 +33,7 @@ services:
     build:
       context: ./drt_frontend
       dockerfile: Dockerfile
+    command: npm run devs
     ports:
       - "3000:3000" # Map port 3000 to host
     # environment:
