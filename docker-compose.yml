@@ -17,17 +17,6 @@ services:
       - .:/usr/src
     depends_on:
       - postgres
-  
-  # frontend:
-  #   build:
-  #     context: ./drt_frontend
-  #     dockerfile: ./docker/frontend.Dockerfile
-  #   labels:
-  #     - drt_frontend
-  #   ports:
-  #     - 3000:3000
-  #   depends_on:
-  #     - backend
 
   frontend:
     build:
@@ -35,7 +24,7 @@ services:
       dockerfile: Dockerfile
     command: npm run devs
     ports:
-      - "3000:3000" # Map port 3000 to host
+      - "3000:3000" 
     # environment:
     #   - NODE_ENV=production
     env_file:

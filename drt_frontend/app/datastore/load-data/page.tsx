@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import axios from 'axios';
+import fetchApi from '@/app/api/apiHelper';
 
 const LoadDataPage = () => {
   const [status, setStatus] = useState<string | null>(null);
@@ -13,8 +13,9 @@ const LoadDataPage = () => {
     setStatus(null);
 
     try {
-      const response = await axios.get('/api/load-data');
-      setStatus(response.data.status);
+      const response = await fetchApi('/datastore/load-data/');
+      const data = await response.json();
+      setStatus(data.status || 'Data loaded successfully');
     } catch (error) {
       console.error('Error loading data:', error);
       setStatus('Failed to load data');
