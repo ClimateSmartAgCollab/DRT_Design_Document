@@ -213,10 +213,12 @@ def fill_questionnaire(request, uuid):
 
             owner_table = cache.get("owner_table")
             if owner_table and nlink.owner_id in owner_table:
+                # Generate the dynamic URL
                 owner_email = owner_table[nlink.owner_id]["owner_email"]
-                owner_review_url = request.build_absolute_uri(
-                    reverse('owner_review', kwargs={'uuid': nlink.owner_link})
-                )
+                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://localhost:3000')  # Fallback to localhost if not set
+                owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
+
+
                 send_mail(
                     'New Data Request to Review',
                     f'A new data request has been submitted. Please review it at {owner_review_url}',

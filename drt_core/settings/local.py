@@ -18,6 +18,7 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',  # Frontend origin
 ]
+FRONTEND_BASE_URL = "http://localhost:3000" 
 
 DATABASES = {
     "default": {
