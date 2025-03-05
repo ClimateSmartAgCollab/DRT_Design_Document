@@ -524,3 +524,25 @@ def summary_statistics_view(request, owner_id):
 
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'Owner statistics not found.'}, status=404)
+    
+
+@csrf_exempt  
+def submission_view(request):
+    if request.method == "POST":
+        try:
+            submission = json.loads(request.body)
+            print(submission)
+            # Process the submission:
+            # e.g., render a Django template with the submission data,
+            # save data to the database, etc.
+            
+            # Optionally, render a template using Django's render() function:
+            # from django.shortcuts import render
+            # html_output = render(request, "submission_review.html", {"data": submission["data"]})
+            # Then return the rendered HTML as a response if needed.
+
+            return JsonResponse({"status": "success", "message": "Submission received"})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+    else:
+        return JsonResponse({"error": "Only POST requests are allowed."}, status=405)

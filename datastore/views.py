@@ -7,7 +7,7 @@ import io
 from django.views.decorators.csrf import csrf_exempt
 
 GITHUB_API_URL = "https://api.github.com/repos/ClimateSmartAgCollab/DRT-DS-test/contents"
-GITHUB_TOKEN = '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' #Expires on Sun, Dec 8 2024.
+GITHUB_TOKEN = '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' #Expires on Sun, Dec 8 2024.
 
 # Helper function to fetch a file from GitHub
 def fetch_file_from_github(file_path):
