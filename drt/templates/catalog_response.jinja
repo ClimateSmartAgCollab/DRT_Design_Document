@@ -1,0 +1,37 @@
+{% block content %}
+
+  {# Recursive macro to render any type of data #}
+  {% macro render_data(data) %}
+    {% if data is mapping %}
+      <table class="w-full table-auto">
+          <tbody>
+              {% for key, value in data.items() %}
+                  <tr>
+                      <td class="break-words whitespace-normal p-2 border border-gray-300">
+                        {{ key }}
+                      </td>
+                      <td class="break-words whitespace-normal p-2 border border-gray-300">
+                        {{ render_data(value) }}
+                      </td>
+                  </tr>
+              {% endfor %}
+          </tbody>
+      </table>
+    {% elif data is iterable and data is not string %}
+      <ul class="list-disc ml-6 p-2 border border-gray-300 bg-gray-50">
+          {% for item in data %}
+              <li class="break-words whitespace-normal">
+                {{ render_data(item) }}
+              </li>
+          {% endfor %}
+      </ul>
+    {% else %}
+      <span class="break-words whitespace-normal">{{ data }}</span>
+    {% endif %}
+  {% endmacro %}
+
+  <div class="catalog-record break-words whitespace-normal">
+    {{ render_data(submission) }}
+  </div>
+
+{% endblock %}

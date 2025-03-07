@@ -1,12 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.mail import send_mail
 from django.urls import NoReverseMatch, reverse
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
 from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.views.decorators.csrf import csrf_exempt
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 # from django.views.decorators.cache import cache_page
 from django.utils import timezone
 from django.db import transaction
@@ -526,23 +527,25 @@ def summary_statistics_view(request, owner_id):
         return JsonResponse({'error': 'Owner statistics not found.'}, status=404)
     
 
-@csrf_exempt  
+
+
+@csrf_exempt
 def submission_view(request):
     if request.method == "POST":
         try:
             submission = json.loads(request.body)
-            print(submission)
-            # Process the submission:
-            # e.g., render a Django template with the submission data,
-            # save data to the database, etc.
-            
-            # Optionally, render a template using Django's render() function:
-            # from django.shortcuts import render
-            # html_output = render(request, "submission_review.html", {"data": submission["data"]})
-            # Then return the rendered HTML as a response if needed.
+            print("Received submission:", submission)
 
-            return JsonResponse({"status": "success", "message": "Submission received"})
+            env = Environment(
+                loader=FileSystemLoader("drt/templates"),
+                autoescape=select_autoescape(["html", "xml"])
+            )
+            template = env.get_template("catalog_response.jinja")
+            
+            rendered_html = template.render(submission=submission['data'])
+            return HttpResponse(rendered_html)
         except Exception as e:
+            print("Error rendering template:", e)
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
     else:
         return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
