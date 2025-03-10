@@ -534,16 +534,23 @@ def submission_view(request):
     if request.method == "POST":
         try:
             submission = json.loads(request.body)
-            print("Received submission:", submission)
+            
 
             env = Environment(
                 loader=FileSystemLoader("drt/templates"),
-                autoescape=select_autoescape(["html", "xml"])
+                autoescape=select_autoescape(["html", "xml", "json"])
             )
             template = env.get_template("catalog_response.jinja")
             
-            rendered_html = template.render(submission=submission['data'])
-            return HttpResponse(rendered_html)
+            
+            # Render the JSON output using the Jinja template
+            rendered_json = template.render(submission=submission)
+            
+            # Return the response as a downloadable JSON file
+            response = HttpResponse(rendered_json, content_type='application/json')
+            response['Content-Disposition'] = 'attachment; filename="standardized.json"'
+            return response
+        
         except Exception as e:
             print("Error rendering template:", e)
             return JsonResponse({"status": "error", "message": str(e)}, status=400)

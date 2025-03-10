@@ -1,37 +1,41 @@
-{% block content %}
-
-  {# Recursive macro to render any type of data #}
-  {% macro render_data(data) %}
-    {% if data is mapping %}
-      <table class="w-full table-auto">
-          <tbody>
-              {% for key, value in data.items() %}
-                  <tr>
-                      <td class="break-words whitespace-normal p-2 border border-gray-300">
-                        {{ key }}
-                      </td>
-                      <td class="break-words whitespace-normal p-2 border border-gray-300">
-                        {{ render_data(value) }}
-                      </td>
-                  </tr>
-              {% endfor %}
-          </tbody>
-      </table>
-    {% elif data is iterable and data is not string %}
-      <ul class="list-disc ml-6 p-2 border border-gray-300 bg-gray-50">
-          {% for item in data %}
-              <li class="break-words whitespace-normal">
-                {{ render_data(item) }}
-              </li>
-          {% endfor %}
-      </ul>
-    {% else %}
-      <span class="break-words whitespace-normal">{{ data }}</span>
-    {% endif %}
-  {% endmacro %}
-
-  <div class="catalog-record break-words whitespace-normal">
-    {{ render_data(submission) }}
-  </div>
-
-{% endblock %}
+{# If "data" is not provided, try using "submission" #}
+{% if data is not defined and submission is defined %}
+  {% set data = submission %}
+{% endif %}
+{
+  "datasetVersion": {
+    "metadataBlocks": {
+      "citation": {
+        "fields": [
+          {%- for question in data.questions %}
+            {%- if question.answer or (question.children is defined and question.children|length > 0) %}
+            {
+              "typeName": "{{ question.label }}",
+              "multiple": {% if question.children is defined and question.children|length > 0 %}true{% else %}false{% endif %},
+              "typeClass": {% if question.children is defined and question.children|length > 0 %}"compound"{% else %}"primitive"{% endif %},
+              "value": {%- if question.children is defined and question.children|length > 0 %}
+                [
+                  {%- for child in question.children %}
+                    {
+                      {%- set child_fields = [] %}
+                      {%- for child_question in child.questions if child_question.answer %}
+                        {%- set _ = child_fields.append(
+                          '"' ~ child_question.label ~ '": { "typeName": "' ~ child_question.label ~ '", "multiple": false, "typeClass": "' ~ 
+                          ( "controlledVocabulary" if child_question.label in ["contributorType", "nameIdentifierScheme", "authorIdentifierScheme"] else "primitive" ) ~ '", "value": "' ~ child_question.answer ~ '" }'
+                        ) %}
+                      {%- endfor %}
+                      {{ child_fields|join(", ") }}
+                    }{%- if not loop.last %},{% endif %}
+                  {%- endfor %}
+                ]
+              {%- else -%}
+                "{{ question.answer }}"
+              {%- endif %}
+            }{%- if not loop.last %},{% endif %}
+            {%- endif %}
+          {%- endfor %}
+        ]
+      }
+    }
+  }
+}
