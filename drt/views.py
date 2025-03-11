@@ -548,7 +548,7 @@ def submission_view(request):
             
             # Return the response as a downloadable JSON file
             response = HttpResponse(rendered_json, content_type='application/json')
-            response['Content-Disposition'] = 'attachment; filename="standardized.json"'
+            response['Content-Disposition'] = 'attachment; filename="standardized_openAIRE.json"'
             return response
         
         except Exception as e:

@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = "your_secret_key"
-DEBUG = True
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+DEBUG = False
 
 
 DJANGO_APPS = [
