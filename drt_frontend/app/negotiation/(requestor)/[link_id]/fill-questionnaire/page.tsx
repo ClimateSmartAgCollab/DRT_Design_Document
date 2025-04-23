@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import fetchApi from '@/app/api/apiHelper';
-import QuestionnaireForm from '../../../../components/QuestionnaireForm';
+import Form from '../../../../components/Form/Form';
 import { Questionnaire } from '../../../../../types/types';
 
 const FillQuestionnairePage = () => {
@@ -94,40 +94,12 @@ const FillQuestionnairePage = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white p-6 rounded shadow-md w-full max-w-md text-gray-700">
-        <h2 className="text-2xl font-bold mb-4 text-black">Fill Questionnaire</h2>
-
-        {error ? (
-          <p className="text-red-500">{error}</p>
-        ) : statusMessage ? (
-          <p className="text-green-500 mb-4">{statusMessage}</p>
-        ) : (
-          <>
-            <QuestionnaireForm
-              questionnaire={questionnaire}
-              answers={answers}
-              handleInputChange={handleInputChange}
-            />
-            <button
-              type="button"
-              onClick={() => submitForm(false)}
-              className="bg-blue-500 text-white p-2 rounded mt-4 mr-2"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={() => submitForm(true)}
-              className="bg-green-500 text-white p-2 rounded mt-4"
-            >
-              Submit
-            </button>
-          </>
-        )}
+    <section className='py-24'>
+      <div className='container font-sans text-gray-800'>
+        <Form />
       </div>
-    </div>
-  );
+    </section>
+  )
 };
 
 export default FillQuestionnairePage;

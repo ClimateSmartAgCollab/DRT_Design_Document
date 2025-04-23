@@ -529,30 +529,72 @@ def summary_statistics_view(request, owner_id):
 
 
 
-@csrf_exempt
-def submission_view(request):
-    if request.method == "POST":
-        try:
-            submission = json.loads(request.body)
+# @csrf_exempt
+# def submission_view(request):
+#     if request.method == "POST":
+#         try:
+#             submission = json.loads(request.body)
             
 
-            env = Environment(
-                loader=FileSystemLoader("drt/templates"),
-                autoescape=select_autoescape(["html", "xml", "json"])
-            )
-            template = env.get_template("catalog_response.jinja")
+#             env = Environment(
+#                 loader=FileSystemLoader("drt/templates"),
+#                 autoescape=select_autoescape(["html", "xml", "json"])
+#             )
+#             template = env.get_template("catalog_response.jinja")
             
             
-            # Render the JSON output using the Jinja template
-            rendered_json = template.render(submission=submission)
+#             # Render the JSON output using the Jinja template
+#             rendered_json = template.render(submission=submission)
             
-            # Return the response as a downloadable JSON file
-            response = HttpResponse(rendered_json, content_type='application/json')
-            response['Content-Disposition'] = 'attachment; filename="standardized_openAIRE.json"'
-            return response
+#             # Return the response as a downloadable JSON file
+#             response = HttpResponse(rendered_json, content_type='application/json')
+#             response['Content-Disposition'] = 'attachment; filename="standardized_openAIRE.json"'
+#             return response
         
-        except Exception as e:
-            print("Error rendering template:", e)
-            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+#         except Exception as e:
+#             print("Error rendering template:", e)
+#             return JsonResponse({"status": "error", "message": str(e)}, status=400)
+#     else:
+#         return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
+
+
+@csrf_exempt
+def submission_view(request):
+    if request.method != "POST":
+        return JsonResponse({ "error": "Only POST requests are allowed." }, status=405)
+
+    submission = json.loads(request.body)
+    print("submission:" , submission)  # <<–– debug
+    fmt = request.GET.get("format", "json").lower()
+    print(f"🔍 submission_view: format param = '{fmt}'")   # <<–– debug
+
+    env = Environment(
+        loader=FileSystemLoader("drt/templates"),
+        autoescape=select_autoescape(["html", "xml", "json"])
+    )
+
+    if fmt == "license":
+        print("📄 rendering license_template.jinja")        # <<–– debug
+        template = env.get_template("license_template.jinja")
+        content_type = "text/plain"
+        filename = "license.txt"
+        context = {"submission": submission}
+
+    elif fmt == "odrl":
+        print("📃 rendering license_odrl.xml.jinja")       # <<–– debug
+        template = env.get_template("license_odrl.xml.jinja")
+        content_type = "application/xml"
+        filename = "license.xml"
+        context = {"submission": submission}
+
     else:
-        return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
+        print("🔧 rendering catalog_response.jinja")      # <<–– debug
+        template = env.get_template("catalog_response.jinja")
+        content_type = "application/json"
+        filename = "standardized_openAIRE.json"
+        context = {"submission": submission}
+
+    rendered = template.render(**context)
+    response = HttpResponse(rendered, content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

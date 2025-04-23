@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odrl:Policy xmlns:odrl="http://www.w3.org/ns/odrl/2/">
+  <odrl:asset>
+    <odrl:constraint name="title" operator="eq" rightOperand="{{ submission.title }}"/>
+  </odrl:asset>
+  <odrl:permission>
+    <odrl:assignee>  
+      <odrl:party name="{{ submission.requestorName }}" email="{{ submission.requestorEmailAddress }}" role="assignee"/>
+    </odrl:assignee>
+    <odrl:assigner>  
+      <odrl:party name="{{ submission.institutionName }}" role="assigner"/>
+    </odrl:assigner>
+    <odrl:action name="use"/>
+    <odrl:constraint name="purpose" operator="eq" rightOperand="{{ submission.usageType }}"/>
+    {% if submission.includeAttributionRequirement %}
+    <odrl:constraint name="attribution" operator="eq" rightOperand="required"/>
+    {% endif %}
+  </odrl:permission>
+</odrl:Policy>

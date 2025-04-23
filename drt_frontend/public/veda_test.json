@@ -1,0 +1,272 @@
+{
+  "oca_bundle": {
+    "bundle": {
+      "v": "OCAS11JSON000bd5_",
+      "d": "EFpZ1rhl3GbAFZHE2CxBAl5y1BXAxdrsxkAGVj0nMTQq",
+      "capture_base": {
+        "d": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+        "type": "spec/capture_base/1.1",
+        "attributes": {
+          "requestorName": "Text",
+          "includeAttributionRequirement": "Boolean",
+          "requestorEmailAddress": "Text",
+          "institutionName": "Text",
+          "institutionLocation": "Text",
+          "title": "Text",
+          "description": "Text",
+          "researchObjectivesAndDesign": "Text",
+          "usageAndLicensing": [
+            "Text"
+          ]
+        },
+        "classification": "",
+        "flagged_attributes": []
+      },
+      "overlays": {
+        "character_encoding": {
+          "d": "EC3UO5MRR517pDUt3T5RiKFQqov6MLa_XfsNrnUVzcC9",
+          "capture_base": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+          "type": "spec/overlays/character_encoding/1.1",
+          "attribute_character_encoding": {
+            "requestorName": "utf-8",
+            "requestorEmailAddress": "utf-8",
+            "institutionName": "utf-8",
+            "institutionLocation": "utf-8",
+            "title": "utf-8",
+            "description": "utf-8",
+            "researchObjectivesAndDesign": "utf-8",
+            "usageAndLicensing": "utf-8",
+            "includeAttributionRequirement": "utf-8"
+          }
+        },
+        "conformance": {
+          "d": "EEAIgJyeLJSUQI6Zaspg7_qkDJZlP4lR9YjuUPuLhtcX",
+          "capture_base": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+          "type": "spec/overlays/conformance/1.1",
+          "attribute_conformance": {
+            "requestorName": "M",
+            "includeAttributionRequirement": "O",
+            "requestorEmailAddress": "M",
+            "institutionName": "M",
+            "institutionLocation": "M",
+            "title": "M",
+            "description": "M",
+            "researchObjectivesAndDesign": "M",
+            "usageAndLicensing": "M"
+          }
+        },
+        "entry": [
+          {
+            "d": "EPffmLCk-g-73QNsqQb-jrG5WVRY2urMZnPqdeYU6Rg0",
+            "capture_base": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+            "type": "spec/overlays/entry/1.1",
+            "language": "eng",
+            "attribute_entries": {
+              "usageAndLicensing": {
+                "Option 1": "List to be determined  1",
+                "Option 2": "List to be determined  2",
+                "Option 3": "List to be determined  3"
+              },
+              "includeAttributionRequirement": {
+                "true": "Yes",
+                "false": "No"
+              }
+            }
+          }
+        ],
+        "entry_code": {
+          "d": "EIWJnZlpDVJVKhjvBAdp2k1RIhs_fjz29zp3BaAmiLyJ",
+          "capture_base": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+          "type": "spec/overlays/entry_code/1.1",
+          "attribute_entry_codes": {
+            "usageAndLicensing": [
+              "Option 1",
+              "Option 2",
+              "Option 3"
+            ],
+            "includeAttributionRequirement": [
+              "true",
+              "false"
+            ]
+          }
+        },
+        "information": [
+          {
+            "d": "EHsmP2meMj1LNDBCsEAl8YEEZ1COcn0_ZdE-zpxCwKbF",
+            "capture_base": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+            "type": "spec/overlays/information/1.1",
+            "language": "eng",
+            "attribute_information": {
+              "requestorName": "Enter the full name of the requestor.",
+              "includeAttributionRequirement": "Check to agree to include an attribution requirement in the license template.",
+              "requestorEmailAddress": "Enter the requestor’s email address.",
+              "institutionName": "Enter the name of the affiliated institution.",
+              "institutionLocation": "Enter the location of the institution.",
+              "title": "Enter the title of the research.",
+              "description": "Provide a detailed description of the research project.",
+              "researchObjectivesAndDesign": "Outline the research objectives and study design.",
+              "usageAndLicensing": "Select one usage type from the list."
+            }
+          }
+        ],
+        "label": [
+          {
+            "d": "EKOWvc_Pscor7kbciFwOFLEK46wcKFYCM1mPDWB8MbMs",
+            "capture_base": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+            "type": "spec/overlays/label/1.1",
+            "language": "eng",
+            "attribute_categories": [],
+            "attribute_labels": {
+              "requestorName": "Requestor’s Name",
+              "includeAttributionRequirement": "Include Attribution Requirement?",
+              "requestorEmailAddress": "Requestor’s Email Address",
+              "institutionName": "Institution Name",
+              "institutionLocation": "Institution Location",
+              "title": "Title",
+              "description": "Description",
+              "researchObjectivesAndDesign": "Research Objectives and Design",
+              "usageAndLicensing": "Usage Type"
+            },
+            "category_labels": {}
+          }
+        ],
+        "meta": [
+          {
+            "d": "EAJMio2l8XXi5t7vcBn0yFQY-fa7KR-heBU6g1QN36Xh",
+            "capture_base": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+            "type": "spec/overlays/meta/1.1",
+            "language": "eng",
+            "description": "Custom requestor questionnaire for gathering requestor, institution, and research details.",
+            "name": "Requestor Info"
+          }
+        ]
+      }
+    },
+    "dependencies": []
+  },
+  "extensions": {
+    "form": [
+      {
+        "d": "###presentationDigest###",
+        "type": "###presentationType###",
+        "capture_base": "EPHgERft6TTI5EVgBtTaHXUG7v1BPBu4U7F3__t4wff1",
+        "language": [
+          "eng"
+        ],
+        "pages": [
+          {
+            "named_section": "page-1",
+            "attribute_order": [
+              {
+                "named_section": "section-1",
+                "attribute_order": [
+                  "requestorName",
+                  "requestorEmailAddress",
+                  "institutionName",
+                  "institutionLocation"
+                ]
+              }
+            ]
+          },
+          {
+            "named_section": "page-2",
+            "attribute_order": [
+              {
+                "named_section": "section-1",
+                "attribute_order": [
+                  "title",
+                  "description",
+                  "researchObjectivesAndDesign",
+                  "usageAndLicensing",
+                  "includeAttributionRequirement"
+                ]
+              }
+            ]
+          }
+        ],
+        "page_order": [
+          "page-1", "page-2"
+        ],
+        "page_labels": {
+          "eng": {
+            "page-1": "Page 1: Requestor Info",
+            "page-2": "Page 2: Research Topic "
+          }
+        },
+        "sidebar_label": {
+          "eng": {
+            "page-1": "sidebar: Requestor Info",
+            "page-2": "sidebar: Research Topic"
+          }
+        },
+        "subheading": {
+          "eng": {
+            "page-1": "subheading: Requestor Info",
+            "page-2": "subheading: Research Topic"
+          }
+        },
+        "interaction": [
+          {
+            "arguments": {
+              "requestorName": {
+                "type": "textarea",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "includeAttributionRequirement": {
+                "type": "radio",
+                "orientation": "vertical",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "requestorEmailAddress": {
+                "type": "textarea",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "institutionName": {
+                "type": "textarea",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "institutionLocation": {
+                "type": "textarea",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "title": {
+                "type": "textarea",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "description": {
+                "type": "textarea",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "researchObjectivesAndDesign": {
+                "type": "textarea",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "usageAndLicensing": {
+                "type": "select"
+              }
+            }
+          }
+        ],
+        "title": {
+          "eng": "Prototype_questions_DRT"
+        }
+      }
+    ]
+  }
+}

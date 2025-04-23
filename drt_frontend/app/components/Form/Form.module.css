@@ -1,0 +1,85 @@
+.formContainer {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+
+.mainContent {
+  flex: 1;
+  padding: 2rem;
+  margin-right: 250px;
+}
+
+.formLayout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  position: absolute;
+  top: 0; 
+  left: 0;
+  width: 100%;
+}
+
+.header {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  margin: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.sidebar {
+  grid-row: 2 / 3;
+  padding: 1rem;
+  background-color: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+}
+
+.footer {
+  grid-column: span 2;
+  background-color: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+
+.fullPageReview {
+  min-height: 100vh; 
+  display: flex;
+  flex-direction: column;
+}
+
+.reviewMainContent {
+  flex: 1;
+  padding: 2rem;
+  margin-right: 250px;
+}
+
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 200px;
+  }
+
+  .mainContent {
+    margin-right: 200px;
+  }
+}
