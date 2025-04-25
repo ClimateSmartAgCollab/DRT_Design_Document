@@ -17,6 +17,7 @@ import styles from './Form.module.css'
 import Footer from '../../../Footer/footer'
 import { useFormData } from '../Form/context/FormDataContext'
 
+
 const unsortedSteps = parseJsonToFormStructure()
 const parsedSteps = sortStepsByReferences(unsortedSteps)
 // console.log('Sorted Steps:', parsedSteps)
@@ -26,7 +27,12 @@ const formTitle = parsedSteps[0].title || {
   fra: 'Titre par défaut'
 }
 
-export default function Form() {
+interface FormProps {
+  onSubmit: () => void
+  onSave:   () => void
+}
+
+export default function Form({ onSubmit, onSave }: FormProps) {
   const {
     language,
     setLanguage,
@@ -71,6 +77,8 @@ export default function Form() {
 
   const { parentFormData } = useFormData()
   // console.log('parentFormData', parentFormData)
+
+  // Use the imported submitForm function directly
 
   if (!parsedSteps || parsedSteps.length === 0) {
     return <div>Loading form structure...</div>
@@ -294,6 +302,20 @@ export default function Form() {
               Back to Form
             </button>
             <button
+          type="button"
+          onClick={onSubmit}
+          className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
+        >
+          Submit
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
+        >
+          Save
+        </button>
+            {/* <button
               type='button'
               onClick={() => handleVerifyAndSubmit('json')}
               className='rounded-lg bg-green-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-green-600'
@@ -313,7 +335,7 @@ export default function Form() {
               className='rounded-lg bg-purple-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-purple-600'
             >
               Download ODRL XML
-            </button>
+            </button> */}
           </div>
         </main>
         <Footer />
