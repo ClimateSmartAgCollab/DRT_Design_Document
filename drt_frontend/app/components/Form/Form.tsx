@@ -4,6 +4,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
 import { parseJsonToFormStructure } from '../parser'
 import { Field, Step } from '../type'
 import {
@@ -28,11 +29,12 @@ const formTitle = parsedSteps[0].title || {
 }
 
 interface FormProps {
-  onSubmit: () => void
-  onSave:   () => void
+  initialAnswers: Record<string, any>;
+  onSave: (updated: Record<string, any>) => void;
+  onSubmit: (updated: Record<string, any>) => void;
 }
 
-export default function Form({ onSubmit, onSave }: FormProps) {
+export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
   const {
     language,
     setLanguage,
@@ -87,6 +89,41 @@ export default function Form({ onSubmit, onSave }: FormProps) {
   const getIndex = (stepId: string) => {
     return parsedSteps.findIndex(s => s.id === stepId)
   }
+
+
+  const didInit = useRef(false)
+
+  useEffect(() => {
+    // only fire on the first time we have answers
+    if (
+      !didInit.current &&
+      initialAnswers &&
+      Object.keys(initialAnswers).length > 0
+    ) {
+      didInit.current = true
+      setFormData(initialAnswers)
+      finishHandler()
+    }
+  }, [initialAnswers, setFormData, finishHandler])
+
+
+  const save = () => {
+    onSave(formData);
+  };
+
+  const handleInputChange = (
+    stepId: string,
+    fieldId: string,
+    value: any
+  ) => {
+    setFormData((prev) => {
+      const stepData = prev[stepId] || {};
+      return {
+        ...prev,
+        [stepId]: { ...stepData, [fieldId]: value },
+      };
+    });
+  };
 
   function ChildReview({
     field,
@@ -183,6 +220,7 @@ export default function Form({ onSubmit, onSave }: FormProps) {
     )
   }
 
+
   if (reviewOutput) {
     const childStepIds = new Set<string>()
     parsedSteps.forEach((step: any) => {
@@ -199,6 +237,144 @@ export default function Form({ onSubmit, onSave }: FormProps) {
     const parentStepsForReview = parsedSteps.filter(
       (step: any) => !childStepIds.has(step.id)
     )
+
+  function renderInput(
+      field: Field,
+      value: any,
+      onChange: (v: any) => void
+    ) {
+      // DateTime
+      if (field.type === "DateTime") {
+        return (
+          <DateTimeField
+            field={field}
+            format={field.validation?.format || "YYYY-MM-DD"}
+            fieldValue={value}
+            registerFieldRef={() => {}}
+            handleFieldChange={(v) => {
+              onChange(v);
+            }}
+            saveCurrentPageData={save}
+          />
+        );
+      }
+
+      // Radio
+      if (field.type === "radio") {
+        return (
+          <div
+            className={`flex ${
+              field.orientation === "vertical"
+                ? "flex-col"
+                : "flex-row space-x-4"
+            }`}
+          >
+            {Object.entries(field.options[language] || {}).map(
+              ([optKey, optLabel]) => (
+                <label key={optKey} className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    name={field.id}
+                    value={optKey}
+                    checked={value === optKey}
+                    onChange={() => {
+                      onChange(optKey);
+                    }}
+                    onBlur={save}
+                  />
+                  <span>{optLabel}</span>
+                </label>
+              )
+            )}
+          </div>
+        );
+      }
+
+      // Select / Dropdown
+      if (field.type === "select" || field.type === "dropdown") {
+        return (
+          <div>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {Array.isArray(value) && value.length > 0 ? (
+                value.map((optKey: string) => (
+                  <span
+                    key={optKey}
+                    className="flex items-center rounded bg-blue-100 px-3 py-1 text-sm text-blue-800"
+                  >
+                    {field.options[language][optKey] || optKey}
+                    <button
+                      type="button"
+                      className="ml-2 text-red-500 hover:text-red-700"
+                      onClick={() => {
+                        const filtered = (value as string[]).filter(
+                          (k) => k !== optKey
+                        );
+                        onChange(filtered);
+                        save();
+                      }}
+                      aria-label={`Remove ${optKey}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No options selected.</p>
+              )}
+            </div>
+
+            <select
+              name={field.id}
+              multiple
+              className="w-full rounded border p-2"
+              value={value || []}
+              onChange={(e) => {
+                const sel = Array.from(
+                  e.target.selectedOptions,
+                  (o) => o.value
+                );
+                onChange(sel);
+              }}
+              onBlur={save}
+            >
+              {Object.entries(field.options[language] || {}).map(
+                ([optKey, optLabel]) => (
+                  <option key={optKey} value={optKey}>
+                    {optLabel}
+                  </option>
+                )
+              )}
+            </select>
+
+            {Array.isArray(value) && value.length > 0 && (
+              <button
+                className="mt-2 rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600"
+                type="button"
+                onClick={() => {
+                  onChange([]);
+                  save();
+                }}
+              >
+                Clear All
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      // Fallback text input
+      return (
+        <input
+          type="text"
+          className="mt-1 p-2 border rounded w-full"
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={save}
+        />
+      );
+    }
+
+
 
     return (
       <section className={`${styles.formLayout} ${styles.fullPageReview}`}>
@@ -267,23 +443,17 @@ export default function Form({ onSubmit, onSave }: FormProps) {
                           } else {
                             const fieldAnswer =
                               formData[step.id]?.[field.id] ?? field.value
-                            return (
-                              <div key={field.id} className='mb-2'>
-                                <label className='block text-sm font-semibold text-gray-800'>
-                                  {field.labels[language]?.[field.id] ||
-                                    field.labels.eng?.[field.id]}
-                                </label>
-                                <div className='mt-1 break-words rounded border bg-gray-50 p-2 text-gray-900'>
-                                  {Array.isArray(fieldAnswer)
-                                    ? fieldAnswer.join(', ')
-                                    : fieldAnswer?.toString() || (
-                                        <span className='text-gray-500'>
-                                          No response provided
-                                        </span>
-                                      )}
-                                </div>
-                              </div>
-                            )
+                          return (
+                            <div key={field.id} className="mb-4">
+                              <label className="block text-sm font-semibold text-gray-800">
+                                {field.labels[language]?.[field.id] ||
+                                  field.labels.eng?.[field.id]}
+                              </label>
+                              {renderInput(field, fieldAnswer, (v) =>
+                                handleInputChange(step.id, field.id, v)
+                              )}
+                            </div>
+                          );
                           }
                         })}
                       </div>
@@ -303,14 +473,14 @@ export default function Form({ onSubmit, onSave }: FormProps) {
             </button>
             <button
           type="button"
-          onClick={onSubmit}
+          onClick={() => onSubmit(formData)}
           className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
         >
           Submit
         </button>
         <button
           type="button"
-          onClick={onSave}
+          onClick={() => onSave(formData)}
           className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
         >
           Save
