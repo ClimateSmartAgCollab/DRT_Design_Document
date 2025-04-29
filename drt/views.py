@@ -232,15 +232,19 @@ def fill_questionnaire(request, uuid):
         return JsonResponse({'error': 'Invalid action specified.'}, status=400)
 
     else:
-        # For GET requests, retrieve both the questionnaire schema and the saved answers
+        # For GET requests, retrieve questionnaire, saved answers, AND any owner feedback
         sample_questionnaire = cache.get("OCA_package_schema_paper")
-        saved_responses = negotiation.requestor_responses if negotiation.requestor_responses else {}
+        saved_responses    = negotiation.requestor_responses or {}
+        owner_blob        = negotiation.owner_responses or "{}"
+        global_comments   = negotiation.comments        or ""
 
-        # Return both the questionnaire structure and saved answers
         return JsonResponse({
-            'questionnaire': sample_questionnaire,
-            'saved_responses': saved_responses
+            'questionnaire':    sample_questionnaire,
+            'saved_responses':   saved_responses,
+            'owner_responses':   owner_blob,
+            'comments':          global_comments,
         })
+
 
 
 
@@ -277,9 +281,13 @@ def owner_review(request, uuid):
             return Response({'message': 'Review saved successfully!'})
 
         elif 'request_clarification' in data:
-            negotiation.state = 'requestor_open'
-            send_clarification_email(nlink.requestor_email, nlink.link_id)
+            # First save the comments, then flip back to requestor_open
+            negotiation.owner_responses = data.get('owner_responses', '')
+            negotiation.comments        = data.get('comments', '')
+            negotiation.state           = 'requestor_open'
             negotiation.save()
+
+            send_clarification_email(nlink.requestor_email, nlink.link_id)
             return Response({'message': 'Clarification requested!'})
 
         elif 'accept' in data:

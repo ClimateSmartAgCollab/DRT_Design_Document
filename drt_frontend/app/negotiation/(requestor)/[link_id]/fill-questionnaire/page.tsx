@@ -11,6 +11,9 @@ export default function FillQuestionnairePage() {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ownerComments, setOwnerComments] = useState<Record<string, string>>({});
+  const [globalOwnerComments, setGlobalOwnerComments] = useState<string>("");
+
 
   useEffect(() => {
     async function load() {
@@ -19,6 +22,13 @@ export default function FillQuestionnairePage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Load failed");
         if (data.saved_responses) setAnswers(data.saved_responses);
+        if (data.owner_responses) {
+          try { setOwnerComments(JSON.parse(data.owner_responses)); }
+          catch { /* ignore parse errors for now*/ }
+        }
+        if (data.comments) {
+          setGlobalOwnerComments(data.comments);
+        }
       } catch (err: any) {
         console.error(err);
         setError(err.message);
@@ -56,17 +66,19 @@ export default function FillQuestionnairePage() {
         {statusMessage && (
           <p className="text-green-500 mb-4">{statusMessage}</p>
         )}
-        <Form
-          initialAnswers={answers}
-          onSave={(newAnswers) => {
-            setAnswers(newAnswers);
-            submitForm(false);
-          }}
-          onSubmit={(newAnswers) => {
-            setAnswers(newAnswers);
-            submitForm(true);
-          }}
-        />
+      <Form
+        initialAnswers={answers}
+        ownerComments={ownerComments}
+        globalOwnerComments={globalOwnerComments}
+        onSave={(newAnswers) => {
+          setAnswers(newAnswers);
+          submitForm(false);
+        }}
+        onSubmit={(newAnswers) => {
+          setAnswers(newAnswers);
+          submitForm(true);
+        }}
+      />
       </div>
     </div>
   );

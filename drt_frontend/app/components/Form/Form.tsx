@@ -1,40 +1,47 @@
 // src/components/Form/Form.tsx
 /* eslint-disable react/no-unescaped-entities */
 
-'use client'
+"use client";
 
-import { motion } from 'framer-motion'
-import { useState, useEffect, useRef } from 'react'
-import { parseJsonToFormStructure } from '../parser'
-import { Field, Step } from '../type'
+import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
+import { parseJsonToFormStructure } from "../parser";
+import { Field, Step } from "../type";
 import {
   useDynamicForm,
   isValid__UTF8,
-  sortStepsByReferences
-} from './hooks/useDynamicForm'
-import { NavigationItem } from '../Form/NavigationItem'
-import DateTimeField from '../Form/DateTimeField'
-import styles from './Form.module.css'
-import Footer from '../../../Footer/footer'
-import { useFormData } from '../Form/context/FormDataContext'
+  sortStepsByReferences,
+} from "./hooks/useDynamicForm";
+import { NavigationItem } from "../Form/NavigationItem";
+import DateTimeField from "../Form/DateTimeField";
+import styles from "./Form.module.css";
+import Footer from "../../../Footer/footer";
+import { useFormData } from "../Form/context/FormDataContext";
 
-
-const unsortedSteps = parseJsonToFormStructure()
-const parsedSteps = sortStepsByReferences(unsortedSteps)
+const unsortedSteps = parseJsonToFormStructure();
+const parsedSteps = sortStepsByReferences(unsortedSteps);
 // console.log('Sorted Steps:', parsedSteps)
 
 const formTitle = parsedSteps[0].title || {
-  eng: 'Default Title',
-  fra: 'Titre par défaut'
-}
+  eng: "Default Title",
+  fra: "Titre par défaut",
+};
 
 interface FormProps {
-  initialAnswers: Record<string, any>;
-  onSave: (updated: Record<string, any>) => void;
-  onSubmit: (updated: Record<string, any>) => void;
+  initialAnswers?: Record<string, any>;
+  ownerComments?: Record<string, string>;
+  globalOwnerComments?: string;
+  onSave: (answers: Record<string, any>) => void;
+  onSubmit: (answers: Record<string, any>) => void;
 }
 
-export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
+export default function Form({
+  initialAnswers = {},
+  ownerComments = {},
+  globalOwnerComments,
+  onSubmit,
+  onSave,
+}: FormProps) {
   const {
     language,
     setLanguage,
@@ -74,24 +81,23 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
     editExistingChild,
     setIsNewChild,
     isNewChild,
-    handleVerifyAndSubmit
-  } = useDynamicForm(parsedSteps)
+    handleVerifyAndSubmit,
+  } = useDynamicForm(parsedSteps);
 
-  const { parentFormData } = useFormData()
+  const { parentFormData } = useFormData();
   // console.log('parentFormData', parentFormData)
 
   // Use the imported submitForm function directly
 
   if (!parsedSteps || parsedSteps.length === 0) {
-    return <div>Loading form structure...</div>
+    return <div>Loading form structure...</div>;
   }
 
   const getIndex = (stepId: string) => {
-    return parsedSteps.findIndex(s => s.id === stepId)
-  }
+    return parsedSteps.findIndex((s) => s.id === stepId);
+  };
 
-
-  const didInit = useRef(false)
+  const didInit = useRef(false);
 
   useEffect(() => {
     // only fire on the first time we have answers
@@ -100,22 +106,17 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
       initialAnswers &&
       Object.keys(initialAnswers).length > 0
     ) {
-      didInit.current = true
-      setFormData(initialAnswers)
-      finishHandler()
+      didInit.current = true;
+      setFormData(initialAnswers);
+      finishHandler();
     }
-  }, [initialAnswers, setFormData, finishHandler])
-
+  }, [initialAnswers, setFormData, finishHandler]);
 
   const save = () => {
     onSave(formData);
   };
 
-  const handleInputChange = (
-    stepId: string,
-    fieldId: string,
-    value: any
-  ) => {
+  const handleInputChange = (stepId: string, fieldId: string, value: any) => {
     setFormData((prev) => {
       const stepData = prev[stepId] || {};
       return {
@@ -129,49 +130,49 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
     field,
     parentFormData,
     parsedSteps,
-    language
+    language,
   }: {
-    field: any
-    parentFormData: any
-    parsedSteps: any
-    language: string
+    field: any;
+    parentFormData: any;
+    parsedSteps: any;
+    language: string;
   }) {
-    const children = parentFormData[field.id]?.childrenData?.[field.ref] || []
+    const children = parentFormData[field.id]?.childrenData?.[field.ref] || [];
     return (
-      <div className='ml-4 mt-2 border-l-4 border-blue-500 p-2'>
-        <h5 className='text-md font-semibold text-blue-700'>
+      <div className="ml-4 mt-2 border-l-4 border-blue-500 p-2">
+        <h5 className="text-md font-semibold text-blue-700">
           Child Entries for "
           {field.labels[language]?.[field.id] ||
             field.labels.eng?.[field.id] ||
-            'Field'}
+            "Field"}
           "
         </h5>
         {children.map((child: any) => {
-          const childStep = parsedSteps.find((s: any) => s.id === child.stepId)
+          const childStep = parsedSteps.find((s: any) => s.id === child.stepId);
           return (
-            <div key={child.id} className='mt-2 bg-gray-100 p-2'>
+            <div key={child.id} className="mt-2 bg-gray-100 p-2">
               {childStep ? (
                 childStep.pages.map((cPage: any) => (
-                  <div key={cPage.pageKey} className='ml-4'>
+                  <div key={cPage.pageKey} className="ml-4">
                     {cPage.sections.map((cSection: any) => (
-                      <div key={cSection.sectionKey} className='ml-4'>
-                        <h6 className='text-lg font-medium'>
+                      <div key={cSection.sectionKey} className="ml-4">
+                        <h6 className="text-lg font-medium">
                           {cSection.sectionLabel[language] ||
                             cSection.sectionLabel.eng}
                         </h6>
                         {cSection.fields.map((cField: any) => {
                           const nestedChildren =
-                            cField.type === 'reference' &&
+                            cField.type === "reference" &&
                             cField.ref &&
                             parentFormData[cField.id]?.childrenData?.[
                               cField.ref
                             ] &&
                             parentFormData[cField.id].childrenData[cField.ref]
-                              .length > 0
+                              .length > 0;
                           if (nestedChildren) {
                             return (
-                              <div key={cField.id} className='mb-1 ml-4'>
-                                <label className='block text-sm font-semibold text-gray-800'>
+                              <div key={cField.id} className="mb-1 ml-4">
+                                <label className="block text-sm font-semibold text-gray-800">
                                   {cField.labels[language]?.[cField.id] ||
                                     cField.labels.eng?.[cField.id] ||
                                     cField.id}
@@ -183,66 +184,89 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                                   language={language}
                                 />
                               </div>
-                            )
+                            );
                           }
-                          const childAnswer = child.data[cField.id]
+                          const childAnswer = child.data[cField.id];
                           return (
                             <div
                               key={cField.id}
-                              className='mb-1 ml-4 break-words'
+                              className="mb-1 ml-4 break-words"
                             >
                               <strong>
                                 {cField.labels[language]?.[cField.id] ||
                                   cField.labels.eng?.[cField.id] ||
                                   cField.id}
-                                :{' '}
+                                :{" "}
                               </strong>
                               <span>
                                 {Array.isArray(childAnswer)
-                                  ? childAnswer.join(', ')
+                                  ? childAnswer.join(", ")
                                   : childAnswer?.toString() ||
-                                    'No response provided'}
+                                    "No response provided"}
                               </span>
                             </div>
-                          )
+                          );
                         })}
                       </div>
                     ))}
                   </div>
                 ))
               ) : (
-                <p className='ml-4 text-gray-500'>No child structure found.</p>
+                <p className="ml-4 text-gray-500">No child structure found.</p>
               )}
             </div>
-          )
+          );
         })}
       </div>
-    )
+    );
   }
 
-
   if (reviewOutput) {
-    const childStepIds = new Set<string>()
+    const childStepIds = new Set<string>();
     parsedSteps.forEach((step: any) => {
       step.pages.forEach((page: any) => {
         page.sections.forEach((section: any) => {
           section.fields.forEach((field: any) => {
             if (field.ref) {
-              childStepIds.add(field.ref)
+              childStepIds.add(field.ref);
             }
-          })
-        })
-      })
-    })
+          });
+        });
+      });
+    });
     const parentStepsForReview = parsedSteps.filter(
       (step: any) => !childStepIds.has(step.id)
-    )
+    );
 
-  function renderInput(
-      field: Field,
-      value: any,
-      onChange: (v: any) => void
-    ) {
+    function renderInput(field: Field, value: any, onChange: (v: any) => void) {
+      // TEXTAREA (with UTF-8 paste guard)
+      if (field.type === "textarea") {
+        return (
+          <textarea
+            name={field.id}
+            value={value ?? ""}
+            placeholder={
+              field.placeholder?.[language] || field.placeholder?.eng || ""
+            }
+            className="w-full rounded border p-2"
+            ref={(el) => {
+              if (el) {
+          registerFieldRef(field.id, el);
+              }
+            }}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={() => {}}
+            onPaste={(e) => {
+              const txt = e.clipboardData.getData("text");
+              if (!isValid__UTF8(txt)) {
+          e.preventDefault();
+          alert("Please paste only UTF-8 text.");
+              }
+            }}
+          />
+        );
+      }
+
       // DateTime
       if (field.type === "DateTime") {
         return (
@@ -368,51 +392,54 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
           type="text"
           className="mt-1 p-2 border rounded w-full"
           value={value || ""}
+          ref={(el) => {
+        if (el) {
+          registerFieldRef(field.id, el);
+        }
+          }}
           onChange={(e) => onChange(e.target.value)}
           onBlur={save}
         />
       );
     }
 
-
-
     return (
       <section className={`${styles.formLayout} ${styles.fullPageReview}`}>
         <header className={`${styles.header} border-b pb-4`}>
-          <h1 className='mb-2 text-center text-3xl font-bold'>
-            {reviewOutput.title || 'Review Your Responses'}
+          <h1 className="mb-2 text-center text-3xl font-bold">
+            {reviewOutput.title || "Review Your Responses"}
           </h1>
-          <p className='text-center text-lg text-gray-600'>
+          <p className="text-center text-lg text-gray-600">
             Please review your responses below.
           </p>
         </header>
         <main className={`${styles.mainContent} p-4`}>
-          <div className='space-y-6'>
+          <div className="space-y-6">
             {parentStepsForReview.map((step: any) => (
-              <div key={step.id} className='mb-6'>
-                <h2 className='text-2xl font-bold'>
+              <div key={step.id} className="mb-6">
+                <h2 className="text-2xl font-bold">
                   {step.names[language] || step.names.eng}
                 </h2>
                 {step.pages.map((page: any) => (
                   <div
                     key={page.pageKey}
-                    className='mb-4 border-l-2 border-gray-300 pl-4'
+                    className="mb-4 border-l-2 border-gray-300 pl-4"
                   >
-                    <h3 className='text-xl font-semibold'>
+                    <h3 className="text-xl font-semibold">
                       {page.pageLabel[language] || page.pageLabel.eng}
                     </h3>
                     {page.sections.map((section: any) => (
                       <div
                         key={section.sectionKey}
-                        className='mb-4 border-l-2 border-gray-200 pl-4'
+                        className="mb-4 border-l-2 border-gray-200 pl-4"
                       >
-                        <h4 className='text-lg font-medium'>
+                        <h4 className="text-lg font-medium">
                           {section.sectionLabel[language] ||
                             section.sectionLabel.eng}
                         </h4>
                         {section.fields.map((field: any) => {
                           const hasChildren =
-                            field.type === 'reference' &&
+                            field.type === "reference" &&
                             field.ref &&
                             parentFormData[field.id] &&
                             parentFormData[field.id].childrenData &&
@@ -423,14 +450,14 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                               parentFormData[field.id]?.childrenData?.[
                                 field.ref
                               ] ?? []
-                            ).length > 0
+                            ).length > 0;
                           if (hasChildren) {
                             return (
-                              <div key={field.id} className='mb-2'>
-                                <label className='block text-sm font-semibold text-gray-800'>
+                              <div key={field.id} className="mb-2">
+                                <label className="block text-sm font-semibold text-gray-800">
                                   {field.labels[language]?.[field.id] ||
                                     field.labels.eng?.[field.id] ||
-                                    'No label'}
+                                    "No label"}
                                 </label>
                                 <ChildReview
                                   field={field}
@@ -439,21 +466,27 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                                   language={language}
                                 />
                               </div>
-                            )
+                            );
                           } else {
                             const fieldAnswer =
-                              formData[step.id]?.[field.id] ?? field.value
-                          return (
-                            <div key={field.id} className="mb-4">
-                              <label className="block text-sm font-semibold text-gray-800">
-                                {field.labels[language]?.[field.id] ||
-                                  field.labels.eng?.[field.id]}
-                              </label>
-                              {renderInput(field, fieldAnswer, (v) =>
-                                handleInputChange(step.id, field.id, v)
-                              )}
-                            </div>
-                          );
+                              formData[step.id]?.[field.id] ?? field.value;
+                            return (
+                              <div key={field.id} className="mb-4">
+                                <label className="block text-sm font-semibold text-gray-800">
+                                  {field.labels[language]?.[field.id] ||
+                                    field.labels.eng?.[field.id]}
+                                </label>
+                                {renderInput(field, fieldAnswer, (v) =>
+                                  handleInputChange(step.id, field.id, v)
+                                )}
+                                {ownerComments[field.id] && (
+                                  <div className="mt-2 p-2 bg-yellow-100 text-sm rounded">
+                                    <strong>Owner Comment:</strong>{" "}
+                                    {ownerComments[field.id]}
+                                  </div>
+                                )}
+                              </div>
+                            );
                           }
                         })}
                       </div>
@@ -463,28 +496,35 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
               </div>
             ))}
           </div>
-          <div className='mt-8 flex justify-center space-x-4'>
+          {globalOwnerComments && (
+            <div className="mt-6 p-4 bg-yellow-100 rounded text-gray-800">
+              <strong>Owner Comments:</strong>+{" "}
+              <p className="mt-1">{globalOwnerComments}</p>
+            </div>
+          )}
+
+          <div className="mt-8 flex justify-center space-x-4">
             <button
-              type='button'
+              type="button"
               onClick={() => setReviewOutput(null)}
-              className='rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600'
+              className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
             >
               Back to Form
             </button>
             <button
-          type="button"
-          onClick={() => onSubmit(formData)}
-          className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
-        >
-          Submit
-        </button>
-        <button
-          type="button"
-          onClick={() => onSave(formData)}
-          className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
-        >
-          Save
-        </button>
+              type="button"
+              onClick={() => onSubmit(formData)}
+              className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
+            >
+              Submit
+            </button>
+            <button
+              type="button"
+              onClick={() => onSave(formData)}
+              className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white shadow transition duration-200 hover:bg-blue-600"
+            >
+              Save
+            </button>
             {/* <button
               type='button'
               onClick={() => handleVerifyAndSubmit('json')}
@@ -510,33 +550,33 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
         </main>
         <Footer />
       </section>
-    )
+    );
   }
 
   return (
     <form className={styles.formLayout}>
       {/* Main content area */}
       <header className={styles.header}>
-        <h1 className='text-3xl font-bold'>
+        <h1 className="text-3xl font-bold">
           {formTitle[language] || formTitle.eng}
         </h1>
-        <div className='flex items-center space-x-4'>
+        <div className="flex items-center space-x-4">
           <label
-            htmlFor='language'
-            className='text-sm font-medium text-gray-700'
+            htmlFor="language"
+            className="text-sm font-medium text-gray-700"
           >
             Language:
           </label>
           <select
-            id='language'
+            id="language"
             value={language}
-            onChange={e => setLanguage(e.target.value)}
-            className='block w-40 rounded 
+            onChange={(e) => setLanguage(e.target.value)}
+            className="block w-40 rounded 
             border border-gray-300 bg-white px-3 py-2 text-sm
             font-medium text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none
-            focus:ring-1 focus:ring-blue-500'
+            focus:ring-1 focus:ring-blue-500"
           >
-            <option value='eng'>English</option>
+            <option value="eng">English</option>
           </select>
         </div>
       </header>
@@ -552,23 +592,23 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
           >
             {/* Page Title */}
             {currentPage.pageLabel[language] && (
-              <h2 className='mb-4 text-2xl font-semibold'>
+              <h2 className="mb-4 text-2xl font-semibold">
                 {currentPage.pageLabel[language] ||
-                  currentPage.pageLabel['eng']}
+                  currentPage.pageLabel["eng"]}
               </h2>
             )}
             {currentPage.subheading && (
-              <p className='text-md mb-4 italic text-gray-600'>
+              <p className="text-md mb-4 italic text-gray-600">
                 {currentPage.subheading[language] || currentPage.subheading.eng}
               </p>
             )}
             {/* Sections */}
-            {currentPage.sections.map(section => (
-              <div key={section.sectionKey} className='mb-8 bg-gray-50 p-4'>
+            {currentPage.sections.map((section) => (
+              <div key={section.sectionKey} className="mb-8 bg-gray-50 p-4">
                 {section.sectionLabel[language] && (
-                  <h3 className='mb-2 text-xl font-medium'>
+                  <h3 className="mb-2 text-xl font-medium">
                     {section.sectionLabel[language] ||
-                      section.sectionLabel['eng']}
+                      section.sectionLabel["eng"]}
                   </h3>
                 )}
 
@@ -576,62 +616,62 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                 {section.fields.map((field: Field) => {
                   const fieldValue =
                     currentChildId && currentChildParentId
-                      ? (editExistingChild(currentChildParentId, currentChildId)
-                          ?.data[field.id] ?? '')
-                      : (formData[step.id]?.[field.id] ?? '')
+                      ? editExistingChild(currentChildParentId, currentChildId)
+                          ?.data[field.id] ?? ""
+                      : formData[step.id]?.[field.id] ?? "";
 
                   return (
-                    <div key={field.id} className='mb-4'>
+                    <div key={field.id} className="mb-4">
                       {/* Field Label */}
-                      <label className='mb-1 block text-sm font-medium'>
+                      <label className="mb-1 block text-sm font-medium">
                         {field.labels[language]?.[field.id] ||
-                          field.labels['eng']?.[field.id]}
+                          field.labels["eng"]?.[field.id]}
                       </label>
 
                       {/* Different Field Types */}
-                      {field.type === 'textarea' && (
+                      {field.type === "textarea" && (
                         <textarea
                           name={field.id}
                           value={
                             // For a child page, check if we're in child mode and use its data
                             currentChildId && currentChildParentId
-                              ? (editExistingChild(
+                              ? editExistingChild(
                                   currentChildParentId,
                                   currentChildId
-                                )?.data[field.id] ?? '')
-                              : (formData[step.id]?.[field.id] ?? '')
+                                )?.data[field.id] ?? ""
+                              : formData[step.id]?.[field.id] ?? ""
                           }
                           placeholder={
                             field.placeholder?.[language] ||
                             field.placeholder?.eng ||
-                            ''
+                            ""
                           }
-                          className='w-full rounded border p-2'
-                          ref={el => registerFieldRef(field.id, el)}
-                          onChange={e => {
-                            handleFieldChange(field, e.target.value)
+                          className="w-full rounded border p-2"
+                          ref={(el) => registerFieldRef(field.id, el)}
+                          onChange={(e) => {
+                            handleFieldChange(field, e.target.value);
                           }}
-                          onBlur={e => {
-                            saveCurrentPageData()
+                          onBlur={(e) => {
+                            saveCurrentPageData();
                           }}
-                          onPaste={e => {
-                            const pastedText = e.clipboardData.getData('text')
+                          onPaste={(e) => {
+                            const pastedText = e.clipboardData.getData("text");
                             if (!isValid__UTF8(pastedText)) {
-                              e.preventDefault()
+                              e.preventDefault();
                               alert(
-                                'Pasted text contains invalid characters. Please use UTF-8 text only.'
-                              )
+                                "Pasted text contains invalid characters. Please use UTF-8 text only."
+                              );
                             }
                           }}
                         />
                       )}
 
-                      {field.type === 'DateTime' && (
+                      {field.type === "DateTime" && (
                         <DateTimeField
                           field={field}
                           format={
                             field.validation.format ||
-                            'defaultFormat: YYYY-MM-DD'
+                            "defaultFormat: YYYY-MM-DD"
                           }
                           fieldValue={fieldValue}
                           registerFieldRef={registerFieldRef}
@@ -640,30 +680,30 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                         />
                       )}
 
-                      {field.type === 'radio' && (
+                      {field.type === "radio" && (
                         <div
                           className={`flex ${
-                            field.orientation === 'vertical'
-                              ? 'flex-col'
-                              : 'flex-row space-x-4'
+                            field.orientation === "vertical"
+                              ? "flex-col"
+                              : "flex-row space-x-4"
                           }`}
                         >
                           {Object.entries(field.options[language] || {}).map(
                             ([optionKey, optionLabel]) => (
                               <label
                                 key={optionKey}
-                                className='flex items-center space-x-2'
+                                className="flex items-center space-x-2"
                               >
                                 <input
-                                  type='radio'
+                                  type="radio"
                                   name={field.id}
                                   value={optionKey}
                                   // Compare the field value with the option key
                                   defaultChecked={fieldValue === optionKey}
-                                  ref={el => registerFieldRef(field.id, el)}
+                                  ref={(el) => registerFieldRef(field.id, el)}
                                   onBlur={() => {
-                                    handleFieldChange(field, optionKey)
-                                    saveCurrentPageData()
+                                    handleFieldChange(field, optionKey);
+                                    saveCurrentPageData();
                                   }}
                                 />
                                 <span>{optionLabel}</span>
@@ -673,25 +713,25 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                         </div>
                       )}
 
-                      {(field.type === 'select' ||
-                        field.type === 'dropdown') && (
+                      {(field.type === "select" ||
+                        field.type === "dropdown") && (
                         <div>
                           {/* Selected Options Display as Removable Tags */}
-                          <div className='mb-4 flex flex-wrap gap-2'>
+                          <div className="mb-4 flex flex-wrap gap-2">
                             {Array.isArray(formData[step.id]?.[field.id]) &&
                             formData[step.id][field.id].length > 0 ? (
                               formData[step.id][field.id].map(
                                 (optionKey: string) => (
                                   <span
                                     key={optionKey}
-                                    className='flex items-center rounded bg-blue-100 px-3 py-1 text-sm text-blue-800'
+                                    className="flex items-center rounded bg-blue-100 px-3 py-1 text-sm text-blue-800"
                                   >
                                     {/* Map the stored option key back to its label */}
                                     {field.options[language][optionKey] ||
                                       optionKey}
                                     <button
-                                      type='button'
-                                      className='ml-2 text-red-500 hover:text-red-700'
+                                      type="button"
+                                      className="ml-2 text-red-500 hover:text-red-700"
                                       onClick={() => {
                                         // Remove this specific option
                                         const updatedOptions = formData[
@@ -699,17 +739,20 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                                         ][field.id].filter(
                                           (selected: string) =>
                                             selected !== optionKey
-                                        )
+                                        );
 
-                                        setFormData(prev => ({
+                                        setFormData((prev) => ({
                                           ...prev,
                                           [step.id]: {
                                             ...(prev[step.id] || {}),
-                                            [field.id]: updatedOptions
-                                          }
-                                        }))
+                                            [field.id]: updatedOptions,
+                                          },
+                                        }));
                                       }}
-                                      aria-label={`Remove ${field.options[language][optionKey] || optionKey}`}
+                                      aria-label={`Remove ${
+                                        field.options[language][optionKey] ||
+                                        optionKey
+                                      }`}
                                     >
                                       x
                                     </button>
@@ -717,7 +760,7 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                                 )
                               )
                             ) : (
-                              <p className='text-sm text-gray-500'>
+                              <p className="text-sm text-gray-500">
                                 No options selected.
                               </p>
                             )}
@@ -727,49 +770,49 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                           <select
                             name={field.id}
                             multiple
-                            className='w-full rounded border p-2'
+                            className="w-full rounded border p-2"
                             value={formData[step.id]?.[field.id] || []}
-                            ref={el => registerFieldRef(field.id, el)}
-                            onChange={e => {
+                            ref={(el) => registerFieldRef(field.id, el)}
+                            onChange={(e) => {
                               const selectedOptions = Array.from(
                                 e.target.selectedOptions,
-                                option => option.value
-                              )
+                                (option) => option.value
+                              );
 
                               const min =
-                                field.validation?.cardinality?.min || 0
+                                field.validation?.cardinality?.min || 0;
                               const max =
-                                field.validation?.cardinality?.max || Infinity
+                                field.validation?.cardinality?.max || Infinity;
 
                               if (selectedOptions.length < min) {
                                 alert(
                                   `You must select at least ${min} options.`
-                                )
-                                return
+                                );
+                                return;
                               }
                               if (selectedOptions.length > max) {
-                                alert(`You can select at most ${max} options.`)
-                                return
+                                alert(`You can select at most ${max} options.`);
+                                return;
                               }
 
-                              saveCurrentPageData()
+                              saveCurrentPageData();
 
                               // Update selected options with the option keys
-                              setFormData(prev => ({
+                              setFormData((prev) => ({
                                 ...prev,
                                 [step.id]: {
                                   ...(prev[step.id] || {}),
-                                  [field.id]: selectedOptions
-                                }
-                              }))
+                                  [field.id]: selectedOptions,
+                                },
+                              }));
                             }}
-                            onBlur={e => {
-                              saveCurrentPageData()
+                            onBlur={(e) => {
+                              saveCurrentPageData();
                               const selectedKeys = Array.from(
                                 e.target.selectedOptions,
-                                option => option.value
-                              )
-                              handleFieldChange(field, selectedKeys)
+                                (option) => option.value
+                              );
+                              handleFieldChange(field, selectedKeys);
                             }}
                           >
                             {Object.entries(field.options[language] || {}).map(
@@ -784,16 +827,16 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                           {/* Clear Selections Button */}
                           {formData[step.id]?.[field.id]?.length > 0 && (
                             <button
-                              className='mt-2 rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600'
+                              className="mt-2 rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600"
                               onClick={() => {
-                                saveCurrentPageData()
-                                setFormData(prev => ({
+                                saveCurrentPageData();
+                                setFormData((prev) => ({
                                   ...prev,
                                   [step.id]: {
                                     ...(prev[step.id] || {}),
-                                    [field.id]: []
-                                  }
-                                }))
+                                    [field.id]: [],
+                                  },
+                                }));
                               }}
                             >
                               Clear All
@@ -803,46 +846,46 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                       )}
 
                       {/* Reference Field → navigate to child */}
-                      {field.type === 'reference' && field.ref && (
+                      {field.type === "reference" && field.ref && (
                         <div>
                           <button
-                            type='button'
+                            type="button"
                             onClick={() => {
                               const newChild = createNewChild(
                                 field.id,
                                 field.ref!
-                              )
+                              );
 
-                              setCurrentChildId(newChild.id)
-                              setCurrentChildParentId(field.id)
+                              setCurrentChildId(newChild.id);
+                              setCurrentChildParentId(field.id);
 
-                              setFormData(prev => ({
+                              setFormData((prev) => ({
                                 ...prev,
-                                [field.ref!]: {} // assuming the child page corresponds to the referenced step id
-                              }))
+                                [field.ref!]: {}, // assuming the child page corresponds to the referenced step id
+                              }));
 
-                              setIsNewChild(false)
+                              setIsNewChild(false);
 
                               // Navigate to the child step
                               const targetIndex = parsedSteps.findIndex(
-                                s => s.id === field.ref
-                              )
+                                (s) => s.id === field.ref
+                              );
 
                               if (targetIndex >= 0) {
-                                onNavigate(targetIndex)
+                                onNavigate(targetIndex);
                               } else {
                                 console.warn(
                                   `Reference step not found for field: ${field.id}`
-                                )
+                                );
                               }
-                              scrollTo(0, 0)
+                              scrollTo(0, 0);
                             }}
-                            className='mt-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600'
+                            className="mt-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
                           >
-                            +{' '}
+                            +{" "}
                             {field.reference_button_text?.[language] ||
                               field.reference_button_text?.eng ||
-                              '+ Child Step'}
+                              "+ Child Step"}
                           </button>
                           {/* Only display the table if there is at least one child */}
                           {parentFormData[field.id] &&
@@ -852,77 +895,77 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                                 field.ref
                               ] ?? []
                             ).length > 0 && (
-                              <div className='mt-4 rounded border bg-gray-100 p-4'>
-                                <h4 className='mb-2 text-lg font-semibold'>
+                              <div className="mt-4 rounded border bg-gray-100 p-4">
+                                <h4 className="mb-2 text-lg font-semibold">
                                   {
-                                    parsedSteps.find(s => s.id === field.ref)
+                                    parsedSteps.find((s) => s.id === field.ref)
                                       ?.names[language]
                                   }
                                 </h4>
-                                <table className='w-full table-fixed border border-gray-300'>
-                                  <thead className='bg-gray-200'>
+                                <table className="w-full table-fixed border border-gray-300">
+                                  <thead className="bg-gray-200">
                                     <tr>
                                       {/* Fixed-width Name column */}
-                                      <th className='w-64 border border-gray-300 px-4 py-2 text-left'>
+                                      <th className="w-64 border border-gray-300 px-4 py-2 text-left">
                                         Attributes
                                       </th>
                                       {/* Fixed-width actions column without a header title */}
-                                      <th className='w-32 border border-gray-300 px-4 py-2'></th>
+                                      <th className="w-32 border border-gray-300 px-4 py-2"></th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {(parentFormData[field.id]?.childrenData ??
-                                      {})[field.ref].map(child => (
+                                      {})[field.ref].map((child) => (
                                       <tr key={child.id}>
-                                        <td className='break-words border border-gray-300 px-4 py-2'>
+                                        <td className="break-words border border-gray-300 px-4 py-2">
                                           {/* Render each attribute value specified in field.showing_attribute */}
                                           {field.showing_attribute?.map(
-                                            attr => (
+                                            (attr) => (
                                               <div
                                                 key={attr}
-                                                className='mt-2 text-sm text-gray-700'
+                                                className="mt-2 text-sm text-gray-700"
                                               >
                                                 <strong>{attr}: </strong>
                                                 <span>
                                                   {child.data[attr] ||
-                                                    '(No Data)'}
+                                                    "(No Data)"}
                                                 </span>
                                               </div>
                                             )
                                           )}
                                         </td>
-                                        <td className='border border-gray-300 px-4 py-2 text-center'>
-                                          <div className='flex justify-center space-x-2'>
+                                        <td className="border border-gray-300 px-4 py-2 text-center">
+                                          <div className="flex justify-center space-x-2">
                                             <button
-                                              type='button'
+                                              type="button"
                                               onClick={() => {
                                                 // Enter "edit mode"
-                                                setCurrentChildId(child.id)
+                                                setCurrentChildId(child.id);
                                                 setCurrentChildParentId(
                                                   field.id
-                                                )
+                                                );
                                                 const idx =
                                                   parsedSteps.findIndex(
-                                                    s => s.id === child.stepId
-                                                  )
+                                                    (s) => s.id === child.stepId
+                                                  );
                                                 if (idx >= 0) {
-                                                  onNavigate(idx)
+                                                  onNavigate(idx);
                                                 }
                                               }}
-                                              className='rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600'
+                                              className="rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600"
                                             >
                                               Edit
                                             </button>
                                             <button
-                                              type='button'
+                                              type="button"
                                               onClick={() => {
                                                 deleteChild(
                                                   child.id,
                                                   field.id,
                                                   field.ref!
-                                                )
+                                                );
                                               }}
-                                              className='rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600'
+                                              className="rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600"
                                             >
                                               Delete
                                             </button>
@@ -937,14 +980,21 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                         </div>
                       )}
 
+                      {/*insert owner comment here */}
+                      {ownerComments[field.id] && (
+                        <div className="mt-2 p-2 bg-yellow-100 text-sm rounded">
+                          <strong>Owner Comment:</strong>{" "}
+                          {ownerComments[field.id]}
+                        </div>
+                      )}
                       {/* Show Validation Errors */}
                       {fieldErrors[field.id] && (
-                        <div className='mt-1 text-sm text-red-600'>
+                        <div className="mt-1 text-sm text-red-600">
                           {fieldErrors[field.id]}
                         </div>
                       )}
                     </div>
-                  )
+                  );
                 })}
               </div>
             ))}
@@ -952,16 +1002,16 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
             {/* Navigation Buttons */}
             {isParentStep(step) ? (
               // PARENT STEP => Next/Back, with Submit on the *very* last page
-              <div className='mt-8 flex items-center space-x-4'>
+              <div className="mt-8 flex items-center space-x-4">
                 <button
-                  type='button'
+                  type="button"
                   onClick={() => {
-                    handlePreviousPage()
-                    scrollTo(0, 0)
+                    handlePreviousPage();
+                    scrollTo(0, 0);
                   }}
-                  className='rounded bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400'
+                  className="rounded bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400"
                   disabled={
-                    parentSteps.findIndex(p => p.id === step.id) === 0 &&
+                    parentSteps.findIndex((p) => p.id === step.id) === 0 &&
                     isFirstPageOfThisStep
                   }
                 >
@@ -970,20 +1020,24 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
 
                 {isVeryLastPageOfLastStep ? (
                   <button
-                    type='button'
-                    onClick={handleSubmit_openAIRE}
-                    className='rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600'
+                    type="button"
+                    onClick={() => {
+                      handleSubmit_openAIRE();
+                      save();
+                    }}
+                    className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600"
                   >
                     Submit
                   </button>
                 ) : (
                   <button
-                    type='button'
+                    type="button"
                     onClick={() => {
-                      handleNextPage()
-                      scrollTo(0, 0)
+                      handleNextPage();
+                      scrollTo(0, 0);
+                      save;
                     }}
-                    className='rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600'
+                    className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
                   >
                     Next
                   </button>
@@ -992,44 +1046,44 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
             ) : (
               <>
                 {!isLastPageOfThisStep ? (
-                  <div className='mt-8 flex items-center space-x-4'>
+                  <div className="mt-8 flex items-center space-x-4">
                     {/* Back only if not first page */}
                     <button
-                      type='button'
+                      type="button"
                       onClick={() => {
-                        handlePreviousPage()
-                        scrollTo(0, 0)
+                        handlePreviousPage();
+                        scrollTo(0, 0);
                       }}
-                      className='rounded bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400'
+                      className="rounded bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400"
                       disabled={isFirstPageOfThisStep}
                     >
                       Back
                     </button>
                     {/* Next */}
                     <button
-                      type='button'
+                      type="button"
                       onClick={() => {
-                        handleNextPage()
-                        scrollTo(0, 0)
+                        handleNextPage();
+                        scrollTo(0, 0);
                       }}
-                      className='rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600'
+                      className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
                     >
                       Next
                     </button>
                   </div>
                 ) : (
-                  <div className='mt-8 flex items-center space-x-4'>
+                  <div className="mt-8 flex items-center space-x-4">
                     <button
-                      type='button'
+                      type="button"
                       onClick={cancelHandler}
-                      className='rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600'
+                      className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
                     >
                       Cancel
                     </button>
                     <button
-                      type='button'
+                      type="button"
                       onClick={finishHandler}
-                      className='rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600'
+                      className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600"
                     >
                       Finish
                     </button>
@@ -1045,14 +1099,14 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
 
       {/* Sidebar */}
       <nav className={styles.sidebar}>
-        <h2 className='mb-4 text-xl font-semibold'>Pages / Steps</h2>
-        <ul className='space-y-4'>
+        <h2 className="mb-4 text-xl font-semibold">Pages / Steps</h2>
+        <ul className="space-y-4">
           {/* Show only visited steps + the very first root step */}
           {parsedSteps
-            .filter(s => visitedSteps.has(s.id) || s.id === parsedSteps[0].id)
-            .map(stepNode => {
-              const nodeStepIndex = getIndex(stepNode.id)
-              const nodeCurrentPageIndex = pageIndexByStep[stepNode.id] ?? 0
+            .filter((s) => visitedSteps.has(s.id) || s.id === parsedSteps[0].id)
+            .map((stepNode) => {
+              const nodeStepIndex = getIndex(stepNode.id);
+              const nodeCurrentPageIndex = pageIndexByStep[stepNode.id] ?? 0;
 
               return (
                 <NavigationItem
@@ -1066,7 +1120,7 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
                   expandedStep={expandedStep}
                   setExpandedStep={setExpandedStep}
                 />
-              )
+              );
             })}
         </ul>
       </nav>
@@ -1074,10 +1128,10 @@ export default function Form({ initialAnswers, onSubmit, onSave }: FormProps) {
       {/* Footer */}
       <div className={styles.footer}>
         <Footer />
-        <p className='text-center text-gray-600'>
+        <p className="text-center text-gray-600">
           © 2025 University of Guelph. All rights reserved.
         </p>
       </div>
     </form>
-  )
+  );
 }
