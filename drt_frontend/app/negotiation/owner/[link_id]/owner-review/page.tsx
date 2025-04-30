@@ -32,13 +32,11 @@ export default function OwnerReviewPage() {
   // global comments
   const [globalComments, setGlobalComments] = useState<string>("");
 
-  // 1️⃣ Build parsedSteps exactly as in your Form.tsx
   const parsedSteps = useMemo(() => {
     const unsorted = parseJsonToFormStructure();
     return sortStepsByReferences(unsorted);
   }, []);
 
-  // 2️⃣ Fetch negotiation + preload comments
   useEffect(() => {
     async function fetchNegotiation() {
       try {
@@ -65,7 +63,6 @@ export default function OwnerReviewPage() {
     fetchNegotiation();
   }, [link_id]);
 
-  // 3️⃣ Filter only “parent” steps (skip child/ref steps)
   const parentSteps = useMemo(() => {
     const childIds = new Set<string>();
     parsedSteps.forEach((step) =>
@@ -78,7 +75,6 @@ export default function OwnerReviewPage() {
     return parsedSteps.filter((s) => !childIds.has(s.id));
   }, [parsedSteps]);
 
-  // 4️⃣ Action handler: bundle fieldComments + globalComments + action flag
   const handleAction = async (action: string) => {
     if (!negotiation) return;
     setError(null);
@@ -98,8 +94,13 @@ export default function OwnerReviewPage() {
       if (!res.ok) throw new Error(result.error || "Action failed");
 
       setStatusMessage(result.message);
-      if (action === "accept" || action === "reject") {
-        router.push("/negotiation/owner/success");
+      if (action === "accept") {
+        router.push(`/negotiation/owner/${link_id}/success`);
+      } else if (action === "reject") {
+        setStatusMessage("❌ Rejected. The requestor has been notified.");
+      }
+       else {
+        setStatusMessage(result.message);
       }
     } catch (err: any) {
       console.error(err);
@@ -133,8 +134,6 @@ export default function OwnerReviewPage() {
                   </h4>
 
                   {sec.fields.map((field: Field) => {
-
-
                     const { save, submit, ...rest } =
                       negotiation.requestor_responses;
 
@@ -158,8 +157,6 @@ export default function OwnerReviewPage() {
                     console.log("answer for", field.id, "=>", answer);
 
                     console.log("Field ID:", field.id); // Debugging line
-
-                    
 
                     return (
                       <div key={field.id} className="mb-4">

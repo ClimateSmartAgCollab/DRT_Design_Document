@@ -1,45 +1,36 @@
-{# helper to fetch the answer for a given question‐id #}
-{% macro answer_for(id) -%}
-  {%- for q in submission.questions -%}
-    {%- if q.id == id -%}
-      {{ q.answer }}
-    {%- endif -%}
-  {%- endfor -%}
-{%- endmacro %}
-
-
 LICENSE AGREEMENT
 
 This License Agreement ("Agreement") is entered into by and between:
 
-- **Licensor**: {{ answer_for('institutionName') }}  
-  Location: {{ answer_for('institutionLocation') }}
-- **Licensee**: {{ answer_for('requestorName') }}  
-  Email: {{ answer_for('requestorEmailAddress') }}
+- **Licensor**: {{ submission.institutionName }}
+  Location: {{ submission.institutionLocation }}
+- **Licensee**: {{ submission.requestorName }}
+  Email: {{ submission.requestorEmailAddress }}
 
 **1. Grant of License**  
-The Licensor hereby grants to the Licensee a non-exclusive, non-transferable, worldwide license to use the content titled "{{ answer_for('title') }}"  
-for the purpose of {{ answer_for('usageAndLicensing')}}.
+The Licensor hereby grants to the Licensee a non-exclusive, non-transferable, worldwide license to use the content titled "{{ submission.title }}"  
+for the purpose of {{ submission.usageAndLicensing | join(', ') }}.
 
 **2. Description**  
-{{ answer_for('description') }}
+{{ submission.description }}
 
 **3. Research Objectives and Design**  
-{{ answer_for('researchObjectivesAndDesign') }}
+{{ submission.researchObjectivesAndDesign }}
 
 **4. Attribution**  
-{% if answer_for('includeAttributionRequirement') in ['true','True',true] %}
+{% if submission.includeAttributionRequirement in ['true','True', true] %}
 Licensee must include the following attribution in all distributions:  
-> “Data provided by {{ answer_for('institutionName') }}.”
+> “Data provided by {{ submission.institutionName }}.”
 {% else %}
 No attribution requirement.
 {% endif %}
+
 
 **5. Restrictions**  
 - No derivative works beyond the scope of this license without prior written consent.  
 - No sublicensing.
 
 **6. Governing Law**  
-This Agreement shall be governed by the laws of {{ answer_for('institutionLocation') }}.
+This Agreement shall be governed by the laws of {{ submission.institutionLocation }}.
 
 Signature: _____________________  Date: ___________
