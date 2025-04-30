@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import fetchApi from "@/app/api/apiHelper";
 
-type Format = "json" | "license" | "odrl";
 
 export default function SuccessPage() {
   const { link_id } = useParams();
@@ -22,7 +21,7 @@ export default function SuccessPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetchApi(`/drt/owner_review/${link_id}/`);
+        const res = await fetchApi(`/drt/owner_review/${link_id}/?success=true`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load data");
 
@@ -62,55 +61,6 @@ export default function SuccessPage() {
     }
   };
 
-  // Download JSON / TXT / XML from your DRF endpoint
-  // const handleDownload = async (format: Format) => {
-
-  //   console.log("requestorResponses", requestorResponses);
-
-  //   // if (!requestorResponses) return;
-  //   // setStatusMessage(null);
-  //   // setErrorMessage(null);
-
-  //   try {
-  //     const res = await fetch(
-  //       `/drt/api/submission/${link_id}/?format=${format}`,
-  //       {
-  //         method: "POST",
-  //         credentials: "include",              // keep CSRF cookie
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify(requestorResponses),
-  //       }
-  //     );
-  //     if (!res.ok) throw new Error(`Download failed with status ${res.status}`);
-
-  //     // Grab the filename from Content-Disposition if available
-  //     const cd = res.headers.get("Content-Disposition") || "";
-  //     const match = cd.match(/filename="([^"]+)"/);
-  //     const filename =
-  //       match?.[1] ??
-  //       ({
-  //         json: "openAIRE.json",
-  //         license: "license.txt",
-  //         odrl: "license.xml",
-  //       }[format]);
-
-  //     // Stream the blob and trigger the browser download
-  //     const blob = await res.blob();
-  //     const url = window.URL.createObjectURL(blob);
-  //     const a = document.createElement("a");
-  //     a.href = url;
-  //     a.download = filename;
-  //     document.body.appendChild(a);
-  //     a.click();
-  //     a.remove();
-  //     window.URL.revokeObjectURL(url);
-
-  //     setStatusMessage(`✔️ ${filename} downloaded.`);
-  //   } catch (err: any) {
-  //     console.error(err);
-  //     setErrorMessage(err.message || "Error during download");
-  //   }
-  // };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-6">
@@ -125,31 +75,6 @@ export default function SuccessPage() {
         >
           Didn’t get it? Resend Email
         </button>
-
-        {/* {loadingData ? (
-          <p className="text-gray-500">Loading download options…</p>
-        ) : (
-          <div className="flex flex-col space-y-2 mt-4">
-            <button
-              onClick={() => handleDownload("json")}
-              className="rounded-lg bg-green-500 px-6 py-2 font-semibold text-white hover:bg-green-600"
-            >
-              Download OpenAIRE JSON
-            </button>
-            <button
-              onClick={() => handleDownload("license")}
-              className="rounded-lg bg-blue-500 px-6 py-2 font-semibold text-white hover:bg-blue-600"
-            >
-              Download License (TXT)
-            </button>
-            <button
-              onClick={() => handleDownload("odrl")}
-              className="rounded-lg bg-purple-500 px-6 py-2 font-semibold text-white hover:bg-purple-600"
-            >
-              Download ODRL XML
-            </button>
-          </div>
-        )} */}
 
         {statusMessage && (
           <p className="mt-4 text-green-600">{statusMessage}</p>

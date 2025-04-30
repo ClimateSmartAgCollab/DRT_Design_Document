@@ -259,10 +259,12 @@ def owner_review(request, uuid):
 
     # Handle GET request and return JSON data
     if request.method == 'GET':
+        bypass_completed = request.query_params.get('success') == 'true'
+
         if negotiation.state == 'requestor_open':
             return Response({'error': 'The questionnaire is requestor_open and cannot be edited by the owner.'}, status=403)
 
-        if negotiation.state == 'completed':
+        if negotiation.state == 'completed' and not bypass_completed:
             return Response({'error': 'The negotiation is completed and cannot be edited.'}, status=403)
 
         # Return negotiation details as JSON
@@ -320,15 +322,12 @@ def owner_review(request, uuid):
 def generate_license_and_notify_owner(nlink):
 
     negotiation = nlink.negotiation
-    submission = negotiation.requestor_responses  # your dict of answers
-    print("submission:", submission)  # <<–– debug
+    submission = negotiation.requestor_responses 
 
     for key in submission:
         if key not in ['save', 'submit']:
             details = submission[key]
             break  # assuming only one such key
-
-    print("details:", details)  # <<–– debug
 
 
     env = Environment(
