@@ -8,7 +8,6 @@
         "type": "spec/capture_base/1.1",
         "attributes": {
           "requestorName": "Text",
-          "includeAttributionRequirement": "Boolean",
           "requestorEmailAddress": "Text",
           "institutionName": "Text",
           "institutionLocation": "Text",
@@ -35,8 +34,7 @@
             "title": "utf-8",
             "description": "utf-8",
             "researchObjectivesAndDesign": "utf-8",
-            "usageAndLicensing": "utf-8",
-            "includeAttributionRequirement": "utf-8"
+            "usageAndLicensing": "utf-8"
           }
         },
         "conformance": {
@@ -45,7 +43,6 @@
           "type": "spec/overlays/conformance/1.1",
           "attribute_conformance": {
             "requestorName": "M",
-            "includeAttributionRequirement": "O",
             "requestorEmailAddress": "M",
             "institutionName": "M",
             "institutionLocation": "M",
@@ -66,10 +63,6 @@
                 "Option 1": "List to be determined  1",
                 "Option 2": "List to be determined  2",
                 "Option 3": "List to be determined  3"
-              },
-              "includeAttributionRequirement": {
-                "true": "Yes",
-                "false": "No"
               }
             }
           }
@@ -83,10 +76,6 @@
               "Option 1",
               "Option 2",
               "Option 3"
-            ],
-            "includeAttributionRequirement": [
-              "true",
-              "false"
             ]
           }
         },
@@ -98,7 +87,6 @@
             "language": "eng",
             "attribute_information": {
               "requestorName": "Enter the full name of the requestor.",
-              "includeAttributionRequirement": "Check to agree to include an attribution requirement in the license template.",
               "requestorEmailAddress": "Enter the requestor’s email address.",
               "institutionName": "Enter the name of the affiliated institution.",
               "institutionLocation": "Enter the location of the institution.",
@@ -118,7 +106,6 @@
             "attribute_categories": [],
             "attribute_labels": {
               "requestorName": "Requestor’s Name",
-              "includeAttributionRequirement": "Include Attribution Requirement?",
               "requestorEmailAddress": "Requestor’s Email Address",
               "institutionName": "Institution Name",
               "institutionLocation": "Institution Location",
@@ -177,8 +164,7 @@
                   "title",
                   "description",
                   "researchObjectivesAndDesign",
-                  "usageAndLicensing",
-                  "includeAttributionRequirement"
+                  "usageAndLicensing"
                 ]
               }
             ]
@@ -210,13 +196,6 @@
             "arguments": {
               "requestorName": {
                 "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ..."
-                }
-              },
-              "includeAttributionRequirement": {
-                "type": "radio",
-                "orientation": "vertical",
                 "placeholder": {
                   "eng": "Enter ..."
                 }

@@ -337,9 +337,12 @@ def generate_license_and_notify_owner(nlink):
 
     attachments = []
 
+
+
     # Plain‐text license
+    owner_table = cache.get("owner_table")
     tpl = env.get_template("license_template.jinja")
-    txt = tpl.render(submission=details)
+    txt = tpl.render(submission=details, owner_table=owner_table)
     attachments.append(("license.txt", txt, "text/plain"))
 
     # ODRL XML

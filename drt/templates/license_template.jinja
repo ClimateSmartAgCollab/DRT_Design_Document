@@ -1,14 +1,19 @@
+{# assume owner_table is a dict mapping owner_id → {username, owner_email} #}
+{% set owner = owner_table.get("71ga39pq") %}
+
 LICENSE AGREEMENT
 
 This License Agreement ("Agreement") is entered into by and between:
 
-- **Licensor**: {{ submission.institutionName }}
-  Location: {{ submission.institutionLocation }}
+- **Licensor**: {{ owner.username }}
+  Email: {{ owner.owner_email }}
+
 - **Licensee**: {{ submission.requestorName }}
   Email: {{ submission.requestorEmailAddress }}
+  Location: {{ submission.institutionLocation }}
 
 **1. Grant of License**  
-The Licensor hereby grants to the Licensee a non-exclusive, non-transferable, worldwide license to use the content titled "{{ submission.title }}"  
+The Licensor hereby grants to the Licensee a non-exclusive, non-transferable, worldwide license to use the content titled “{{ submission.title }}”  
 for the purpose of {{ submission.usageAndLicensing | join(', ') }}.
 
 **2. Description**  
@@ -18,12 +23,8 @@ for the purpose of {{ submission.usageAndLicensing | join(', ') }}.
 {{ submission.researchObjectivesAndDesign }}
 
 **4. Attribution**  
-{% if submission.includeAttributionRequirement in ['true','True', true] %}
 Licensee must include the following attribution in all distributions:  
-> “Data provided by {{ submission.institutionName }}.”
-{% else %}
-No attribution requirement.
-{% endif %}
+“Data provided by {{ owner.username }}, grant number: ABCD1234”
 
 
 **5. Restrictions**  

@@ -498,7 +498,7 @@ export default function Form({
           </div>
           {globalOwnerComments && (
             <div className="mt-6 p-4 bg-yellow-100 rounded text-gray-800">
-              <strong>Owner Comments:</strong>+{" "}
+              <strong>Owner Comments:</strong>
               <p className="mt-1">{globalOwnerComments}</p>
             </div>
           )}
