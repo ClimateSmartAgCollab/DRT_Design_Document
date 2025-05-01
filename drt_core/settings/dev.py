@@ -34,7 +34,8 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',  
+        'LOCATION': 'redis://127.0.0.1:6379/1', 
+        'TIMEOUT': 60 * 60,  # cache entries expire after 1 hour 
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }

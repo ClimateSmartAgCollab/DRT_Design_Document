@@ -122,43 +122,51 @@ def requestor_email_entry(request, link_id):
 @csrf_exempt
 @api_view(['GET', 'POST'])
 def verify_otp(request, link_id):
+    try:
+        nlink     = NLink.objects.get(requestor_link=link_id)
+        requestor = Requestor.objects.get(requestor_email=nlink.requestor_email)
+    except (NLink.DoesNotExist, Requestor.DoesNotExist):
+        return Response({'error': 'Invalid link or email.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    # --- GET: resend the existing OTP ---
+    if request.method == 'GET':
+        # optionally bump expiry
+        requestor.otp_expiry = timezone.now() + datetime.timedelta(minutes=10)
+        requestor.save()
+
+        # send via email instead of print in prod:
+        # send_mail(
+        #     'Your verification code',
+        #     f'Use OTP: {requestor.otp}',
+        #     'noreply@yourapp.com',
+        #     [requestor.requestor_email],
+        # )
+        print(f"Resent OTP to {requestor.requestor_email}: {requestor.otp}")
+
+        return Response({'message': 'OTP resent successfully.'},
+                        status=status.HTTP_200_OK)
+
+    # --- POST: check submitted OTP ---
     if request.method == 'POST':
-        otp = request.data.get('otp')  # Use request.data for JSON
-
-        # Retrieve the requestor details based on link ID
-        try:
-            nlink = NLink.objects.get(requestor_link=link_id)
-            requestor = Requestor.objects.get(requestor_email=nlink.requestor_email)
-        except (NLink.DoesNotExist, Requestor.DoesNotExist):
-            return Response({'error': 'Invalid request. Link ID or email not found.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Check if OTP has expired
+        otp = request.data.get('otp')
         if timezone.now() > requestor.otp_expiry:
-            # OTP has expired, generate and send a new one
-            new_otp = get_random_string(6, '0123456789')
-            requestor.otp = new_otp
-            requestor.otp_expiry = timezone.now() + datetime.timedelta(minutes=10)
-            requestor.save()
+            return Response({'error': 'OTP expired. Please resend and try again.'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-            # Simulate sending new OTP (for now, just print it)
-            print(f"New OTP sent to {requestor.requestor_email}: {new_otp}")
-
-            return Response({'error': 'OTP expired. A new OTP has been sent to your email.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Check if the provided OTP is correct
         if requestor.otp == otp:
             requestor.is_verified = True
-            requestor.otp_expiry = timezone.now()  # Clear OTP expiration
+            requestor.otp_expiry   = timezone.now()
             requestor.save()
-
-            # Redirect to the access request page with the link ID
             access_url = reverse('request_access', kwargs={'link_id': link_id})
             return Response({'redirect_url': access_url})
         else:
-            # OTP is incorrect, prompt to re-enter a valid OTP
-            return Response({'error': 'Invalid OTP. Please enter the correct OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Invalid OTP. Please try again.'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-    return Response({'error': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    return Response({'error': 'Method not allowed.'},
+                    status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
 
 
 @api_view()
