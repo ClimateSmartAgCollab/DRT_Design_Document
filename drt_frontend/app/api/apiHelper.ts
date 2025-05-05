@@ -1,5 +1,5 @@
 // app/api/apiHelper.ts
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://drt-design-document.onrender.com';
 
 const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${baseURL}${endpoint}`;
