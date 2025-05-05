@@ -1,4 +1,11 @@
+# drt_core\settings\dev.py
+
 from .base import * 
+import environ
+
+# Initialize environment variables
+env = environ.Env()
+environ.Env.read_env()
 
 DEBUG = "True"
 # We open everything on local mode
@@ -7,8 +14,28 @@ CSRF_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SECURE = True
 CSRF_TRUSTED_ORIGINS = ["http://*"]
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # in console for now
-DEFAULT_FROM_EMAIL = 'sanavisetayesh@gmail.com'
+# # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # in console for now
+# # Use SMTP to send real mail in dev
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST        = env('EMAIL_HOST')
+# EMAIL_PORT        = env.int('EMAIL_PORT')
+# EMAIL_HOST_USER   = env('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+# EMAIL_USE_TLS     = True
+
+# # DEFAULT_FROM_EMAIL = 'sanavisetayesh@gmail.com'
+# # What the emails will appear “from”
+# DEFAULT_FROM_EMAIL = 'DART System <noreply@dart-system.com>'
+
+EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST          = 'sandbox.smtp.mailtrap.io'
+EMAIL_PORT          = 2525          # or whatever Mailtrap gives you
+EMAIL_HOST_USER     = 'c8cd1ba2ff8f76'
+EMAIL_HOST_PASSWORD = '09e6155f2b8de1'
+EMAIL_USE_TLS       = True          # Mailtrap supports TLS
+DEFAULT_FROM_EMAIL  = 'DART System <noreply@dev.local>'
+
+
 
 
 CORS_ORIGIN_ALLOW_ALL = True

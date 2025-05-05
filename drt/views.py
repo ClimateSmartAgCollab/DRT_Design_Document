@@ -92,12 +92,13 @@ def requestor_email_entry(request, link_id):
 
         # Generate a 6-digit OTP
         otp = get_random_string(6, '0123456789')
+        expiry = timezone.now() + datetime.timedelta(minutes=10)
 
         # Store the requestor's email and OTP in the database
         requestor = Requestor.objects.create(
             requestor_email=email,
             otp=otp,
-            otp_expiry=timezone.now() + datetime.timedelta(minutes=10), 
+            otp_expiry=expiry, 
             is_verified=False
         )
 
@@ -105,16 +106,45 @@ def requestor_email_entry(request, link_id):
         try:
             nlink = NLink.objects.get(requestor_link=link_id)
             nlink.requestor_email = email
-            nlink.save()
+            nlink.save(update_fields=['requestor_email'])
         except NLink.DoesNotExist:
             return Response({'error': 'Invalid link ID provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Simulate sending OTP (for now, just print it)
-        print(f"OTP sent to {email}: {otp}")
+        # print(f"OTP sent to {email}: {otp}")
+
+        subject = "Your DART System One-Time Password"
+        message = (
+            f"Hello,\n\n"
+            f"Your one-time password (OTP) for accessing the data request form is:\n\n"
+            f"    {otp}\n\n"
+            f"This code will expire at {expiry.strftime('%Y-%m-%d %H:%M:%S')}.\n\n"
+            f"If you did not request this, please ignore this email.\n\n"
+            f"— DART System Team"
+        )
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # Optionally log the exception:
+            # logger.error(f"Failed to send OTP email: {e}")
+            return Response(
+                {'error': 'Unable to send OTP email. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )        
 
         # Redirect URL for OTP verification
-        otp_verification_url = reverse('verify_otp', kwargs={'link_id': link_id})
-        return Response({'redirect_url': otp_verification_url})
+        otp_verification_path = reverse('verify_otp', kwargs={'link_id': link_id})
+        full_url = f"{settings.FRONTEND_BASE_URL}{otp_verification_path}"
+        return Response(
+            {'redirect_url': full_url},
+            status=status.HTTP_200_OK
+        )
     print(f"OTP sent to {email}: {otp}")
     return Response({'error': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -136,13 +166,13 @@ def verify_otp(request, link_id):
         requestor.save()
 
         # send via email instead of print in prod:
-        # send_mail(
-        #     'Your verification code',
-        #     f'Use OTP: {requestor.otp}',
-        #     'noreply@yourapp.com',
-        #     [requestor.requestor_email],
-        # )
-        print(f"Resent OTP to {requestor.requestor_email}: {requestor.otp}")
+        send_mail(
+            'Your verification code',
+            f'Use OTP: {requestor.otp}',
+            'noreply@yourapp.com',
+            [requestor.requestor_email],
+        )
+        # print(f"Resent OTP to {requestor.requestor_email}: {requestor.otp}")
 
         return Response({'message': 'OTP resent successfully.'},
                         status=status.HTTP_200_OK)
