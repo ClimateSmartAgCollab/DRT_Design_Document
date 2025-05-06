@@ -2,7 +2,7 @@ from .base import *  # noqa: F403, F401
 import os
 import dj_database_url
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
+DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 # We open everything on local mode
 ALLOWED_HOSTS = ["*"]
 CSRF_COOKIE_SAMESITE = "None"

@@ -7,8 +7,8 @@ import io
 from django.views.decorators.csrf import csrf_exempt
 import os
 
-GITHUB_API_URL = os.getenv('GITHUB_API_URL')
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+GITHUB_API_URL = os.environ.get('GITHUB_API_URL')
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 
 # Helper function to fetch a file from GitHub
 def fetch_file_from_github(file_path):
