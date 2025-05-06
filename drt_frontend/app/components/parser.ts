@@ -21,7 +21,8 @@ const normalizeEntryCodes = (dependencies: Dependency[]): void => {
 
 normalizeEntryCodes(metadataJson.oca_bundle.dependencies)
 
-const metadata: Root = metadataJson as Root
+// const metadata: Root = metadataJson as Root
+const metadata = metadataJson as unknown as Root
 
 export const findBundleByCaptureBase = (
   captureBase: string,
