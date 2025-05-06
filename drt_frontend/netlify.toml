@@ -1,6 +1,0 @@
-# netlify.toml
-
-[[redirects]]
-  from    = "/*"
-  to      = "/app/datastore/load-data/page.tsx"
-  status  = 200
