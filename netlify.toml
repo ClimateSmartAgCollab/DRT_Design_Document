@@ -2,7 +2,7 @@
 [build]
   base    = "drt_frontend"              # where your Next.js lives
   command = "npm install && npm run build"
-  publish = "drt_frontend/.next"        # must differ from base!
+  publish = ".next"        # must differ from base!
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
