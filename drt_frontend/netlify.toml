@@ -1,0 +1,12 @@
+# netlify.toml
+
+[build]
+  # adjust this if your Next.js app lives in a folder other than drt_frontend
+  base    = "drt_frontend"
+  command = "npm install && npm run build"
+  # leave publish blank or point at .next; the plugin will detect it
+  publish = "drt_frontend/.next"
+
+[[plugins]]
+  # enables SSR/routes support for Next.js 13 App Router
+  package = "@netlify/plugin-nextjs"
