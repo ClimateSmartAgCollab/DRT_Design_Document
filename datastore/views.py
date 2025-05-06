@@ -8,6 +8,9 @@ from django.views.decorators.csrf import csrf_exempt
 import os
 
 GITHUB_API_URL = os.environ.get('GITHUB_API_URL')
+if GITHUB_API_URL is None:
+    raise ValueError("GITHUB_API_URL environment variable is not set.")
+
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 
 # Helper function to fetch a file from GitHub
