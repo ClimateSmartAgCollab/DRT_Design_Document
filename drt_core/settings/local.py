@@ -33,8 +33,8 @@ DATABASES = {
 }
 
 
-# database_url = os.environ.get("DATABASE_URL")
-# DATABASES["default"] = dj_database_url.parse(database_url)
+database_url = os.environ.get("DATABASE_URL")
+DATABASES["default"] = dj_database_url.parse(database_url)
 
 REDIS_URL = os.environ["REDIS_URL"]
 if REDIS_URL is None:
