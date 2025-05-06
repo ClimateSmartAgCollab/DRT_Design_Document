@@ -5,9 +5,10 @@ import base64
 import csv
 import io
 from django.views.decorators.csrf import csrf_exempt
+import os
 
-GITHUB_API_URL = "https://api.github.com/repos/ClimateSmartAgCollab/DRT-DS-test/contents"
-GITHUB_TOKEN = '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' #Expires on Sun, Dec 8 2024.
+GITHUB_API_URL = os.getenv('GITHUB_API_URL')
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 
 # Helper function to fetch a file from GitHub
 def fetch_file_from_github(file_path):
