@@ -27,6 +27,7 @@ import uuid
 import datetime
 import logging
 import json
+from django.core.mail import EmailMultiAlternatives
 
 
 logger = logging.getLogger(__name__)
@@ -114,7 +115,7 @@ def requestor_email_entry(request, link_id):
         # print(f"OTP sent to {email}: {otp}")
 
         subject = "Your DART System One-Time Password"
-        message = (
+        text_content = (
             f"Hello,\n\n"
             f"Your one-time password (OTP) for accessing the data request form is:\n\n"
             f"    {otp}\n\n"
@@ -122,21 +123,23 @@ def requestor_email_entry(request, link_id):
             f"If you did not request this, please ignore this email.\n\n"
             f"— DART System Team"
         )
+
+
         try:
-            send_mail(
+            msg = EmailMultiAlternatives(
                 subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
+                body=text_content,
+                from_email=getattr('drt_core/settings/local.py', 'DEFAULT_FROM_EMAIL'),
+                to=[email],
+                headers={"Reply-To": getattr('drt_core/settings/local.py', 'DEFAULT_FROM_EMAIL')},
             )
-        except Exception as e:
-            # Optionally log the exception:
-            # logger.error(f"Failed to send OTP email: {e}")
+            msg.send(fail_silently=False)
+        except Exception:
             return Response(
                 {'error': 'Unable to send OTP email. Please try again later.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )        
+            )       
+
 
         # Redirect URL for OTP verification
         otp_verification_path = reverse('verify_otp', kwargs={'link_id': link_id})
@@ -165,13 +168,21 @@ def verify_otp(request, link_id):
         requestor.otp_expiry = timezone.now() + datetime.timedelta(minutes=10)
         requestor.save()
 
-        # send via email instead of print in prod:
-        send_mail(
-            'Your verification code',
-            f'Use OTP: {requestor.otp}',
-            'noreply@yourapp.com',
-            [requestor.requestor_email],
-        )
+        try:
+            msg = EmailMultiAlternatives(
+                subject='Your verification code',
+                body=f'Use OTP: {requestor.otp}',
+                from_email=getattr('drt_core/settings/local.py', 'DEFAULT_FROM_EMAIL'),
+                to=[requestor.requestor_email],
+                headers={"Reply-To": getattr('drt_core/settings/local.py', 'DEFAULT_FROM_EMAIL')},
+            )
+            msg.send(fail_silently=False)
+        except Exception:
+            return Response(
+                {'error': 'Unable to send OTP email. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )  
+        
         # print(f"Resent OTP to {requestor.requestor_email}: {requestor.otp}")
 
         return Response({'message': 'OTP resent successfully.'},

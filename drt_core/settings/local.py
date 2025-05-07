@@ -1,16 +1,33 @@
+# drt_core\settings\local.py
 from .base import *  # noqa: F403, F401
 import os
 import dj_database_url
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
+
 # We open everything on local mode
 ALLOWED_HOSTS = ["*"]
 CSRF_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SECURE = True
 CSRF_TRUSTED_ORIGINS = ["http://*"]
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # in console for now
-DEFAULT_FROM_EMAIL = 'sanavisetayesh@gmail.com'
+
+# Use SendGrid’s Web API backend
+EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+
+# Standard “from” address must match your Single-Sender
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
+
+# # Use SendGrid’s SMTP backend (optional)
+# EMAIL_BACKEND      = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_HOST         = "smtp.sendgrid.net"
+# EMAIL_PORT         = 587
+# EMAIL_HOST_USER    = "apikey"
+# EMAIL_HOST_PASSWORD= os.environ.get("SENDGRID_API_KEY")
+# EMAIL_USE_TLS      = True
+# DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
+
+
 
 
 CORS_ORIGIN_ALLOW_ALL = True
