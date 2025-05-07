@@ -129,9 +129,9 @@ def requestor_email_entry(request, link_id):
             msg = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,
-                from_email=getattr('drt_core/settings/local.py', 'DEFAULT_FROM_EMAIL'),
+                from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[email],
-                headers={"Reply-To": getattr('drt_core/settings/local.py', 'DEFAULT_FROM_EMAIL')},
+                headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
             )
             msg.send(fail_silently=False)
         except Exception:
@@ -172,9 +172,9 @@ def verify_otp(request, link_id):
             msg = EmailMultiAlternatives(
                 subject='Your verification code',
                 body=f'Use OTP: {requestor.otp}',
-                from_email=getattr('drt_core/settings/local.py', 'DEFAULT_FROM_EMAIL'),
+                from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[requestor.requestor_email],
-                headers={"Reply-To": getattr('drt_core/settings/local.py', 'DEFAULT_FROM_EMAIL')},
+                headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
             )
             msg.send(fail_silently=False)
         except Exception:
