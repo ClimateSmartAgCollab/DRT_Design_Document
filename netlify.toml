@@ -6,8 +6,3 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-[[redirects]]
-  from    = "/*"
-  to      = "/datastore/load-data"
-  status  = 200
