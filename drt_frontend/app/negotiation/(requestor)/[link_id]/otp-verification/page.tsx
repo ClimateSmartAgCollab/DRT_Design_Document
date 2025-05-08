@@ -101,8 +101,6 @@ const OTPVerification = () => {
             >
             Resend
           </button>
-          {statusMessage && <p className="text-green-600">{statusMessage}</p>}
-          {error   && <p className="text-red-600">{error}</p>}
         </div>
 
 

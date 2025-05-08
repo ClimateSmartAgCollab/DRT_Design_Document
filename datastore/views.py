@@ -42,7 +42,7 @@ def load_github_data(request):
                 'username': row['username'],
                 'owner_email': row['owner_email']
             }
-        cache.set('owner_table', owner_table)
+        cache.set('owner_table', owner_table, timeout=60*60*24)
 
     if link_table_csv:
         link_table = {} 
@@ -55,19 +55,19 @@ def load_github_data(request):
                 'expiry': row['expiry'],
                 'data_label': row['data_label']
             }
-        cache.set('link_table', link_table)
+        cache.set('link_table', link_table, timeout=60*60*24)
 
     if questionnaire_table_csv:
         questionnaire_table = {}
         reader = csv.DictReader(io.StringIO(questionnaire_table_csv))
         for row in reader:
             questionnaire_table[row['questionnaire_SAID']] = row['questionnaire_filename']
-        cache.set('questionnaire_table', questionnaire_table)
+        cache.set('questionnaire_table', questionnaire_table, timeout=60*60*24)
 
     if sample_questionnaire_json:
-        cache.set('sample_questionnaire_package', sample_questionnaire_json)  
+        cache.set('sample_questionnaire_package', sample_questionnaire_json, timeout=60*60*24)  
     if sample_questionnaire_json_1:
-        cache.set('OCA_package_schema_paper', sample_questionnaire_json_1)
+        cache.set('OCA_package_schema_paper', sample_questionnaire_json_1, timeout=60*60*24)
 
     return JsonResponse({'status': 'GitHub data loaded successfully and cached'})
 

@@ -71,6 +71,7 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
+        "TIMEOUT": 60 * 60 * 24, # cache entries expire after 1 day
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
