@@ -11,12 +11,22 @@ CSRF_COOKIE_SECURE = True
 CSRF_TRUSTED_ORIGINS = ["http://*"]
 
 
-# Use SendGrid’s Web API backend
-EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
-SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+INSTALLED_APPS += ["anymail"]
 
-# Standard “from” address must match your Single-Sender
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
+EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+ANYMAIL = {
+    "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY"),
+    "MAILGUN_SENDER_DOMAIN": "sandbox52c30de58b9b48c2925e0795c53759c9.mailgun.org",
+}
+DEFAULT_FROM_EMAIL = "DART System <postmaster@sandbox52c30de58b9b48c2925e0795c53759c9.mailgun.org>"
+
+
+# # Use SendGrid’s Web API backend
+# EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
+# SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+
+# # Standard “from” address must match your Single-Sender
+# DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 
 # # Use SendGrid’s SMTP backend (optional)
 # EMAIL_BACKEND      = "django.core.mail.backends.smtp.EmailBackend"
@@ -33,9 +43,9 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',  # Frontend origin
+    'http://127.0.0.1:3000',  # Frontend origin
 ]
-FRONTEND_BASE_URL = "http://localhost:3000" 
+FRONTEND_BASE_URL = "http://127.0.0.1:3000" 
 
 
 DATABASES = {

@@ -41,9 +41,9 @@ DEFAULT_FROM_EMAIL  = 'DART System <noreply@dev.local>'
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',  # Frontend origin
+    'http://127.0.0.1:3000',  # Frontend origin
 ]
-FRONTEND_BASE_URL = "http://localhost:3000" 
+FRONTEND_BASE_URL = "http://127.0.0.1:3000" 
 
 
 DATABASES = {
