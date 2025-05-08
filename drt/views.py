@@ -79,78 +79,61 @@ def generate_nlinks(request, link_id):
     })
 
 @csrf_exempt
-@api_view(['GET', 'POST'])
+@api_view(['POST'])
 def requestor_email_entry(request, link_id):
-    if request.method == 'POST':
-        email = request.data.get('email') 
+    try:
+        # 1) grab & validate
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        validate_email(email)
 
-        # Validate the email format
-        try:
-            validate_email(email)
-        except ValidationError:
-            # Email format is invalid, respond with error message
-            return Response({'error': 'Please enter a valid email address.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Generate a 6-digit OTP
+        # 2) generate + store OTP
         otp = get_random_string(6, '0123456789')
         expiry = timezone.now() + datetime.timedelta(minutes=10)
-
-        # Store the requestor's email and OTP in the database
         requestor = Requestor.objects.create(
             requestor_email=email,
             otp=otp,
-            otp_expiry=expiry, 
+            otp_expiry=expiry,
             is_verified=False
         )
+        nlink = get_object_or_404(NLink, requestor_link=link_id)
+        nlink.requestor_email = email
+        nlink.save(update_fields=['requestor_email'])
 
-        # Update the NLink object with the requestor's email
-        try:
-            nlink = NLink.objects.get(requestor_link=link_id)
-            nlink.requestor_email = email
-            nlink.save(update_fields=['requestor_email'])
-        except NLink.DoesNotExist:
-            return Response({'error': 'Invalid link ID provided.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Simulate sending OTP (for now, just print it)
-        # print(f"OTP sent to {email}: {otp}")
-
+        # 3) build and send the email
         subject = "Your DART System One-Time Password"
         text_content = (
             f"Hello,\n\n"
-            f"Your one-time password (OTP) for accessing the data request form is:\n\n"
-            f"    {otp}\n\n"
-            f"This code will expire at {expiry.strftime('%Y-%m-%d %H:%M:%S')}.\n\n"
-            f"If you did not request this, please ignore this email.\n\n"
+            f"Your one-time password (OTP) is:\n\n    {otp}\n\n"
+            f"It expires at {expiry:%Y-%m-%d %H:%M:%S}.\n\n"
             f"— DART System Team"
         )
-
-
-        try:
-            msg = EmailMultiAlternatives(
-                subject=subject,
-                body=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[email],
-                headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
-            )
-            msg.send(fail_silently=False)
-        except Exception:
-            return Response(
-                {'error': 'Unable to send OTP email. Please try again later.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )       
-
-
-        # Redirect URL for OTP verification
-        otp_verification_path = reverse('verify_otp', kwargs={'link_id': link_id})
-        full_url = f"{settings.FRONTEND_BASE_URL}{otp_verification_path}"
-        return Response(
-            {'redirect_url': full_url},
-            status=status.HTTP_200_OK
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
         )
-    print(f"OTP sent to {email}: {otp}")
-    return Response({'error': 'Invalid request method'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        msg.send(fail_silently=False)
 
+        # 4) return the frontend redirect
+        otp_path = reverse('verify_otp', kwargs={'link_id': link_id})
+        return Response({'redirect_url': settings.FRONTEND_BASE_URL + otp_path})
+
+    except ValidationError:
+        return Response({'error': 'Please enter a valid email address.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        # **This** will catch ANY error and log the full traceback.
+        logger.exception("🔥 Error in requestor_email_entry")
+        return Response(
+            {'error': 'Server error. Check logs for details.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
 
 @csrf_exempt
 @api_view(['GET', 'POST'])

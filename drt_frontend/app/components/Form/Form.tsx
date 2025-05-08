@@ -1027,7 +1027,7 @@ export default function Form({
                     }}
                     className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600"
                   >
-                    Submit
+                    Review
                   </button>
                 ) : (
                   <button
