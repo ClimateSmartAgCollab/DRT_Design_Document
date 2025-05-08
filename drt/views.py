@@ -1,8 +1,6 @@
 import os
 from django.conf import settings
-from django.shortcuts import render, redirect, get_object_or_404
-from django.core.mail import send_mail
-from django.core.mail import EmailMessage
+from django.shortcuts import render, get_object_or_404
 from django.urls import NoReverseMatch, reverse
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
@@ -82,13 +80,13 @@ def generate_nlinks(request, link_id):
 @api_view(['POST'])
 def requestor_email_entry(request, link_id):
     try:
-        # 1) grab & validate
+        # grab & validate
         email = request.data.get('email')
         if not email:
             return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
         validate_email(email)
 
-        # 2) generate + store OTP
+        # generate + store OTP
         otp = get_random_string(6, '0123456789')
         expiry = timezone.now() + datetime.timedelta(minutes=10)
         requestor = Requestor.objects.create(
@@ -101,7 +99,7 @@ def requestor_email_entry(request, link_id):
         nlink.requestor_email = email
         nlink.save(update_fields=['requestor_email'])
 
-        # 3) build and send the email
+        # build and send the email
         subject = "Your DART System One-Time Password"
         text_content = (
             f"Hello,\n\n"
@@ -118,7 +116,7 @@ def requestor_email_entry(request, link_id):
         )
         msg.send(fail_silently=False)
 
-        # 4) return the frontend redirect
+        # return the frontend redirect
         otp_path = reverse('verify_otp', kwargs={'link_id': link_id})
         return Response({'redirect_url': settings.FRONTEND_BASE_URL + otp_path})
 
@@ -127,8 +125,7 @@ def requestor_email_entry(request, link_id):
                         status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
-        # **This** will catch ANY error and log the full traceback.
-        logger.exception("🔥 Error in requestor_email_entry")
+        logger.exception("Error in requestor_email_entry")
         return Response(
             {'error': 'Server error. Check logs for details.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -240,12 +237,14 @@ def fill_questionnaire(request, uuid):
             negotiation.state = 'owner_open'
             negotiation.save()
 
-            send_mail(
-                'Your Data Request Submission Confirmation',
-                f'Your request has been submitted successfully.\n\nSubmission Details:\n{negotiation.requestor_responses}',
-                'noreply@dart-system.com',
-                [nlink.requestor_email]
+            msg = EmailMultiAlternatives(
+                subject='Your Data Request Submission Confirmation',
+                body=f'Your request has been submitted successfully.\n\nSubmission Details:\n{negotiation.requestor_responses}',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[nlink.requestor_email],
+                headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
             )
+            msg.send(fail_silently=False)
 
             owner_table = cache.get("owner_table")
             if owner_table and nlink.owner_id in owner_table:
@@ -254,13 +253,15 @@ def fill_questionnaire(request, uuid):
                 frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')  # Fallback to localhost if not set
                 owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
-
-                send_mail(
-                    'New Data Request to Review',
-                    f'A new data request has been submitted. Please review it at {owner_review_url}',
-                    'noreply@dart-system.com',
-                    [owner_email]
+                msg = EmailMultiAlternatives(
+                    subject='New Data Request to Review',
+                    body=f'A new data request has been submitted. Please review it at {owner_review_url}',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[owner_email],
+                    headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
                 )
+                msg.send(fail_silently=False)
+
 
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
 
@@ -401,7 +402,7 @@ def generate_license_and_notify_owner(nlink):
         f"Requestor Email: {nlink.requestor_email}\n\n"
         f"Best,\nDART System"
     )
-    email = EmailMessage(
+    email = EmailMultiAlternatives(
         subject=subject,
         body=body,
         from_email=settings.DEFAULT_FROM_EMAIL,
@@ -414,15 +415,18 @@ def generate_license_and_notify_owner(nlink):
     email.send()
 
 
+
 def send_clarification_email(requestor_email, link_id):
     clarification_url = reverse('fill_questionnaire', kwargs={'uuid': link_id})
-    send_mail(
-        'Clarification Required',
-        f'Please provide additional information: {clarification_url}',
-        'noreply@dart-system.com',
-        [requestor_email]
-    )
 
+    msg = EmailMultiAlternatives(
+        subject='Clarification Required',
+        body=f'Please provide additional information: {clarification_url}',
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[requestor_email],
+        headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+    )
+    msg.send(fail_silently=False)
 
 # @api_view(['POST'])
 # def cancel_request(request, link_id):
