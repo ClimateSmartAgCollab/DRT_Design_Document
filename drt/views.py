@@ -89,11 +89,14 @@ def requestor_email_entry(request, link_id):
         # generate + store OTP
         otp = get_random_string(6, '0123456789')
         expiry = timezone.now() + datetime.timedelta(minutes=10)
-        requestor = Requestor.objects.create(
+        # find or make the Requestor, then reset its OTP & expiry
+        requestor, created = Requestor.objects.update_or_create(
             requestor_email=email,
-            otp=otp,
-            otp_expiry=expiry,
-            is_verified=False
+            defaults={
+                'otp': otp,
+                'otp_expiry': expiry,
+                'is_verified': False,
+            }
         )
         nlink = get_object_or_404(NLink, requestor_link=link_id)
         nlink.requestor_email = email

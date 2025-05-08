@@ -55,7 +55,7 @@ const OTPVerification = () => {
         setError(data.error || "Could not resend OTP. Please try again.");
       } else {
         const data = await response.json();
-        setStatusMessage(data.message || "OTP resent!");
+        setStatusMessage(data.message || "OTP resent! Check your inbox.");
       }
     } catch (err) {
       console.error("Resend OTP error:", err);
@@ -101,6 +101,8 @@ const OTPVerification = () => {
             >
             Resend
           </button>
+          {statusMessage && <p className="text-green-600">{statusMessage}</p>}
+          {error   && <p className="text-red-600">{error}</p>}
         </div>
 
 
