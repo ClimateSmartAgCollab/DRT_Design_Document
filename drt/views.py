@@ -103,7 +103,7 @@ def requestor_email_entry(request, link_id):
         nlink.save(update_fields=['requestor_email'])
 
         # build and send the email
-        subject = "Your DART System One-Time Password"
+        subject = "DART System One-Time Password"
         text_content = (
             f"Hello,\n\n"
             f"Your one-time password (OTP) is:\n\n    {otp}\n\n"
@@ -153,7 +153,7 @@ def verify_otp(request, link_id):
 
         try:
             msg = EmailMultiAlternatives(
-                subject='Your verification code',
+                subject='DART System One-Time Password',
                 body=f'Use OTP: {requestor.otp}',
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[requestor.requestor_email],
@@ -196,12 +196,11 @@ def verify_otp(request, link_id):
 @api_view()
 def request_access(request, link_id):
     """Send the requestor a direct link to access the questionnaire."""
-    
-    nlink = get_object_or_404(NLink, requestor_link=link_id)
 
-    questionnaire_url = request.build_absolute_uri(
-        reverse('fill_questionnaire', kwargs={'uuid': nlink.requestor_link})
-    )
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://localhost:3000')
+    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
+
+    questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
     print(f"Questionnaire Link: {questionnaire_url}")
 
@@ -210,8 +209,8 @@ def request_access(request, link_id):
 
 @csrf_exempt
 @api_view(['GET', 'POST'])
-def fill_questionnaire(request, uuid):
-    nlink = get_object_or_404(NLink, requestor_link=uuid)
+def fill_questionnaire(request, link_id):
+    nlink = get_object_or_404(NLink, requestor_link=link_id)
     negotiation = nlink.negotiation
 
     # Handle questionnaire submission state checks
@@ -241,8 +240,8 @@ def fill_questionnaire(request, uuid):
             negotiation.save()
 
             msg = EmailMultiAlternatives(
-                subject='Your Data Request Submission Confirmation',
-                body=f'Your request has been submitted successfully.\n\nSubmission Details:\n{negotiation.requestor_responses}',
+                subject='Data Request Submission Confirmation',
+                body=f'Your request has been submitted successfully.\n\n we will notify you once the owner has reviewed it.',
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[nlink.requestor_email],
                 headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
@@ -253,7 +252,8 @@ def fill_questionnaire(request, uuid):
             if owner_table and nlink.owner_id in owner_table:
                 # Generate the dynamic URL
                 owner_email = owner_table[nlink.owner_id]["owner_email"]
-                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')  # Fallback to localhost if not set
+                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://localhost:3000')
+                # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
                 owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
                 msg = EmailMultiAlternatives(
@@ -289,8 +289,8 @@ def fill_questionnaire(request, uuid):
 
 
 @api_view(['GET', 'POST'])
-def owner_review(request, uuid):
-    nlink = get_object_or_404(NLink, owner_link=uuid)
+def owner_review(request, link_id):
+    nlink = get_object_or_404(NLink, owner_link=link_id)
     negotiation = nlink.negotiation
 
     # Handle GET request and return JSON data
@@ -328,7 +328,7 @@ def owner_review(request, uuid):
             negotiation.state           = 'requestor_open'
             negotiation.save()
 
-            send_clarification_email(nlink.requestor_email, nlink.link_id)
+            send_clarification_email(nlink.requestor_email, nlink.requestor_link)
             return Response({'message': 'Clarification requested!'})
 
         elif 'accept' in data:
@@ -394,13 +394,12 @@ def generate_license_and_notify_owner(nlink):
     owner_table = cache.get("owner_table", {})
     owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
     if not owner_email:
-        # Fallback or raise an error
-        return
+        raise ValueError(f"Owner email not found for ID: {nlink.owner_id}")
+    
 
-
-    subject = "Your License Agreement"
+    subject = "License Agreement"
     body = (
-        f"Hi,\n\n"
+        f"Hello,\n\n"
         f"Please review the attached license documents for your negotiation.\n"
         f"Requestor Email: {nlink.requestor_email}\n\n"
         f"Best,\nDART System"
@@ -420,11 +419,15 @@ def generate_license_and_notify_owner(nlink):
 
 
 def send_clarification_email(requestor_email, link_id):
-    clarification_url = reverse('fill_questionnaire', kwargs={'uuid': link_id})
+    
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://localhost:3000')
+    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
+
+    clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
     msg = EmailMultiAlternatives(
         subject='Clarification Required',
-        body=f'Please provide additional information: {clarification_url}',
+        body=f'Please provide additional information.\n\n Access your form in this link: {clarification_url}',
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[requestor_email],
         headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},

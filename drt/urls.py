@@ -8,9 +8,9 @@ urlpatterns = [
     path('generate_nlinks/<str:link_id>/', views.generate_nlinks, name='generate_nlinks'),
     path('verify/requestor/<str:link_id>/', views.requestor_email_entry, name='requestor_email_entry'),
     path('verify/otp/<str:link_id>/', views.verify_otp, name='verify_otp'),
-    path('request_access/<uuid:link_id>/', views.request_access, name='request_access'),
-    path('fill_questionnaire/<uuid:uuid>/', views.fill_questionnaire, name='fill_questionnaire'),
-    path('owner_review/<uuid:uuid>/', views.owner_review, name='owner_review'),
+    path('request_access/<str:link_id>/', views.request_access, name='request_access'),
+    path('fill_questionnaire/<str:link_id>/', views.fill_questionnaire, name='fill_questionnaire'),
+    path('owner_review/<str:link_id>/', views.owner_review, name='owner_review'),
     
     path('negotiations/', views.negotiation_list, name='negotiation_list'),  # Display all negotiations
     path('negotiations/archive/<uuid:negotiation_id>/', views.archive_view, name='archive_negotiation'),  # Archive a negotiation
