@@ -1,8 +1,5 @@
 {
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.11.1"
-  },
-  "dependencies": {
-    "lucide-react": "^0.510.0"
   }
 }
