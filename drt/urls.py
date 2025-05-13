@@ -16,7 +16,7 @@ urlpatterns = [
     # owner
     path('verify/owner-email/',            views.owner_email_entry,   name='owner_email_entry'),
     path('verify/owner-otp/<str:email>/',  views.verify_owner_otp,     name='verify_owner_otp'),
-    path('negotiations/', views.negotiation_list, name='negotiation_list'),  # Display all negotiations
+    path('negotiations/', views.negotiation_list_api, name='negotiation_list_api'),  # Display all negotiations
     path('negotiations/archive/<uuid:negotiation_id>/', views.archive_view, name='archive_negotiation'),  # Archive a negotiation
     path('negotiations/delete/<uuid:negotiation_id>/', views.delete_negotiation_files, name='delete_negotiation_files'),  # Delete negotiation files
     path('negotiations/delete-old/', views.delete_old_negotiations_view, name='delete_old_negotiations'), 

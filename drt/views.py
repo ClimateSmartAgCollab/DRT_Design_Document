@@ -631,10 +631,18 @@ def archive_view(request, negotiation_id):
         )
 
 # View to display a list of negotiations
-def negotiation_list(request):
-    """Display a list of all negotiations."""
-    negotiations = Negotiation.objects.all()
-    return render(request, 'list.html', {'negotiations': negotiations})
+def negotiation_list_api(request):
+    """Return all negotiations as JSON."""
+    qs = Negotiation.objects.all().values(
+        'negotiation_id',
+        'requestor_responses',
+        'owner_responses',
+        'comments',
+        'state',
+        'timestamps'
+    )
+    data = list(qs)
+    return JsonResponse(data, safe=False)
 
 # Manually trigger deletion of old negotiations
 def delete_old_negotiations_view(request):
