@@ -78,6 +78,34 @@ def generate_nlinks(request, link_id):
 
 @csrf_exempt
 @api_view(['POST'])
+def owner_email_entry(request):
+    email = request.data.get('email')
+    try:
+        validate_email(email)
+    except ValidationError:
+        return Response({'error': 'Invalid email'}, status=400)
+
+    # generate OTP
+    otp = "9832"  # for testing
+    # uncomment the next line for production
+    # otp = get_random_string(6, '0123456789')
+
+    expiry = timezone.now() + datetime.timedelta(minutes=10)
+    # store in cache under "owner_auth:{email}"
+    cache.set(f"owner_auth:{email}", {'otp':otp, 'expiry':expiry}, 600)
+
+    # # send it
+    # EmailMultiAlternatives(
+    #   subject="Your Owner OTP",
+    #   body=f"Your OTP is {otp}. Expires at {expiry:%H:%M}.",
+    #   from_email=settings.DEFAULT_FROM_EMAIL,
+    #   to=[email],
+    # ).send(fail_silently=False)
+
+    return Response({'message':'OTP sent'}, status=200)
+
+@csrf_exempt
+@api_view(['POST'])
 def requestor_email_entry(request, link_id):
     try:
         # grab & validate
@@ -87,7 +115,10 @@ def requestor_email_entry(request, link_id):
         validate_email(email)
 
         # generate + store OTP
-        otp = get_random_string(6, '0123456789')
+        otp = "9832"  # for testing
+        # uncomment the next line for production
+        # otp = get_random_string(6, '0123456789')
+        
         expiry = timezone.now() + datetime.timedelta(minutes=10)
         # find or make the Requestor, then reset its OTP & expiry
         requestor, created = Requestor.objects.update_or_create(
@@ -133,7 +164,20 @@ def requestor_email_entry(request, link_id):
             {'error': 'Server error. Check logs for details.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-    
+
+@csrf_exempt
+@api_view(['POST'])
+def verify_owner_otp(request, email):
+    entry = cache.get(f"owner_auth:{email}")
+    otp_sub = request.data.get('otp')
+    if not entry or timezone.now() > entry['expiry']:
+        return Response({'error':'OTP expired'}, status=400)
+    if entry['otp'] != otp_sub:
+        return Response({'error':'Wrong OTP'}, status=400)
+
+    # mark as “logged in” (e.g. set a short‐lived token or flag in cache)
+    cache.set(f"owner_logged_in:{email}", True, 3600)
+    return Response({'message':'verified'}, status=200)   
 
 @csrf_exempt
 @api_view(['GET', 'POST'])

@@ -1,0 +1,47 @@
+// app/owner/email-entry/page.tsx
+'use client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import fetchApi from '@/app/api/apiHelper';
+
+export default function OwnerEmailEntry() {
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState<string|null>(null)
+  const router = useRouter()
+
+  const sendOtp = async () => {
+    setError(null)
+    const res = await fetchApi('/drt/verify/owner-email/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    })
+    if (res.ok) {
+      // pass email along as a query param to OTP page
+      router.push(`/negotiation/owner/verify-otp/?email=${encodeURIComponent(email)}`)
+    } else {
+      const body = await res.json()
+      setError(body.error || 'Failed to send OTP')
+    }
+  }
+
+  return (
+    <main className="p-6 max-w-md mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Owner Login</h1>
+      <input
+        type="email"
+        placeholder="Your email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        className="w-full border rounded p-2 mb-2"
+      />
+      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+      <button
+        onClick={sendOtp}
+        className="w-full bg-blue-600 text-white py-2 rounded"
+      >
+        Send OTP
+      </button>
+    </main>
+  )
+}
