@@ -96,12 +96,6 @@ export default function OwnerHomePage() {
       href: "/drt/summary-statistics/<owner_id>",
       emoji: "📊",
     },
-    { name: "Load GitHub Data", href: "/datastore/load-data", emoji: "⬆️" },
-    {
-      name: "Get Cached Data",
-      href: "/datastore/get_cached_data/<key>",
-      emoji: "📥",
-    },
   ];
 
   return (

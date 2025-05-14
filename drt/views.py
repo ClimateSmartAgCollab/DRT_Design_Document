@@ -635,11 +635,13 @@ def negotiation_list_api(request):
     """Return all negotiations as JSON."""
     qs = Negotiation.objects.all().values(
         'negotiation_id',
+        'conversation_id',
         'requestor_responses',
         'owner_responses',
         'comments',
         'state',
-        'timestamps'
+        'timestamps',
+        'archived',
     )
     data = list(qs)
     return JsonResponse(data, safe=False)
