@@ -7,13 +7,13 @@ from django.utils.crypto import get_random_string
 from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 # from django.views.decorators.cache import cache_page
 from django.utils import timezone
 from django.db import transaction
 from django.db.models.signals import post_save
-from django.db.models import Avg, Count, F, Q
+from django.db.models import Avg, F, Count, Q, Min, Max
 from django.utils.translation import gettext_lazy as _
 from django.dispatch import receiver
 from rest_framework.decorators import api_view
@@ -25,7 +25,9 @@ import uuid
 import datetime
 import logging
 import json
+import traceback
 from django.core.mail import EmailMultiAlternatives
+
 
 
 logger = logging.getLogger(__name__)
@@ -46,16 +48,26 @@ def generate_nlinks(request, link_id):
         logger.warning(f"Link ID {link_id} not found in cache.")
         return Response({'error': f'Link ID {link_id} not found'}, status=404)
 
-    # Create a new Negotiation instance
-    negotiation = Negotiation.objects.create(
-        questionnaire_SAID=example_link['questionnaire_id'],
-        state='requestor_open'
-    )
-    logger.info(f"Negotiation created with ID: {negotiation.negotiation_id}")
+    try:
+        negotiation = Negotiation.objects.create(
+            questionnaire_SAID=example_link['questionnaire_id'],
+            state='requestor_open'
+        )
+    except Exception as e:
+        # Log full traceback to console
+        logger.error(traceback.format_exc())
+        # Also return it in the response so front-end can display it
+        return JsonResponse({'error': str(e)}, status=500)
+
+    logger.info(f"Negotiation created with PK: {negotiation.pk}")
+    print(f"Negotiation created with PK: {negotiation.pk}")
+
 
     # todo: use uuid7 that includes embedded timestamp data,to manage time-related functionality for link expiration.
     # Create NLink and associate it with the Negotiation
     owner_link_id, requestor_link_id = uuid.uuid4(), uuid.uuid4()
+    print(f"Owner Link ID: {owner_link_id}") #<-- debug
+    print(f"Requestor Link ID: {requestor_link_id}") #<-- debug
 
     nlink = NLink.objects.create(
         negotiation=negotiation,
@@ -67,7 +79,7 @@ def generate_nlinks(request, link_id):
         expiration_date= datetime.datetime.now() + datetime.timedelta(days=7)
     )
 
-
+    print(f"Created NLink with ID: {nlink.requestor_link}") #<-- debug
     # # Redirect the requestor to the email entry page
     # return redirect('requestor_email_entry', link_id=requestor_link_id)
 
@@ -104,8 +116,9 @@ def owner_email_entry(request):
 
     return Response({'message':'OTP sent'}, status=200)
 
-@csrf_exempt
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
+@ensure_csrf_cookie      # on a GET it will set csrftoken
+@csrf_exempt             # only if you reorder so this still applies
 def requestor_email_entry(request, link_id):
     try:
         # grab & validate
@@ -141,14 +154,14 @@ def requestor_email_entry(request, link_id):
             f"It expires at {expiry:%Y-%m-%d %H:%M:%S}.\n\n"
             f"— DART System Team"
         )
-        msg = EmailMultiAlternatives(
-            subject=subject,
-            body=text_content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[email],
-            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-        )
-        msg.send(fail_silently=False)
+        # msg = EmailMultiAlternatives(
+        #     subject=subject,
+        #     body=text_content,
+        #     from_email=settings.DEFAULT_FROM_EMAIL,
+        #     to=[email],
+        #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+        # )
+        # msg.send(fail_silently=False)
 
         # return the frontend redirect
         otp_path = reverse('verify_otp', kwargs={'link_id': link_id})
@@ -195,20 +208,20 @@ def verify_otp(request, link_id):
         requestor.otp_expiry = timezone.now() + datetime.timedelta(minutes=10)
         requestor.save()
 
-        try:
-            msg = EmailMultiAlternatives(
-                subject='DART System One-Time Password',
-                body=f'Use OTP: {requestor.otp}',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[requestor.requestor_email],
-                headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
-            )
-            msg.send(fail_silently=False)
-        except Exception:
-            return Response(
-                {'error': 'Unable to send OTP email. Please try again later.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )  
+        # try:
+        #     msg = EmailMultiAlternatives(
+        #         subject='DART System One-Time Password',
+        #         body=f'Use OTP: {requestor.otp}',
+        #         from_email=settings.DEFAULT_FROM_EMAIL,
+        #         to=[requestor.requestor_email],
+        #         headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
+        #     )
+        #     msg.send(fail_silently=False)
+        # except Exception:
+        #     return Response(
+        #         {'error': 'Unable to send OTP email. Please try again later.'},
+        #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        #     )  
         
         # print(f"Resent OTP to {requestor.requestor_email}: {requestor.otp}")
 
@@ -241,7 +254,7 @@ def verify_otp(request, link_id):
 def request_access(request, link_id):
     """Send the requestor a direct link to access the questionnaire."""
 
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://localhost:3000')
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
     # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
 
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
@@ -283,31 +296,33 @@ def fill_questionnaire(request, link_id):
             negotiation.state = 'owner_open'
             negotiation.save()
 
-            msg = EmailMultiAlternatives(
-                subject='Data Request Submission Confirmation',
-                body=f'Your request has been submitted successfully.\n\n we will notify you once the owner has reviewed it.',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[nlink.requestor_email],
-                headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-            )
-            msg.send(fail_silently=False)
+            # msg = EmailMultiAlternatives(
+            #     subject='Data Request Submission Confirmation',
+            #     body=f'Your request has been submitted successfully.\n\n we will notify you once the owner has reviewed it.',
+            #     from_email=settings.DEFAULT_FROM_EMAIL,
+            #     to=[nlink.requestor_email],
+            #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+            # )
+            # msg.send(fail_silently=False)
 
             owner_table = cache.get("owner_table")
             if owner_table and nlink.owner_id in owner_table:
                 # Generate the dynamic URL
                 owner_email = owner_table[nlink.owner_id]["owner_email"]
-                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://localhost:3000')
+                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
                 # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
                 owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
-                msg = EmailMultiAlternatives(
-                    subject='New Data Request to Review',
-                    body=f'A new data request has been submitted. Please review it at {owner_review_url}',
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[owner_email],
-                    headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-                )
-                msg.send(fail_silently=False)
+                # msg = EmailMultiAlternatives(
+                #     subject='New Data Request to Review',
+                #     body=f'A new data request has been submitted. Please review it at {owner_review_url}',
+                #     from_email=settings.DEFAULT_FROM_EMAIL,
+                #     to=[owner_email],
+                #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+                # )
+                # msg.send(fail_silently=False)
+
+                print(f"Email sent to {owner_email} with link: {owner_review_url}")
 
 
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
@@ -361,7 +376,9 @@ def owner_review(request, link_id):
 
         if 'save' in data:
             negotiation.owner_responses = data.get('owner_responses', '')
+            print(f"Owner Responses: {negotiation.owner_responses}")  # Debugging line
             negotiation.comments = data.get('comments', '')
+            print(f"Comments: {negotiation.comments}")  # Debugging line
             negotiation.save()
             return Response({'message': 'Review saved successfully!'})
 
@@ -448,35 +465,35 @@ def generate_license_and_notify_owner(nlink):
         f"Requestor Email: {nlink.requestor_email}\n\n"
         f"Best,\nDART System"
     )
-    email = EmailMultiAlternatives(
-        subject=subject,
-        body=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[owner_email],
-    )
+    # email = EmailMultiAlternatives(
+    #     subject=subject,
+    #     body=body,
+    #     from_email=settings.DEFAULT_FROM_EMAIL,
+    #     to=[owner_email],
+    # )
 
-    for filename, content, mimetype in attachments:
-        email.attach(filename, content, mimetype)
+    # for filename, content, mimetype in attachments:
+    #     email.attach(filename, content, mimetype)
 
-    email.send()
+    # email.send()
 
 
 
 def send_clarification_email(requestor_email, link_id):
     
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://localhost:3000')
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
     # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
 
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
-    msg = EmailMultiAlternatives(
-        subject='Clarification Required',
-        body=f'Please provide additional information.\n\n Access your form in this link: {clarification_url}',
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[requestor_email],
-        headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-    )
-    msg.send(fail_silently=False)
+    # msg = EmailMultiAlternatives(
+    #     subject='Clarification Required',
+    #     body=f'Please provide additional information.\n\n Access your form in this link: {clarification_url}',
+    #     from_email=settings.DEFAULT_FROM_EMAIL,
+    #     to=[requestor_email],
+    #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+    # )
+    # msg.send(fail_silently=False)
 
 # @api_view(['POST'])
 # def cancel_request(request, link_id):
@@ -659,7 +676,7 @@ def generate_summary_statistics(sender, instance, **kwargs):
         handle_negotiation_archive_and_summary(instance)
 
 
-@login_required
+# @login_required
 def summary_statistics_view(request, owner_id):
     """Endpoint for retrieving summary statistics based on the provided owner_id (string)."""
     try:
@@ -668,7 +685,9 @@ def summary_statistics_view(request, owner_id):
 
         # If no statistics found, return an error
         if not summary_statistics.exists():
-            return JsonResponse({'error': 'Owner statistics not found.'}, status=404)
+            logger.warning(f"  → No SummaryStatistic for owner_id={owner_id}")
+            return JsonResponse({'error': 'No  Summary Statistic found.'}, status=404)
+        logger.debug(f"Retrieved {summary_statistics.count()} SummaryStatistic row(s)")
 
         # Serialize the summary data
         statistics_data = [

@@ -1,13 +1,13 @@
 // app/negotiation/[link_id]/email-entry/page.tsx
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import fetchApi from '@/app/api/apiHelper';
+import React, { useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import fetchApi from "@/app/api/apiHelper";
 
 const EmailEntry = () => {
   console.log("EmailEntry");
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { link_id } = useParams(); // Access `link_id` with `useParams`
@@ -18,16 +18,16 @@ const EmailEntry = () => {
     // Client-side validation for email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address.');
+      setError("Please enter a valid email address.");
       return;
     }
 
     try {
       // Make the API call using fetchApi with POST method
       const response = await fetchApi(`/drt/verify/requestor/${link_id}/`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ email }),
       });
@@ -39,17 +39,28 @@ const EmailEntry = () => {
       } else {
         // Parse JSON only if status is not ok
         const data = await response.json();
-        setError(data.error || 'An error occurred. Please try again.');
+        console.error(
+          "Server responded with status",
+          response.status,
+          "and body",
+          data
+        );
+        setError(
+          data.error ?? data.detail ?? `Server error ${response.status}`
+        );
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
-      console.error('Email entry error:', err);
+      console.error("Network or JS error:", err);
+      setError("Network error. Please try again.");
     }
   };
-  
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded shadow-md w-full max-w-md">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-6 rounded shadow-md w-full max-w-md"
+      >
         <h2 className="text-2xl font-bold mb-4 text-black">Enter Your Email</h2>
         {error && <p className="text-red-500">{error}</p>}
         <input
@@ -63,7 +74,10 @@ const EmailEntry = () => {
           required
           className="w-full p-2 mb-4 border border-gray-300 rounded text-black"
         />
-        <button type="submit" className="w-full bg-blue-500 text-white p-2 rounded">
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white p-2 rounded"
+        >
           Submit
         </button>
       </form>

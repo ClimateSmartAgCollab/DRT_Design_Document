@@ -82,6 +82,13 @@ const NegotiationList = () => {
           </p>
         </div>
       )}
+      {!hasOld && (
+        <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded">
+          <p className="text-gray-700">
+            There are no negotiations older than 30 days to delete.
+          </p>
+        </div>
+      )}
 
       <ul className="space-y-4">
         {negs.map((n) => {
@@ -150,7 +157,7 @@ const NegotiationList = () => {
                         </pre>
                       </div>
                     </div>
-
+{/* 
                     <div>
                       <h4 className="font-medium text-gray-700 mb-2">
                         Comments
@@ -158,7 +165,7 @@ const NegotiationList = () => {
                       <pre className="bg-white p-3 rounded-lg overflow-auto text-sm text-gray-700">
                         {JSON.stringify(n.comments, null, 2)}
                       </pre>
-                    </div>
+                    </div> */}
 
                     <div className="flex flex-wrap gap-2">
                       {canArchive && (

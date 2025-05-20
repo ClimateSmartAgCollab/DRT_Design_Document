@@ -77,23 +77,8 @@ export default function OwnerHomePage() {
       emoji: "📋",
     },
     {
-      name: "Archive Negotiation",
-      href: "/drt/negotiations/archive/<id>",
-      emoji: "🗄️",
-    },
-    {
-      name: "Delete Negotiation",
-      href: "/drt/negotiations/delete/<id>",
-      emoji: "🗑️",
-    },
-    {
-      name: "Delete Old Negotiations",
-      href: "/drt/negotiations/delete-old",
-      emoji: "⌛",
-    },
-    {
       name: "Summary Statistics",
-      href: "/drt/summary-statistics/<owner_id>",
+      href: `/negotiation/owner/summary?owner=${encodeURIComponent(email)}`,
       emoji: "📊",
     },
   ];

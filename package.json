@@ -1,5 +1,11 @@
 {
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.11.1"
+    "@netlify/plugin-nextjs": "^5.11.1",
+    "@types/chart.js": "^2.9.41",
+    "@types/react-chartjs-2": "^2.0.2"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.9",
+    "react-chartjs-2": "^5.3.0"
   }
 }

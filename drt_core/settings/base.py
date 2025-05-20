@@ -5,6 +5,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-secret-key")
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:3000",
+]
+CORS_ALLOW_CREDENTIALS = True
 
 DJANGO_APPS = [
     "django.contrib.admin",
@@ -29,6 +33,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -54,7 +59,7 @@ TEMPLATES = [
     },
 ]
 
-
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 ROOT_URLCONF = "drt_core.urls"
 WSGI_APPLICATION = "drt_core.wsgi.application"
 

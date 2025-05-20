@@ -1,29 +1,44 @@
 // app/owner/email-entry/page.tsx
-'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import fetchApi from '@/app/api/apiHelper';
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import fetchApi from "@/app/api/apiHelper";
 
 export default function OwnerEmailEntry() {
-  const [email, setEmail] = useState('')
-  const [error, setError] = useState<string|null>(null)
-  const router = useRouter()
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  function getCSRFToken(): string {
+    return (
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("csrftoken="))
+        ?.split("=")[1] ?? ""
+    );
+  }
 
   const sendOtp = async () => {
-    setError(null)
-    const res = await fetchApi('/drt/verify/owner-email/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
+    setError(null);
+    const res = await fetchApi("/drt/verify/owner-email/", {
+      method: "POST",
+      credentials: "include",                
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),       
+      },
+      body: JSON.stringify({ email }),
+    });
     if (res.ok) {
       // pass email along as a query param to OTP page
-      router.push(`/negotiation/owner/verify-otp/?email=${encodeURIComponent(email)}`)
+      router.push(
+        `/negotiation/owner/verify-otp/?email=${encodeURIComponent(email)}`
+      );
     } else {
-      const body = await res.json()
-      setError(body.error || 'Failed to send OTP')
+      const body = await res.json();
+      setError(body.error || "Failed to send OTP");
     }
-  }
+  };
 
   return (
     <main className="p-6 max-w-md mx-auto">
@@ -32,7 +47,7 @@ export default function OwnerEmailEntry() {
         type="email"
         placeholder="Your email"
         value={email}
-        onChange={e => setEmail(e.target.value)}
+        onChange={(e) => setEmail(e.target.value)}
         className="w-full border rounded p-2 mb-2"
       />
       {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
@@ -43,5 +58,5 @@ export default function OwnerEmailEntry() {
         Send OTP
       </button>
     </main>
-  )
+  );
 }

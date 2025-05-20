@@ -6,19 +6,33 @@ import dj_database_url
 
 # We open everything on local mode
 ALLOWED_HOSTS = ["*"]
-CSRF_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SECURE = True
+# CSRF_COOKIE_SAMESITE = "None"
+# CSRF_COOKIE_SECURE = True
 CSRF_TRUSTED_ORIGINS = ["http://*"]
 
+# during local dev over HTTP, cookies must NOT be “secure-only”
+# CSRF_COOKIE_SECURE = False  
+SESSION_COOKIE_SECURE = False
 
-INSTALLED_APPS += ["anymail"]
+CSRF_COOKIE_SAMESITE = "Lax"    # default, works on HTTP
+CSRF_COOKIE_SECURE = False     # allow cookie over HTTP
 
-EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
-ANYMAIL = {
-    "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY"),
-    "MAILGUN_SENDER_DOMAIN": "sandbox52c30de58b9b48c2925e0795c53759c9.mailgun.org",
-}
-DEFAULT_FROM_EMAIL = "DART System <postmaster@sandbox52c30de58b9b48c2925e0795c53759c9.mailgun.org>"
+# explicitly trust your Next.js origin(s)
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+]
+
+
+
+# INSTALLED_APPS  ["anymail"]
+
+# EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+# ANYMAIL = {
+#     "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY"),
+#     "MAILGUN_SENDER_DOMAIN": "sandbox52c30de58b9b48c2925e0795c53759c9.mailgun.org",
+# }
+# DEFAULT_FROM_EMAIL = "DART System <postmaster@sandbox52c30de58b9b48c2925e0795c53759c9.mailgun.org>"
 
 
 # # Use SendGrid’s Web API backend
@@ -43,7 +57,8 @@ DEFAULT_FROM_EMAIL = "DART System <postmaster@sandbox52c30de58b9b48c2925e0795c53
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    'http://127.0.0.1:3000',  # Frontend origin
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 FRONTEND_BASE_URL = "http://127.0.0.1:3000" 
 
