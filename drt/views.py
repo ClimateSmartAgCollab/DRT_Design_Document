@@ -29,7 +29,6 @@ import traceback
 from django.core.mail import EmailMultiAlternatives
 
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -43,7 +42,8 @@ def generate_nlinks(request, link_id):
         return Response({'error': 'Link table not found in cache'}, status=404)
 
     # Find the appropriate link data
-    example_link = next((data for url, data in link_table.items() if link_id in url), None)
+    example_link = next(
+        (data for url, data in link_table.items() if link_id in url), None)
     if example_link == None:
         logger.warning(f"Link ID {link_id} not found in cache.")
         return Response({'error': f'Link ID {link_id} not found'}, status=404)
@@ -62,12 +62,11 @@ def generate_nlinks(request, link_id):
     logger.info(f"Negotiation created with PK: {negotiation.pk}")
     print(f"Negotiation created with PK: {negotiation.pk}")
 
-
     # todo: use uuid7 that includes embedded timestamp data,to manage time-related functionality for link expiration.
     # Create NLink and associate it with the Negotiation
     owner_link_id, requestor_link_id = uuid.uuid4(), uuid.uuid4()
-    print(f"Owner Link ID: {owner_link_id}") #<-- debug
-    print(f"Requestor Link ID: {requestor_link_id}") #<-- debug
+    print(f"Owner Link ID: {owner_link_id}")  # <-- debug
+    print(f"Requestor Link ID: {requestor_link_id}")  # <-- debug
 
     nlink = NLink.objects.create(
         negotiation=negotiation,
@@ -76,10 +75,10 @@ def generate_nlinks(request, link_id):
         dataset_ID=example_link['data_label'],  # Dataset ID from cache
         requestor_link=requestor_link_id,
         owner_link=owner_link_id,
-        expiration_date= datetime.datetime.now() + datetime.timedelta(days=7)
+        expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
     )
 
-    print(f"Created NLink with ID: {nlink.requestor_link}") #<-- debug
+    print(f"Created NLink with ID: {nlink.requestor_link}")  # <-- debug
     # # Redirect the requestor to the email entry page
     # return redirect('requestor_email_entry', link_id=requestor_link_id)
 
@@ -87,6 +86,7 @@ def generate_nlinks(request, link_id):
     return JsonResponse({
         'requestor_link_id': str(requestor_link_id)
     })
+
 
 @csrf_exempt
 @api_view(['POST'])
@@ -104,7 +104,7 @@ def owner_email_entry(request):
 
     expiry = timezone.now() + datetime.timedelta(minutes=10)
     # store in cache under "owner_auth:{email}"
-    cache.set(f"owner_auth:{email}", {'otp':otp, 'expiry':expiry}, 600)
+    cache.set(f"owner_auth:{email}", {'otp': otp, 'expiry': expiry}, 600)
 
     # # send it
     # EmailMultiAlternatives(
@@ -114,7 +114,8 @@ def owner_email_entry(request):
     #   to=[email],
     # ).send(fail_silently=False)
 
-    return Response({'message':'OTP sent'}, status=200)
+    return Response({'message': 'OTP sent'}, status=200)
+
 
 @api_view(['GET', 'POST'])
 @ensure_csrf_cookie      # on a GET it will set csrftoken
@@ -131,7 +132,7 @@ def requestor_email_entry(request, link_id):
         otp = "9832"  # for testing
         # uncomment the next line for production
         # otp = get_random_string(6, '0123456789')
-        
+
         expiry = timezone.now() + datetime.timedelta(minutes=10)
         # find or make the Requestor, then reset its OTP & expiry
         requestor, created = Requestor.objects.update_or_create(
@@ -178,26 +179,29 @@ def requestor_email_entry(request, link_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
 @csrf_exempt
 @api_view(['POST'])
 def verify_owner_otp(request, email):
     entry = cache.get(f"owner_auth:{email}")
     otp_sub = request.data.get('otp')
     if not entry or timezone.now() > entry['expiry']:
-        return Response({'error':'OTP expired'}, status=400)
+        return Response({'error': 'OTP expired'}, status=400)
     if entry['otp'] != otp_sub:
-        return Response({'error':'Wrong OTP'}, status=400)
+        return Response({'error': 'Wrong OTP'}, status=400)
 
     # mark as “logged in” (e.g. set a short‐lived token or flag in cache)
     cache.set(f"owner_logged_in:{email}", True, 3600)
-    return Response({'message':'verified'}, status=200)   
+    return Response({'message': 'verified'}, status=200)
+
 
 @csrf_exempt
 @api_view(['GET', 'POST'])
 def verify_otp(request, link_id):
     try:
-        nlink     = NLink.objects.get(requestor_link=link_id)
-        requestor = Requestor.objects.get(requestor_email=nlink.requestor_email)
+        nlink = NLink.objects.get(requestor_link=link_id)
+        requestor = Requestor.objects.get(
+            requestor_email=nlink.requestor_email)
     except (NLink.DoesNotExist, Requestor.DoesNotExist):
         return Response({'error': 'Invalid link or email.'},
                         status=status.HTTP_400_BAD_REQUEST)
@@ -221,8 +225,8 @@ def verify_otp(request, link_id):
         #     return Response(
         #         {'error': 'Unable to send OTP email. Please try again later.'},
         #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        #     )  
-        
+        #     )
+
         # print(f"Resent OTP to {requestor.requestor_email}: {requestor.otp}")
 
         return Response({'message': 'OTP resent successfully.'},
@@ -237,7 +241,7 @@ def verify_otp(request, link_id):
 
         if requestor.otp == otp:
             requestor.is_verified = True
-            requestor.otp_expiry   = timezone.now()
+            requestor.otp_expiry = timezone.now()
             requestor.save()
             access_url = reverse('request_access', kwargs={'link_id': link_id})
             return Response({'redirect_url': access_url})
@@ -249,12 +253,12 @@ def verify_otp(request, link_id):
                     status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-
 @api_view()
 def request_access(request, link_id):
     """Send the requestor a direct link to access the questionnaire."""
 
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+    frontend_base_url = getattr(
+        'drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
     # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
 
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
@@ -309,7 +313,8 @@ def fill_questionnaire(request, link_id):
             if owner_table and nlink.owner_id in owner_table:
                 # Generate the dynamic URL
                 owner_email = owner_table[nlink.owner_id]["owner_email"]
-                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+                frontend_base_url = getattr(
+                    'drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
                 # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
                 owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
@@ -322,8 +327,8 @@ def fill_questionnaire(request, link_id):
                 # )
                 # msg.send(fail_silently=False)
 
-                print(f"Email sent to {owner_email} with link: {owner_review_url}")
-
+                print(
+                    f"Email sent to {owner_email} with link: {owner_review_url}")
 
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
 
@@ -332,9 +337,9 @@ def fill_questionnaire(request, link_id):
     else:
         # For GET requests, retrieve questionnaire, saved answers, AND any owner feedback
         sample_questionnaire = cache.get("OCA_package_schema_paper")
-        saved_responses    = negotiation.requestor_responses or {}
-        owner_blob        = negotiation.owner_responses or "{}"
-        global_comments   = negotiation.comments        or ""
+        saved_responses = negotiation.requestor_responses or {}
+        owner_blob = negotiation.owner_responses or "{}"
+        global_comments = negotiation.comments or ""
 
         return JsonResponse({
             'questionnaire':    sample_questionnaire,
@@ -342,9 +347,6 @@ def fill_questionnaire(request, link_id):
             'owner_responses':   owner_blob,
             'comments':          global_comments,
         })
-
-
-
 
 
 @api_view(['GET', 'POST'])
@@ -376,7 +378,8 @@ def owner_review(request, link_id):
 
         if 'save' in data:
             negotiation.owner_responses = data.get('owner_responses', '')
-            print(f"Owner Responses: {negotiation.owner_responses}")  # Debugging line
+            # Debugging line
+            print(f"Owner Responses: {negotiation.owner_responses}")
             negotiation.comments = data.get('comments', '')
             print(f"Comments: {negotiation.comments}")  # Debugging line
             negotiation.save()
@@ -385,11 +388,12 @@ def owner_review(request, link_id):
         elif 'request_clarification' in data:
             # First save the comments, then flip back to requestor_open
             negotiation.owner_responses = data.get('owner_responses', '')
-            negotiation.comments        = data.get('comments', '')
-            negotiation.state           = 'requestor_open'
+            negotiation.comments = data.get('comments', '')
+            negotiation.state = 'requestor_open'
             negotiation.save()
 
-            send_clarification_email(nlink.requestor_email, nlink.requestor_link)
+            send_clarification_email(
+                nlink.requestor_email, nlink.requestor_link)
             return Response({'message': 'Clarification requested!'})
 
         elif 'accept' in data:
@@ -408,7 +412,6 @@ def owner_review(request, link_id):
             generate_license_and_notify_owner(nlink)
             return Response({'message': 'Email resent successfully!'})
 
-
         return Response({'error': 'Invalid action.'}, status=400)
 
 
@@ -419,13 +422,12 @@ def owner_review(request, link_id):
 def generate_license_and_notify_owner(nlink):
 
     negotiation = nlink.negotiation
-    submission = negotiation.requestor_responses 
+    submission = negotiation.requestor_responses
 
     for key in submission:
         if key not in ['save', 'submit']:
             details = submission[key]
             break  # assuming only one such key
-
 
     env = Environment(
         loader=FileSystemLoader("drt/templates"),
@@ -433,8 +435,6 @@ def generate_license_and_notify_owner(nlink):
     )
 
     attachments = []
-
-
 
     # Plain‐text license
     owner_table = cache.get("owner_table")
@@ -456,7 +456,6 @@ def generate_license_and_notify_owner(nlink):
     owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
     if not owner_email:
         raise ValueError(f"Owner email not found for ID: {nlink.owner_id}")
-    
 
     subject = "License Agreement"
     body = (
@@ -478,10 +477,10 @@ def generate_license_and_notify_owner(nlink):
     # email.send()
 
 
-
 def send_clarification_email(requestor_email, link_id):
-    
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+
+    frontend_base_url = getattr(
+        'drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
     # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
 
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
@@ -511,18 +510,17 @@ def send_clarification_email(requestor_email, link_id):
 #     return JsonResponse({'message': 'Request canceled successfully!'})
 
 
-
-
 # Utility function to handle archiving and exporting statistics
 def handle_negotiation_archive_and_summary(negotiation):
     """Archives the negotiation and exports summary statistics."""
     try:
         with transaction.atomic():
-            export_summary_to_drt(negotiation)
+            export_summary_to_drt()
             if not negotiation.archived:
                 archive_negotiation(negotiation)
     except Exception as e:
-        logger.error(f"Error processing negotiation {negotiation.negotiation_id}: {e}")
+        logger.error(
+            f"Error processing negotiation {negotiation.negotiation_id}: {e}")
         return JsonResponse({'error': _('An error occurred while processing negotiation.')}, status=500)
     return JsonResponse({'message': _('Negotiation processed successfully')})
 
@@ -543,66 +541,106 @@ def archive_negotiation(negotiation):
     negotiation.save()
 
     try:
-        archive_url = reverse('archive_negotiation', kwargs={'negotiation_id': negotiation.negotiation_id})
+        archive_url = reverse('archive_negotiation', kwargs={
+                              'negotiation_id': negotiation.negotiation_id})
         return JsonResponse({'archive_url': archive_url})
     except NoReverseMatch as e:
-        logger.error(f"Reverse URL error for negotiation {negotiation.negotiation_id}: {e}")
+        logger.error(
+            f"Reverse URL error for negotiation {negotiation.negotiation_id}: {e}")
         return JsonResponse({'error': _('Invalid negotiation ID')}, status=400)
 
-# Export summary statistics to DaRT system
-def export_summary_to_drt(negotiation):
-    """Collect and store anonymized, aggregated summary statistics."""
+
+def export_summary_to_drt_view(request):
+    """
+    HTTP GET → run the per-dataset export_summary_to_drt and return JSON status.
+    """
     try:
-        # Fetch the related NLink object and extract the dataset_ID
-        nlink = NLink.objects.get(negotiation=negotiation)
-        datasets = [nlink.dataset_ID]  # Store dataset_ID in a list
-        if not datasets:
-            logger.warning(f"No dataset_ID found for negotiation {negotiation.negotiation_id}")
+        # call your exporter (which now takes no args)
+        export_summary_to_drt()
+        return JsonResponse({'message': 'Summary statistics exported successfully.'})
+    except Exception as e:
+        logger.error(
+            f"Failed to export summary stats via HTTP: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
 
-        # Aggregating key statistics across negotiations
-        aggregated_stats = (
-            Negotiation.objects
-            .filter(state__in=['completed', 'canceled', 'rejected'])
-            .aggregate(
-                total_requests=Count('negotiation_id'),
-                accepted_requests=Count('negotiation_id', filter=Q(state='completed')),
-                rejected_requests=Count('negotiation_id', filter=Q(state='rejected')),
-                average_response_time=Avg(F('timestamps') - F('timestamps'))
-            )
+
+def export_summary_to_drt():
+    """
+    Aggregate and store anonymized summary statistics *per* dataset_ID.
+    """
+    # First, build a queryset that joins NLink → Negotiation and groups by dataset_ID
+    per_dataset_stats = (
+        NLink.objects
+        # group key
+        .values('owner_id', 'dataset_ID')
+        .annotate(
+            total_requests=Count('negotiation'),
+            completed_requests=Count('negotiation', filter=Q(
+                negotiation__state='completed')),
+            rejected_requests=Count('negotiation', filter=Q(
+                negotiation__state='rejected')),
+            requestor_open=Count('negotiation', filter=Q(
+                negotiation__state='requestor_open')),
+            owner_open=Count('negotiation', filter=Q(
+                negotiation__state='owner_open')),
+            # If you want average response time (assuming timestamps is a DurationField)
+            # average_response_time=Avg(F('negotiation__response_time')),
         )
+    )
 
-        # Collect anonymized requestor domains from NLink model
-        requestor_domains = (
+    for entry in per_dataset_stats:
+        owner_pk = entry['owner_id']
+        ds_id = entry['dataset_ID']
+
+        nlink = NLink.objects.filter(
+            owner_id=owner_pk, dataset_ID=ds_id).first()
+        if not nlink:
+            logger.warning(
+                f"Skipping summary for owner={owner_pk}, dataset={ds_id}: no NLink found."
+            )
+            continue
+
+        # Pull domain‐counts just for this dataset
+        domain_qs = (
             NLink.objects
+            .filter(owner_id=owner_pk, dataset_ID=ds_id)
             .values(domain=F('requestor_email'))
             .annotate(request_count=Count('negotiation'))
         )
+        requestor_domains = {d['domain']: d['request_count']
+                             for d in domain_qs}
 
-        # Convert datetime objects to strings for JSON serialization
+        # Build payload
         summary_data = {
-            'owner_id': nlink,
-            'datasets_requested': datasets,
+            'owner_id': nlink,  # if you have a single owner per dataset, fetch it here
+            'datasets_requested': [ds_id],
             'overall_stat': {
-                'total_requests': aggregated_stats['total_requests'],
-                'accepted_requests': aggregated_stats['accepted_requests'],
-                'rejected_requests': aggregated_stats['rejected_requests'],
-                'average_response_time': str(aggregated_stats['average_response_time']),
-                'requestor_domains': {
-                    entry['domain']: entry['request_count'] for entry in requestor_domains
-                },
-                'generated_at': timezone.now().isoformat()  # Convert datetime to ISO 8601 string
+                'total_requests':       entry['total_requests'],
+                'accepted_requests':    entry['completed_requests'],
+                'rejected_requests':    entry['rejected_requests'],
+                'requestor_open':       entry['requestor_open'],
+                'owner_open':           entry['owner_open'],
+                # 'average_response_time': str(entry['average_response_time']) if entry['average_response_time'] else None,
+                'requestor_domains':    requestor_domains,
+                'generated_at':         timezone.now().isoformat(),
             }
         }
 
-        # Create a SummaryStatistics instance
-        SummaryStatistic.objects.create(**summary_data)
+        owner = summary_data.pop('owner_id')
+        datasets = summary_data.pop('datasets_requested')
+        
+        try:
+            SummaryStatistic.objects.update_or_create(
+                owner_id=owner,
+                datasets_requested=datasets,        # match on exactly that list
+                defaults={'overall_stat': summary_data['overall_stat']}
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to create SummaryStatistic for owner={owner_pk}, "
+                f"dataset={ds_id}: {e}"
+            )
 
-        logger.info(f"Summary statistics exported for negotiation {negotiation.negotiation_id}")
-
-    except NLink.DoesNotExist:
-        logger.error(f"NLink not found for negotiation {negotiation.negotiation_id}")
-    except Exception as e:
-        logger.error(f"Failed to export summary statistics: {e}")
 
 # Delete old negotiations
 def delete_old_negotiations():
@@ -618,6 +656,7 @@ def delete_old_negotiations():
         negotiations.delete()
     return JsonResponse({'message': _('Old negotiations deleted successfully'), 'deleted_count': count})
 
+
 @receiver(post_save, sender=Negotiation)
 def generate_summary_statistics(sender, instance, **kwargs):
     """Generate summary statistics and archive negotiation upon state change."""
@@ -625,6 +664,8 @@ def generate_summary_statistics(sender, instance, **kwargs):
         handle_negotiation_archive_and_summary(instance)
 
 # Manually delete a negotiation's files and archive entry
+
+
 def delete_negotiation_files(request, negotiation_id):
     """Delete a negotiation's files and corresponding archive."""
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
@@ -648,6 +689,8 @@ def archive_view(request, negotiation_id):
         )
 
 # View to display a list of negotiations
+
+
 def negotiation_list_api(request):
     """Return all negotiations as JSON."""
     qs = Negotiation.objects.all().values(
@@ -664,6 +707,8 @@ def negotiation_list_api(request):
     return JsonResponse(data, safe=False)
 
 # Manually trigger deletion of old negotiations
+
+
 def delete_old_negotiations_view(request):
     """Manually trigger the deletion of old negotiations."""
     return delete_old_negotiations()
@@ -680,33 +725,40 @@ def generate_summary_statistics(sender, instance, **kwargs):
 def summary_statistics_view(request, owner_id):
     """Endpoint for retrieving summary statistics based on the provided owner_id (string)."""
     try:
-        # Retrieve summary statistics using the string `owner_id`
-        summary_statistics = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)  # Adjust if owner_id is the field in NLink
+        stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
 
-        # If no statistics found, return an error
-        if not summary_statistics.exists():
-            logger.warning(f"  → No SummaryStatistic for owner_id={owner_id}")
-            return JsonResponse({'error': 'No  Summary Statistic found.'}, status=404)
-        logger.debug(f"Retrieved {summary_statistics.count()} SummaryStatistic row(s)")
+        if not stats_qs.exists():
+            logger.warning(
+                f"No SummaryStatistic found for owner_id={owner_id}")
+            return JsonResponse({'error': 'No summary statistics found.'}, status=404)
 
-        # Serialize the summary data
-        statistics_data = [
-            {
-                'dataset_id': stat.datasets_requested,
-                'total_requests': stat.overall_stat.get('total_requests', 0),
-                'accepted_requests': stat.overall_stat.get('accepted_requests', 0),
-                'rejected_requests': stat.overall_stat.get('rejected_requests', 0),
-                'average_response_time': stat.overall_stat.get('average_response_time', 'N/A'),
-                'generated_at': stat.summary_date.isoformat()
-            }
-            for stat in summary_statistics
-        ]
+        logger.debug(
+            f"Retrieved {stats_qs.count()} SummaryStatistic row(s) for owner {owner_id}")
+
+        statistics_data = []
+        for stat in stats_qs:
+            ds_list = stat.datasets_requested or []
+            dataset_id = ds_list[0] if ds_list else None
+
+            stats_block = stat.overall_stat or {}
+            statistics_data.append({
+                'dataset_id':               dataset_id,
+                'total_requests':           stats_block.get('total_requests', 0),
+                'accepted_requests':        stats_block.get('accepted_requests', 0),
+                'rejected_requests':        stats_block.get('rejected_requests', 0),
+                'requestor_open':           stats_block.get('requestor_open', 0),
+                'owner_open':               stats_block.get('owner_open', 0),
+                # 'average_response_time':    stats_block.get('average_response_time', 'N/A'),
+                'generated_at':             stat.summary_date.isoformat(),
+            })
+
         return JsonResponse({'summary_statistics': statistics_data})
 
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'Owner statistics not found.'}, status=404)
-    
-
+    except Exception as e:
+        logger.error(f"Error in summary_statistics_view: {e}")
+        return JsonResponse({'error': 'Internal server error.'}, status=500)
 
 
 # @csrf_exempt
@@ -714,23 +766,23 @@ def summary_statistics_view(request, owner_id):
 #     if request.method == "POST":
 #         try:
 #             submission = json.loads(request.body)
-            
+
 
 #             env = Environment(
 #                 loader=FileSystemLoader("drt/templates"),
 #                 autoescape=select_autoescape(["html", "xml", "json"])
 #             )
 #             template = env.get_template("catalog_response.jinja")
-            
-            
+
+
 #             # Render the JSON output using the Jinja template
 #             rendered_json = template.render(submission=submission)
-            
+
 #             # Return the response as a downloadable JSON file
 #             response = HttpResponse(rendered_json, content_type='application/json')
 #             response['Content-Disposition'] = 'attachment; filename="standardized_openAIRE.json"'
 #             return response
-        
+
 #         except Exception as e:
 #             print("Error rendering template:", e)
 #             return JsonResponse({"status": "error", "message": str(e)}, status=400)
@@ -741,10 +793,10 @@ def summary_statistics_view(request, owner_id):
 @csrf_exempt
 def submission_view(request):
     if request.method != "POST":
-        return JsonResponse({ "error": "Only POST requests are allowed." }, status=405)
+        return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
 
     submission = json.loads(request.body)
-    print("submission:" , submission)  # <<–– debug
+    print("submission:", submission)  # <<–– debug
     fmt = request.GET.get("format", "json").lower()
     print(f"🔍 submission_view: format param = '{fmt}'")   # <<–– debug
 
@@ -754,21 +806,21 @@ def submission_view(request):
     )
 
     if fmt == "license":
-        print("📄 rendering license_template.jinja")        
+        print("📄 rendering license_template.jinja")
         template = env.get_template("license_template.jinja")
         content_type = "text/plain"
         filename = "license.txt"
         context = {"submission": submission}
 
     elif fmt == "odrl":
-        print("📃 rendering license_odrl.xml.jinja")       
+        print("📃 rendering license_odrl.xml.jinja")
         template = env.get_template("license_odrl.xml.jinja")
         content_type = "application/xml"
         filename = "license.xml"
         context = {"submission": submission}
 
     else:
-        print("🔧 rendering catalog_response.jinja")      
+        print("🔧 rendering catalog_response.jinja")
         template = env.get_template("catalog_response.jinja")
         content_type = "application/json"
         filename = "standardized_openAIRE.json"

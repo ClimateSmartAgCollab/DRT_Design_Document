@@ -32,7 +32,8 @@ interface SummaryStat {
   total_requests: number;
   accepted_requests: number;
   rejected_requests: number;
-  average_response_time: string;
+  requestor_open: number;
+  owner_open: number;
   generated_at: string;
 }
 
@@ -76,6 +77,14 @@ export default function OwnerSummaryPage() {
           throw new Error(`No owner found for email: ${email}`);
         }
         const ownerId = ownerIds[0];
+
+        const exportRes = await fetchApi(`/drt/export_summary_to_drt/`);
+        if (!exportRes.ok) {
+          console.warn(
+            "Warning: export_summary_to_drt returned",
+            exportRes.status
+          );
+        }
 
         // Fetch summary-statistics for that ownerId
         const res = await fetchApi(`/drt/summary-statistics/${ownerId}/`);
@@ -121,6 +130,8 @@ export default function OwnerSummaryPage() {
       { label: "Total", data: data.map((d) => d.total_requests) },
       { label: "Accepted", data: data.map((d) => d.accepted_requests) },
       { label: "Rejected", data: data.map((d) => d.rejected_requests) },
+      { label: "Req. Open", data: data.map((d) => d.requestor_open) },
+      { label: "Own. Open", data: data.map((d) => d.owner_open) },
     ],
   };
 
@@ -151,7 +162,8 @@ export default function OwnerSummaryPage() {
               <th className="border px-4 py-2">Total</th>
               <th className="border px-4 py-2">Accepted</th>
               <th className="border px-4 py-2">Rejected</th>
-              <th className="border px-4 py-2">Avg. Resp. Time</th>
+              <th className="border px-4 py-2">Req. Open</th>
+              <th className="border px-4 py-2">Own. Open</th>
               <th className="border px-4 py-2">Generated At</th>
             </tr>
           </thead>
@@ -167,9 +179,8 @@ export default function OwnerSummaryPage() {
                   <td className="border px-4 py-2">{d.total_requests}</td>
                   <td className="border px-4 py-2">{d.accepted_requests}</td>
                   <td className="border px-4 py-2">{d.rejected_requests}</td>
-                  <td className="border px-4 py-2">
-                    {d.average_response_time}
-                  </td>
+                  <td className="border px-4 py-2">{d.requestor_open}</td>
+                  <td className="border px-4 py-2">{d.owner_open}</td>
                   <td className="border px-4 py-2">
                     {new Date(d.generated_at).toLocaleString()}
                   </td>
