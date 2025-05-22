@@ -14,6 +14,10 @@ urlpatterns = [
     path('fill_questionnaire/<str:link_id>/',
          views.fill_questionnaire, name='fill_questionnaire'),
     path('owner_review/<str:link_id>/', views.owner_review, name='owner_review'),
+    path('verify/req-email/',
+         views.req_email_entry,   name='owner_email_entry'),
+    path('verify/req-otp/<str:email>/',
+         views.verify_req_otp,     name='verify_owner_otp'),
 
     # owner
     path('verify/owner-email/',

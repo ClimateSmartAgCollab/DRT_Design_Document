@@ -14,7 +14,7 @@ class NLink(models.Model):
     link_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     negotiation = models.OneToOneField(
-        'Negotiation', on_delete=models.CASCADE, null=True, blank=True)
+        'Negotiation', on_delete=models.CASCADE, related_name='link', null=True, blank=True)
     owner_id = models.CharField(max_length=255)
     license_id = models.CharField(max_length=255, null=True, blank=True)
     dataset_ID = models.CharField(max_length=255, null=True, blank=True)

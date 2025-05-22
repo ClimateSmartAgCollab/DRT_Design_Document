@@ -117,6 +117,37 @@ def owner_email_entry(request):
     return Response({'message': 'OTP sent'}, status=200)
 
 
+@csrf_exempt
+@api_view(['POST'])
+def req_email_entry(request):
+    email = request.data.get('email')
+    try:
+        validate_email(email)
+    except ValidationError:
+        return Response({'error': 'Invalid email'}, status=400)
+
+    # generate OTP
+    otp = "9832"  # for testing
+    # uncomment the next line for production
+    # otp = get_random_string(6, '0123456789')
+
+    expiry = timezone.now() + datetime.timedelta(minutes=10)
+    # store in cache under "req_auth:{email}"
+    cache.set(f"req_auth:{email}", {'otp': otp, 'expiry': expiry}, 600)
+    print(f"OTP for {email}: {otp}")  # <-- debug
+    print(f"Your OTP is {otp}. Expires at {expiry:%H:%M}.")  # <-- debug
+
+    # # send it
+    # EmailMultiAlternatives(
+    #   subject="Your Req OTP",
+    #   body=f"Your OTP is {otp}. Expires at {expiry:%H:%M}.",
+    #   from_email=settings.DEFAULT_FROM_EMAIL,
+    #   to=[email],
+    # ).send(fail_silently=False)
+
+    return Response({'message': 'OTP sent'}, status=200)
+
+
 @api_view(['GET', 'POST'])
 @ensure_csrf_cookie      # on a GET it will set csrftoken
 @csrf_exempt             # only if you reorder so this still applies
@@ -192,6 +223,21 @@ def verify_owner_otp(request, email):
 
     # mark as “logged in” (e.g. set a short‐lived token or flag in cache)
     cache.set(f"owner_logged_in:{email}", True, 3600)
+    return Response({'message': 'verified'}, status=200)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def verify_req_otp(request, email):
+    entry = cache.get(f"req_auth:{email}")
+    otp_sub = request.data.get('otp')
+    if not entry or timezone.now() > entry['expiry']:
+        return Response({'error': 'OTP expired'}, status=400)
+    if entry['otp'] != otp_sub:
+        return Response({'error': 'Wrong OTP'}, status=400)
+
+    # mark as “logged in” (e.g. set a short‐lived token or flag in cache)
+    cache.set(f"req_logged_in:{email}", True, 3600)
     return Response({'message': 'verified'}, status=200)
 
 
@@ -628,7 +674,7 @@ def export_summary_to_drt():
 
         owner = summary_data.pop('owner_id')
         datasets = summary_data.pop('datasets_requested')
-        
+
         try:
             SummaryStatistic.objects.update_or_create(
                 owner_id=owner,
@@ -692,19 +738,42 @@ def archive_view(request, negotiation_id):
 
 
 def negotiation_list_api(request):
-    """Return all negotiations as JSON."""
-    qs = Negotiation.objects.all().values(
-        'negotiation_id',
-        'conversation_id',
-        'requestor_responses',
-        'owner_responses',
-        'comments',
-        'state',
-        'timestamps',
-        'archived',
-    )
-    data = list(qs)
+    qs = Negotiation.objects.all().select_related('link')
+    data = []
+    for n in qs:
+        owner_link = getattr(n, 'link', None)
+        data.append({
+            'negotiation_id': str(n.negotiation_id),
+            'conversation_id': str(n.conversation_id),
+            'requestor_responses': n.requestor_responses,
+            'owner_responses': n.owner_responses,
+            'comments': n.comments,
+            'state': n.state,
+            'reminder_sent': n.reminder_sent,
+            'questionnaire_SAID': n.questionnaire_SAID,
+            'timestamps': n.timestamps.isoformat(),
+            'archived': n.archived,
+            'owner_link': str(owner_link.owner_link) if owner_link else None,
+        })
     return JsonResponse(data, safe=False)
+
+
+# def negotiation_list_api(request):
+#     """Return all negotiations as JSON."""
+#     qs = Negotiation.objects.all().values(
+#         'negotiation_id',
+#         'conversation_id',
+#         'requestor_responses',
+#         'owner_responses',
+#         'comments',
+#         'state',
+#         'reminder_sent',
+#         'questionnaire_SAID',
+#         'timestamps',
+#         'archived',
+#     )
+#     data = list(qs)
+#     return JsonResponse(data, safe=False)
 
 # Manually trigger deletion of old negotiations
 

@@ -6,6 +6,7 @@ import {
   archiveNegotiation,
   deleteNegotiation,
 } from "../services/negotiationApi";
+import Link from 'next/link';
 
 interface NegotiationItemProps {
   negotiation: Negotiation;
@@ -65,6 +66,14 @@ export function NegotiationItem({
           <span className="text-gray-600">
             Archived: {n.archived ? "Yes" : "No"}
           </span>
+          {n.state === 'owner_open' && n.owner_link && (
+            <Link
+              href={`/negotiation/owner/${n.owner_link}/owner-review`}
+              className="ml-4 text-blue-600 underline hover:text-blue-800"
+            >
+              Access Your Review Link
+            </Link>
+          )}
         </div>
         <span className="text-xl text-gray-500">{expanded ? "▾" : "▸"}</span>
       </div>

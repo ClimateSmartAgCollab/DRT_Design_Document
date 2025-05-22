@@ -1,58 +1,117 @@
+//drt_frontend/app/negotiation/requestor/homepage/page.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import fetchApi from "@/app/api/apiHelper";
 
-const flowSteps = [
-  { label: "Request OTP (Email)", path: "/drt/verify/requestor/<link_id>" },
-  { label: "Verify OTP", path: "/drt/verify/otp/<link_id>" },
-  { label: "Get Questionnaire URL", path: "/drt/request_access/<link_id>" },
-  { label: "Fill Questionnaire", path: "/drt/fill_questionnaire/<link_id>" },
-];
-
-export default function RequestorHome() {
-  const [linkId, setLinkId] = useState("");
+export default function requestorHomePage() {
+  const params = useSearchParams();
   const router = useRouter();
+  const email = params.get("email") || "";
 
-  const go = (template: string) => {
-    if (!linkId) return alert("Please enter a link ID.");
-    const url = template.replace("<link_id>", linkId);
-    router.push(url);
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!email) {
+      router.replace("/negotiation/email-entry");
+    }
+  }, [email, router]);
+
+  useEffect(() => {
+    if (!email) return;
+
+    // only load once per browser session
+    if (sessionStorage.getItem("cacheLoaded")) {
+      setLoading(false);
+      return;
+    }
+
+    async function loadCache() {
+      try {
+        const res = await fetchApi("/datastore/load-data/");
+        if (!res.ok) throw new Error("Cache load failed");
+        sessionStorage.setItem('cacheLoaded', 'true')
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCache();
+  }, [email]);
+
+  if (!email) {
+    // avoid flash of homepage while redirecting
+    return null;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-600">
+        Loading…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-red-600">
+        Error: {error}
+      </div>
+    );
+  }
+
+  const requestorPages = [
+    {
+      name: "Negotiation List",
+      href: `/negotiation/list?email=${encodeURIComponent(email)}`,
+      emoji: "📋",
+    },
+    {
+      name: "Summary Statistics",
+      href: `/negotiation/summary?requestor=${encodeURIComponent(email)}`,
+      emoji: "📊",
+    },
+  ];
 
   return (
-    <main className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Data Requestor Portal</h1>
+    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="max-w-3xl w-full space-y-10">
+        <h1 className="text-4xl font-extrabold text-center text-gray-800">
+          requestor Dashboard
+        </h1>
 
-      <label className="block mb-4">
-        <span className="text-sm">Invitation Link ID</span>
-        <input
-          type="text"
-          className="mt-1 block w-full border rounded p-2"
-          placeholder="e.g. 633c8f65-…"
-          value={linkId}
-          onChange={(e) => setLinkId(e.target.value)}
-        />
-      </label>
-
-      <div className="space-y-3 mb-6">
-        {flowSteps.map(({ label, path }) => (
-          <button
-            key={path}
-            onClick={() => go(path)}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            {label}
-          </button>
-        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+          {requestorPages.map(({ name, href, emoji }) => (
+            <Link key={href} href={href} className="group">
+              <div
+                className="
+                bg-white rounded-2xl shadow-lg p-6
+                flex flex-col items-center text-center
+                transform transition
+                hover:shadow-2xl hover:-translate-y-1
+              "
+              >
+                <div className="text-5xl mb-3 transition group-hover:scale-110">
+                  {emoji}
+                </div>
+                <span
+                  className="
+                  text-lg font-medium text-gray-700
+                  group-hover:text-gray-900
+                "
+                >
+                  {name}
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
-
-      <hr className="mb-4" />
-
-      <p className="text-sm text-gray-600">
-        If you already have a direct link, just paste it in your browser.
-      </p>
     </main>
   );
 }
