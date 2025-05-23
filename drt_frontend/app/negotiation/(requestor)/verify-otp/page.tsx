@@ -1,10 +1,10 @@
-// app/owner/verify-otp/page.tsx
+// drt_frontend\app\negotiation\(requestor)\verify-otp\page.tsx
 'use client'
 import { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import fetchApi from '@/app/api/apiHelper';
 
-export default function OwnerVerifyOtp() {
+export default function ReqVerifyOtp() {
   const params = useSearchParams()
   const email = params.get('email') || ''
   const [otp, setOtp] = useState('')

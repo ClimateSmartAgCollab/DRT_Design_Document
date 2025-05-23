@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import fetchApi from "@/app/api/apiHelper";
 
-export default function OwnerEmailEntry() {
+export default function ReqEmailEntry() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -43,7 +43,7 @@ export default function OwnerEmailEntry() {
 
   return (
     <main className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Owner Login</h1>
+      <h1 className="text-2xl font-bold mb-4">Requestor Login</h1>
       <input
         type="email"
         placeholder="Your email"

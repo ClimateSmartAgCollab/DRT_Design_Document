@@ -13,11 +13,14 @@ urlpatterns = [
          views.request_access, name='request_access'),
     path('fill_questionnaire/<str:link_id>/',
          views.fill_questionnaire, name='fill_questionnaire'),
-    path('owner_review/<str:link_id>/', views.owner_review, name='owner_review'),
     path('verify/req-email/',
          views.req_email_entry,   name='owner_email_entry'),
     path('verify/req-otp/<str:email>/',
          views.verify_req_otp,     name='verify_owner_otp'),
+    path(
+        'req_negotiations/<str:email>/',
+        views.negotiation_list_api_req,   name='negotiation_list_api_req'
+    ),
 
     # owner
     path('verify/owner-email/',

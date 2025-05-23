@@ -734,9 +734,32 @@ def archive_view(request, negotiation_id):
             {'message': _('Only completed, canceled, or rejected negotiations can be archived')}, status=400
         )
 
-# View to display a list of negotiations
 
+def negotiation_list_api_req(request, email):
+    # only pull negotiations whose NLink.requestor_email matches
+    qs = Negotiation.objects.select_related(
+        'link').filter(link__requestor_email=email)
 
+    data = []
+    for n in qs:
+        requestor_link = getattr(n, 'link', None)
+        data.append({
+            'negotiation_id': str(n.negotiation_id),
+            'conversation_id': str(n.conversation_id),
+            'requestor_responses': n.requestor_responses,
+            'owner_responses': n.owner_responses,
+            'comments': n.comments,
+            'state': n.state,
+            # 'reminder_sent': n.reminder_sent,
+            # 'questionnaire_SAID': n.questionnaire_SAID,
+            'timestamps': n.timestamps.isoformat(),
+            # 'archived': n.archived,
+            'requestor_link': str(requestor_link.requestor_link) if requestor_link else None,
+        })
+
+    return JsonResponse(data, safe=False)
+
+#all negotioations. not only for specific owner!
 def negotiation_list_api(request):
     qs = Negotiation.objects.all().select_related('link')
     data = []
