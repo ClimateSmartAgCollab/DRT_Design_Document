@@ -24,20 +24,43 @@ urlpatterns = [
 
     # owner
     path('verify/owner-email/',
-         views.owner_email_entry,   name='owner_email_entry'),
+         views.owner_email_entry,
+         name='owner_email_entry'),
+
     path('verify/owner-otp/<str:email>/',
-         views.verify_owner_otp,     name='verify_owner_otp'),
-    path('negotiations/', views.negotiation_list_api,
-         name='negotiation_list_api'),  # Display all negotiations
-    path('negotiations/archive/<uuid:negotiation_id>/', views.archive_view,
+         views.verify_owner_otp,
+         name='verify_owner_otp'),
+
+    path('negotiations/archive/<uuid:negotiation_id>/',
+         views.archive_view,
          name='archive_negotiation'),  # Archive a negotiation
-    path('negotiations/delete/<uuid:negotiation_id>/', views.delete_negotiation_files,
+
+    path('negotiations/delete/<uuid:negotiation_id>/',
+         views.delete_negotiation_files,
          name='delete_negotiation_files'),  # Delete negotiation files
-    path('negotiations/delete-old/', views.delete_old_negotiations_view,
+
+    path('negotiations/delete-old/',
+         views.delete_old_negotiations_view,
          name='delete_old_negotiations'),
+
+    path('negotiations/',
+         views.negotiation_list_api,
+         name='negotiation_list_api'),  # Display all negotiations
+
+#     path('owner-negotiations/',
+#          views.owner_negotiation_list,
+#          name='owner_negotiation_list'),
+
+#     path('negotiations/<uuid:negotiation_id>/resend/',
+#          views.resend_requester_reminder,
+#          name='resend_requester_reminder'),
+
+
     path('summary-statistics/<str:owner_id>/',
-         views.summary_statistics_view, name='summary_statistics'),
-    path('export_summary_to_drt/', views.export_summary_to_drt_view,
+         views.summary_statistics_view,
+         name='summary_statistics'),
+    path('export_summary_to_drt/',
+         views.export_summary_to_drt_view,
          name='export_summary_to_drt_view'),
 
     path('api/submission/<uuid:uuid>', views.submission_view, name='submission'),

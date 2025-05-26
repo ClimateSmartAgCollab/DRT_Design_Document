@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 import uuid
 from datetime import timedelta
 from django.utils.timezone import now
@@ -18,6 +19,11 @@ class NLink(models.Model):
     owner_id = models.CharField(max_length=255)
     license_id = models.CharField(max_length=255, null=True, blank=True)
     dataset_ID = models.CharField(max_length=255, null=True, blank=True)
+
+    data_label = models.CharField(max_length=255, default='', db_index=True)
+    tags = ArrayField(models.CharField(max_length=64),
+                      default=list, db_index=True)
+
     requestor_email = models.EmailField(null=True, blank=True)
     requestor_link = models.UUIDField(default=uuid.uuid4, editable=False)
     owner_link = models.UUIDField(default=uuid.uuid4, editable=False)
@@ -81,6 +87,9 @@ class SummaryStatistic(models.Model):
     summary_date = models.DateTimeField(auto_now_add=True)
     datasets_requested = models.JSONField()
     overall_stat = models.JSONField()
+    data_label = models.CharField(max_length=255, default='')
+    # blank==ALL for the aggregate row
+    tag = models.CharField(max_length=64, blank=True)
 
     def __str__(self):
         return f"Statistics for Owner: {self.owner_id} on {self.summary_date}"

@@ -72,7 +72,9 @@ def generate_nlinks(request, link_id):
         negotiation=negotiation,
         owner_id=example_link['owner_id'],  # Owner ID from cache
         license_id=example_link['license_id'],  # License ID from cache
-        dataset_ID=example_link['data_label'],  # Dataset ID from cache
+        # dataset_ID=example_link['data_label'],  # Dataset ID from cache
+        data_label=example_link['data_label'],  # Data label from cache
+        tags=example_link['tags'],  # Tags from cache
         requestor_link=requestor_link_id,
         owner_link=owner_link_id,
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
@@ -618,7 +620,7 @@ def export_summary_to_drt():
     per_dataset_stats = (
         NLink.objects
         # group key
-        .values('owner_id', 'dataset_ID')
+        .values('owner_id', 'data_label')
         .annotate(
             total_requests=Count('negotiation'),
             completed_requests=Count('negotiation', filter=Q(
@@ -636,10 +638,10 @@ def export_summary_to_drt():
 
     for entry in per_dataset_stats:
         owner_pk = entry['owner_id']
-        ds_id = entry['dataset_ID']
+        ds_id = entry['data_label']
 
         nlink = NLink.objects.filter(
-            owner_id=owner_pk, dataset_ID=ds_id).first()
+            owner_id=owner_pk, data_label=ds_id).first()
         if not nlink:
             logger.warning(
                 f"Skipping summary for owner={owner_pk}, dataset={ds_id}: no NLink found."
@@ -649,7 +651,7 @@ def export_summary_to_drt():
         # Pull domain‐counts just for this dataset
         domain_qs = (
             NLink.objects
-            .filter(owner_id=owner_pk, dataset_ID=ds_id)
+            .filter(owner_id=owner_pk, data_label=ds_id)
             .values(domain=F('requestor_email'))
             .annotate(request_count=Count('negotiation'))
         )
@@ -830,11 +832,11 @@ def summary_statistics_view(request, owner_id):
         statistics_data = []
         for stat in stats_qs:
             ds_list = stat.datasets_requested or []
-            dataset_id = ds_list[0] if ds_list else None
+            data_label = ds_list[0] if ds_list else None
 
             stats_block = stat.overall_stat or {}
             statistics_data.append({
-                'dataset_id':               dataset_id,
+                'data_label':               data_label,
                 'total_requests':           stats_block.get('total_requests', 0),
                 'accepted_requests':        stats_block.get('accepted_requests', 0),
                 'rejected_requests':        stats_block.get('rejected_requests', 0),

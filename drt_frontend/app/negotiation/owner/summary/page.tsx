@@ -1,11 +1,12 @@
-// drt_frontend\app\negotiation\owner\summary\page.tsx
+// drt_frontend/app/negotiation/owner/summary/page.tsx
 
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import React, { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import fetchApi from "@/app/api/apiHelper";
-
+import { Bar } from "react-chartjs-2";
+import "chart.js/auto";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -15,8 +16,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import "chart.js/auto";
-import { Bar } from "react-chartjs-2";
+
+import { SummarySidebar } from "./components/SummarySidebar";
 
 ChartJS.register(
   CategoryScale,
@@ -28,7 +29,9 @@ ChartJS.register(
 );
 
 interface SummaryStat {
-  dataset_id: string;
+  // dataset_id: string;
+  data_label: string;
+  tag: string;
   total_requests: number;
   accepted_requests: number;
   rejected_requests: number;
@@ -39,95 +42,80 @@ interface SummaryStat {
 
 export default function OwnerSummaryPage() {
   const params = useSearchParams();
-  const router = useRouter();
-  const email = params.get("owner") || "";
-  const [data, setData] = useState<SummaryStat[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const email = params.get("owner") ?? "";
+
+  // ——— Filter state ———
+  const [dataLabel, setDataLabel] = useState("");
+  const [tag,       setTag]       = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate,   setEndDate]   = useState("");
+
+  // ——— Data state ———
+  const [data,    setData]    = useState<SummaryStat[]>([]);
+  const [loading,setLoading] = useState(true);
+  const [error,  setError]   = useState<string | null>(null);
+
+  // Build your fetch URL with query-params
+  const buildUrl = useCallback((ownerId: string) => {
+    const qs: string[] = [];
+    if (dataLabel)  qs.push(`data_label=${encodeURIComponent(dataLabel)}`);
+    if (tag)        qs.push(`tag=${encodeURIComponent(tag)}`);
+    if (startDate)  qs.push(`date_from=${startDate}`);
+    if (endDate)    qs.push(`date_to=${endDate}`);
+    const query = qs.length ? `?${qs.join("&")}` : "";
+    return `/drt/summary-statistics/${ownerId}/${query}`;
+  }, [dataLabel, tag, startDate, endDate]);
 
   useEffect(() => {
-    if (!email) {
-      setError("No owner email provided in query.");
-      setLoading(false);
-      return;
-    }
+    if (!email) return setError("Owner email missing"), setLoading(false);
 
-    async function loadSummary() {
+    (async () => {
+      setLoading(true);
+      setError(null);
       try {
-        // Load the owner_table from cache
-        const ownerRes = await fetchApi(
-          "/datastore/get_cached_data/owner_table"
+        // 1. lookup owner_id
+        const ownerRes = await fetchApi("/datastore/get_cached_data/owner_table");
+        if (!ownerRes.ok) throw new Error("Failed loading owner table");
+        const { owner_table } = await ownerRes.json();
+        const entry = Object.entries(owner_table).find(
+          ([_, o]) => (o as { owner_email: string }).owner_email === email
         );
-        if (!ownerRes.ok) throw new Error("Failed to load owner table");
-        const {
-          owner_table,
-        }: {
-          owner_table: Record<
-            string,
-            { username: string; owner_email: string }
-          >;
-        } = await ownerRes.json();
+        if (!entry) throw new Error(`No owner found for ${email}`);
+        const ownerId = entry[0];
 
-        // Find the matching owner_id
-        const ownerIds = Object.entries(owner_table)
-          .filter(([, owner]) => owner.owner_email === email)
-          .map(([owner_id]) => owner_id);
-
-        if (ownerIds.length === 0) {
-          throw new Error(`No owner found for email: ${email}`);
-        }
-        const ownerId = ownerIds[0];
-
-        const exportRes = await fetchApi(`/drt/export_summary_to_drt/`);
-        if (!exportRes.ok) {
-          console.warn(
-            "Warning: export_summary_to_drt returned",
-            exportRes.status
-          );
-        }
-
-        // Fetch summary-statistics for that ownerId
-        const res = await fetchApi(`/drt/summary-statistics/${ownerId}/`);
-        const json = await res.json(); // always read the body
-        if (!res.ok) {
-          // backend sends { error: "Owner statistics not found." }
-          setError(json.error ?? `Summary API returned ${res.status}`);
-          return;
-        }
+        // 2. fetch with filters
+        const res  = await fetchApi(buildUrl(ownerId));
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || `Status ${res.status}`);
         setData(json.summary_statistics);
       } catch (err: any) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
-    }
+    })();
+  }, [email, buildUrl]);
 
-    loadSummary();
-  }, [email, router]);
+  // derive dropdown options from data
+  const labels = Array.from(new Set(data.map((d) => d.data_label)));
+  const tags   = Array.from(new Set(data.map((d) => d.tag)));
 
-  if (loading) return <div className="p-6">Loading summary…</div>;
-
-  if (error)
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 text-red-700">
-          ⚠️ {error}
-        </div>
+  if (loading) return <div className="p-6">Loading…</div>;
+  if (error)   return (
+    <div className="p-6">
+      <div className="bg-red-50 border-l-4 border-red-400 p-4 text-red-700">
+        ⚠️ {error}
       </div>
-    );
-  if (data.length === 0) return <div className="p-6">No statistics found.</div>;
+    </div>
+  );
+  if (!data.length) return <div className="p-6">No statistics found.</div>;
 
-  //Normalize the ID into a string
-  const formatId = (d: SummaryStat) =>
-    Array.isArray(d.dataset_id) ? d.dataset_id.join(", ") : d.dataset_id;
-
-  // Build chart labels off that same string
-  const labels = data.map((d) => formatId(d));
-
+  // Chart data (same as before)…
+  const chartLabels = data.map((d) => `${d.data_label} / ${d.tag}`);
   const chartData = {
-    labels,
+    labels: chartLabels,
     datasets: [
-      { label: "Total", data: data.map((d) => d.total_requests) },
+      { label: "Total",    data: data.map((d) => d.total_requests) },
       { label: "Accepted", data: data.map((d) => d.accepted_requests) },
       { label: "Rejected", data: data.map((d) => d.rejected_requests) },
       { label: "Req. Open", data: data.map((d) => d.requestor_open) },
@@ -136,46 +124,59 @@ export default function OwnerSummaryPage() {
   };
 
   return (
-    <main className="max-w-4xl mx-auto p-6 space-y-8">
-      <h1 className="text-3xl font-bold text-center">Summary Statistics</h1>
+    <main className="flex">
+      {/* Sidebar */}
+      <SummarySidebar
+        dataLabelOptions={labels}
+        selectedDataLabel={dataLabel}
+        onDataLabelChange={setDataLabel}
+        tagOptions={tags}
+        selectedTag={tag}
+        onTagChange={setTag}
+        startDate={startDate}
+        endDate={endDate}
+        onDateChange={(field, v) => field === "start" ? setStartDate(v) : setEndDate(v)}
+        onReset={() => {
+          setDataLabel(""); setTag(""); setStartDate(""); setEndDate("");
+        }}
+      />
 
-      {/* Bar chart */}
-      <section className="bg-white p-4 rounded shadow">
-        <Bar
-          data={chartData}
-          options={{
-            responsive: true,
-            plugins: {
-              legend: { position: "top" },
-              title: { display: true, text: "Requests Overview" },
-            },
-          }}
-        />
-      </section>
+      {/* Main content */}
+      <div className="flex-1 p-6 space-y-8">
+        <h1 className="text-3xl font-bold">Summary Statistics</h1>
 
-      {/* Fallback table */}
-      <section className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border px-4 py-2">Dataset ID</th>
-              <th className="border px-4 py-2">Total</th>
-              <th className="border px-4 py-2">Accepted</th>
-              <th className="border px-4 py-2">Rejected</th>
-              <th className="border px-4 py-2">Req. Open</th>
-              <th className="border px-4 py-2">Own. Open</th>
-              <th className="border px-4 py-2">Generated At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((d) => {
-              const idStr = formatId(d);
-              // use generated_at (or even the array index) to make each key unique:
-              const rowKey = `${idStr}-${d.generated_at}`;
+        <section className="bg-white p-4 rounded shadow">
+          <Bar
+            data={chartData}
+            options={{
+              responsive: true,
+              plugins: {
+                legend: { position: "top" },
+                title: { display: true, text: "Requests Overview" },
+              },
+            }}
+          />
+        </section>
 
-              return (
-                <tr key={rowKey}>
-                  <td className="border px-4 py-2">{idStr}</td>
+        <section className="overflow-x-auto">
+          <table className="min-w-full bg-white border">
+            <thead>
+              <tr className="bg-gray-100">
+                {[
+                  "Dataset", "Label", "Tag",
+                  "Total", "Accepted", "Rejected",
+                  "Req. Open", "Own. Open", "Generated At",
+                ].map((h) => (
+                  <th key={h} className="border px-4 py-2">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((d) => (
+                <tr key={`${d.data_label}-${d.tag}-${d.generated_at}`}>
+                  {/* <td className="border px-4 py-2">{d.dataset_id}</td> */}
+                  <td className="border px-4 py-2">{d.data_label}</td>
+                  <td className="border px-4 py-2">{d.tag}</td>
                   <td className="border px-4 py-2">{d.total_requests}</td>
                   <td className="border px-4 py-2">{d.accepted_requests}</td>
                   <td className="border px-4 py-2">{d.rejected_requests}</td>
@@ -185,11 +186,11 @@ export default function OwnerSummaryPage() {
                     {new Date(d.generated_at).toLocaleString()}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </div>
     </main>
   );
 }

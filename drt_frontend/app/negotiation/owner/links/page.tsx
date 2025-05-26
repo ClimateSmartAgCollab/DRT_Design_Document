@@ -11,6 +11,7 @@ type LinkEntry = {
   licenseId: string;
   expiry: string;
   label: string; // your data_label
+  tags: string; // your tag
 };
 
 export default function OwnerLinks() {
@@ -61,6 +62,7 @@ export default function OwnerLinks() {
               owner_id: string;
               expiry: string;
               data_label: string;
+              tags?: string; 
             }
           >;
         };
@@ -74,6 +76,7 @@ export default function OwnerLinks() {
             licenseId: row.license_id,
             expiry: row.expiry || "Never",
             label: row.data_label,
+            tags: row.tags || "(none)",
           }));
 
         setLinks(entries);
@@ -105,7 +108,7 @@ export default function OwnerLinks() {
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {links.map(({ url, label, questionnaireId, licenseId, expiry }) => (
+            {links.map(({ url, tags, label, questionnaireId, licenseId, expiry }) => (
               <div
                 key={`${url}-${questionnaireId}`}
                 className="
@@ -114,7 +117,7 @@ export default function OwnerLinks() {
                 "
               >
                 <h2 className="text-xl font-semibold mb-2 text-gray-800">
-                  {label}
+                  {label}{tags ? ` (${tags})` : ""}
                 </h2>
                 <div className="text-sm text-gray-600 space-y-1 mb-4">
                   <p>
