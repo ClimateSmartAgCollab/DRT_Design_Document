@@ -46,7 +46,7 @@ const GenerateLinkPage = () => {
         onClick={generateLink}
         className="bg-blue-500 text-white px-6 py-3 rounded-lg"
       >
-        Generate Access Link for Requestor
+        start a new request for data
       </button>
       {error && <p className="text-red-500 mt-4">{error}</p>}
     </div>

@@ -8,7 +8,7 @@ export default function FillSuccessPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-8 rounded shadow-md text-center">
         <h1 className="text-3xl font-bold mb-4">Thank you!</h1>
-        <p>Your questionnaire was submitted successfully.</p>
+        <p>Your data request has been submitted. <br/>You will be notified when the data owner reviews your request.</p>
       </div>
     </div>
   );

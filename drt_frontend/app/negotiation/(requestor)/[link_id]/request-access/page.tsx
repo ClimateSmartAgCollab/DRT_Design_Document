@@ -32,12 +32,12 @@ const RequestAccessPage = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-6 rounded shadow-md text-center w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-black">Access Granted</h2>
+        <h2 className="text-2xl font-bold mb-4 text-black">New request started</h2>
         {error ? (
           <p className="text-red-500">{error}</p>
         ) : accessLink ? (
           <p className="text-gray-700">
-            You can now proceed to the questionnaire at: <br />
+            click on the link to start answering questions: <br />
             <a href={accessLink} className="text-blue-500 underline">
               {accessLink}
             </a>
