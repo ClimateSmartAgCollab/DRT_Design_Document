@@ -31,6 +31,10 @@ urlpatterns = [
          views.verify_owner_otp,
          name='verify_owner_otp'),
 
+    path('owner_review/<str:link_id>/',
+         views.owner_review,
+         name='owner_review'),
+
     path('negotiations/archive/<uuid:negotiation_id>/',
          views.archive_view,
          name='archive_negotiation'),  # Archive a negotiation
@@ -47,13 +51,13 @@ urlpatterns = [
          views.negotiation_list_api,
          name='negotiation_list_api'),  # Display all negotiations
 
-#     path('owner-negotiations/',
-#          views.owner_negotiation_list,
-#          name='owner_negotiation_list'),
+    #     path('owner-negotiations/',
+    #          views.owner_negotiation_list,
+    #          name='owner_negotiation_list'),
 
-#     path('negotiations/<uuid:negotiation_id>/resend/',
-#          views.resend_requester_reminder,
-#          name='resend_requester_reminder'),
+    #     path('negotiations/<uuid:negotiation_id>/resend/',
+    #          views.resend_requester_reminder,
+    #          name='resend_requester_reminder'),
 
 
     path('summary-statistics/<str:owner_id>/',
