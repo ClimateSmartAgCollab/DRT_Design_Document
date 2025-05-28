@@ -870,23 +870,16 @@ def negotiation_list_api_req(request, email):
 
 #all negotioations. not only for specific owner!
 def negotiation_list_api(request, email):
-    print(f"Fetching negotiations for email: {email}")  # <-- debug
-    # 1) grab the owner_table from cache
+    
     cache_data      = cache.get("owner_table") or {}
-    print(f"Cache data: {cache_data}")  # <-- debug
 
-    # 2) pull out any owner_id whose owner_email matches
+    
     owner_ids = [
         owner_id
         for owner_id, info in cache_data.items()
         if info.get("owner_email") == email
     ]
-    print(f"Owner IDs matching email '{email}': {owner_ids}")  # <-- debug
-    if not owner_ids:
-        print(f"No owner IDs found for email '{email}'")  # <-- debug
-        return JsonResponse([], safe=False)
-
-    # 3) filter negotiations by those owner_ids
+    
     qs = Negotiation.objects.select_related('link') \
           .filter(link__owner_id__in=owner_ids)
     
