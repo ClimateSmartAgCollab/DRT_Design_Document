@@ -4,6 +4,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useNegotiations } from "./hooks/useNegotiations";
 import { Negotiation, Status, ArchivedFilter, SortOption } from "./types";
 import { Sidebar } from "./components/Sidebar";
+import { useSearchParams } from "next/navigation";
 import { BulkActionBar } from "./components/BulkActionBar";
 import { NegotiationItem } from "./components/NegotiationItem";
 import {
@@ -12,7 +13,11 @@ import {
 } from "./services/negotiationApi";
 
 export default function NegotiationListPage() {
-  const { data: negs, error, reload } = useNegotiations();
+  const searchParams = useSearchParams();
+  const ownerEmail = searchParams.get("email") ?? "";
+
+
+  const { data: negs, error, reload } = useNegotiations(ownerEmail);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [searchTerm, setSearchTerm] = useState("");

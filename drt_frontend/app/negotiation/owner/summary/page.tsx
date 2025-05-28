@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import fetchApi from "@/app/api/apiHelper";
 import { Bar } from "react-chartjs-2";
@@ -16,7 +16,6 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-
 import { SummarySidebar } from "./components/SummarySidebar";
 
 ChartJS.register(
@@ -29,119 +28,148 @@ ChartJS.register(
 );
 
 interface SummaryStat {
-  // dataset_id: string;
   data_label: string;
-  tag: string;
+  tag: string;               // still a plain string
   total_requests: number;
   accepted_requests: number;
   rejected_requests: number;
   requestor_open: number;
   owner_open: number;
-  generated_at: string;
+  generated_at: string;      // ISO timestamp
 }
 
 export default function OwnerSummaryPage() {
   const params = useSearchParams();
-  const email = params.get("owner") ?? "";
+  const ownerEmail = params.get("owner") ?? "";
 
-  // ——— Filter state ———
+  // ——— raw data, loading & error states ———
+  const [allData, setAllData] = useState<SummaryStat[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
+
+  // ——— filter state ———
   const [dataLabel, setDataLabel] = useState("");
-  const [tag,       setTag]       = useState("");
+  const [tag, setTag]             = useState("");
   const [startDate, setStartDate] = useState("");
-  const [endDate,   setEndDate]   = useState("");
+  const [endDate, setEndDate]     = useState("");
 
-  // ——— Data state ———
-  const [data,    setData]    = useState<SummaryStat[]>([]);
-  const [loading,setLoading] = useState(true);
-  const [error,  setError]   = useState<string | null>(null);
-
-  // Build your fetch URL with query-params
-  const buildUrl = useCallback((ownerId: string) => {
-    const qs: string[] = [];
-    if (dataLabel)  qs.push(`data_label=${encodeURIComponent(dataLabel)}`);
-    if (tag)        qs.push(`tag=${encodeURIComponent(tag)}`);
-    if (startDate)  qs.push(`date_from=${startDate}`);
-    if (endDate)    qs.push(`date_to=${endDate}`);
-    const query = qs.length ? `?${qs.join("&")}` : "";
-    return `/drt/summary-statistics/${ownerId}/${query}`;
-  }, [dataLabel, tag, startDate, endDate]);
-
+  // ——— fetch once on mount ———
   useEffect(() => {
-    if (!email) return setError("Owner email missing"), setLoading(false);
+    if (!ownerEmail) {
+      setError("Owner email missing in URL");
+      setLoading(false);
+      return;
+    }
 
     (async () => {
-      setLoading(true);
-      setError(null);
       try {
-        // 1. lookup owner_id
+        setLoading(true);
+        setError(null);
+
+        // 1) lookup ownerId by email
         const ownerRes = await fetchApi("/datastore/get_cached_data/owner_table");
-        if (!ownerRes.ok) throw new Error("Failed loading owner table");
+        if (!ownerRes.ok) throw new Error("Failed to load owner table");
         const { owner_table } = await ownerRes.json();
-        const entry = Object.entries(owner_table).find(
-          ([_, o]) => (o as { owner_email: string }).owner_email === email
-        );
-        if (!entry) throw new Error(`No owner found for ${email}`);
+        const entry = Object.entries(owner_table)
+          .find(([_, o]) => (o as any).owner_email === ownerEmail);
+        if (!entry) throw new Error(`No owner found for ${ownerEmail}`);
         const ownerId = entry[0];
 
-        // 2. fetch with filters
-        const res  = await fetchApi(buildUrl(ownerId));
+        // 2) fetch all summary stats
+        const res = await fetchApi(`/drt/summary-statistics/${ownerId}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || `Status ${res.status}`);
-        setData(json.summary_statistics);
+        setAllData(json.summary_statistics);
       } catch (err: any) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     })();
-  }, [email, buildUrl]);
+  }, [ownerEmail]);
 
-  // derive dropdown options from data
-  const labels = Array.from(new Set(data.map((d) => d.data_label)));
-  const tags   = Array.from(new Set(data.map((d) => d.tag)));
+  // ——— derive filter options from the full dataset ———
+  const dataLabelOptions = useMemo(
+    () => Array.from(new Set(allData.map(d => d.data_label))),
+    [allData]
+  );
+  const tagOptions = useMemo(
+    () => Array.from(new Set(allData.map(d => d.tag).filter(t => t))),
+    [allData]
+  );
 
+  // ——— apply filters client-side ———
+  const filteredData = useMemo(() => {
+    return allData.filter(d => {
+      // Data label filter
+      if (dataLabel && d.data_label !== dataLabel) return false;
+
+      // Tag filter
+      if (tag && d.tag !== tag) return false;
+
+      const genDate = new Date(d.generated_at);
+
+      // Start date filter
+      if (startDate) {
+        const from = new Date(startDate);
+        if (genDate < from) return false;
+      }
+
+      // End date filter
+      if (endDate) {
+        const to = new Date(endDate);
+        if (genDate > to) return false;
+      }
+
+      return true;
+    });
+  }, [allData, dataLabel, tag, startDate, endDate]);
+
+  // ——— build chart data from filteredData ———
+  const chartData = useMemo(() => ({
+    labels: filteredData.map(d => `${d.data_label} / ${d.tag || "(all)"}`),
+    datasets: [
+      { label: "Total",    data: filteredData.map(d => d.total_requests) },
+      { label: "Accepted", data: filteredData.map(d => d.accepted_requests) },
+      { label: "Rejected", data: filteredData.map(d => d.rejected_requests) },
+      { label: "Req. Open", data: filteredData.map(d => d.requestor_open) },
+      { label: "Own. Open", data: filteredData.map(d => d.owner_open) },
+    ],
+  }), [filteredData]);
+
+  // ——— render ———
   if (loading) return <div className="p-6">Loading…</div>;
-  if (error)   return (
+  if (error)  return (
     <div className="p-6">
       <div className="bg-red-50 border-l-4 border-red-400 p-4 text-red-700">
         ⚠️ {error}
       </div>
     </div>
   );
-  if (!data.length) return <div className="p-6">No statistics found.</div>;
-
-  // Chart data (same as before)…
-  const chartLabels = data.map((d) => `${d.data_label} / ${d.tag}`);
-  const chartData = {
-    labels: chartLabels,
-    datasets: [
-      { label: "Total",    data: data.map((d) => d.total_requests) },
-      { label: "Accepted", data: data.map((d) => d.accepted_requests) },
-      { label: "Rejected", data: data.map((d) => d.rejected_requests) },
-      { label: "Req. Open", data: data.map((d) => d.requestor_open) },
-      { label: "Own. Open", data: data.map((d) => d.owner_open) },
-    ],
-  };
+  if (!allData.length) return <div className="p-6">No statistics available.</div>;
 
   return (
     <main className="flex">
-      {/* Sidebar */}
       <SummarySidebar
-        dataLabelOptions={labels}
+        dataLabelOptions={dataLabelOptions}
         selectedDataLabel={dataLabel}
         onDataLabelChange={setDataLabel}
-        tagOptions={tags}
+        tagOptions={tagOptions}
         selectedTag={tag}
         onTagChange={setTag}
         startDate={startDate}
         endDate={endDate}
-        onDateChange={(field, v) => field === "start" ? setStartDate(v) : setEndDate(v)}
+        onDateChange={(field, v) =>
+          field === "start" ? setStartDate(v) : setEndDate(v)
+        }
         onReset={() => {
-          setDataLabel(""); setTag(""); setStartDate(""); setEndDate("");
+          setDataLabel("");
+          setTag("");
+          setStartDate("");
+          setEndDate("");
         }}
       />
 
-      {/* Main content */}
       <div className="flex-1 p-6 space-y-8">
         <h1 className="text-3xl font-bold">Summary Statistics</h1>
 
@@ -163,20 +191,24 @@ export default function OwnerSummaryPage() {
             <thead>
               <tr className="bg-gray-100">
                 {[
-                  "Dataset", "Label", "Tag",
-                  "Total", "Accepted", "Rejected",
-                  "Req. Open", "Own. Open", "Generated At",
-                ].map((h) => (
+                  "Data Label",
+                  "Tag",
+                  "Total",
+                  "Accepted",
+                  "Rejected",
+                  "Req. Open",
+                  "Own. Open",
+                  "Generated At",
+                ].map(h => (
                   <th key={h} className="border px-4 py-2">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {data.map((d) => (
+              {filteredData.map(d => (
                 <tr key={`${d.data_label}-${d.tag}-${d.generated_at}`}>
-                  {/* <td className="border px-4 py-2">{d.dataset_id}</td> */}
                   <td className="border px-4 py-2">{d.data_label}</td>
-                  <td className="border px-4 py-2">{d.tag}</td>
+                  <td className="border px-4 py-2">{d.tag || "(all)"}</td>
                   <td className="border px-4 py-2">{d.total_requests}</td>
                   <td className="border px-4 py-2">{d.accepted_requests}</td>
                   <td className="border px-4 py-2">{d.rejected_requests}</td>

@@ -1,5 +1,3 @@
-// drt_frontend\app\negotiation\owner\summary\components\Sidebar.tsx
-
 "use client";
 
 import React from "react";
@@ -36,68 +34,54 @@ export function SummarySidebar({
     <aside className="w-64 p-6 bg-white border-r border-gray-200">
       <h2 className="text-2xl font-semibold mb-4">Filters</h2>
 
-      {/* Data Label */}
       <div className="mb-6">
         <label className="block text-sm font-medium mb-1">Data Label</label>
         <select
           value={selectedDataLabel}
-          onChange={(e) => onDataLabelChange(e.target.value)}
+          onChange={e => onDataLabelChange(e.target.value)}
           className="w-full border rounded px-3 py-2 text-sm"
         >
-          <option key="all-data-label" value="">
-            All
-          </option>
-
-          {dataLabelOptions.map((lbl, idx) => (
-            <option
-              key={lbl != null && lbl !== "" ? lbl : `data-label-${idx}`}
-              value={lbl ?? ""}
-            >
-              {lbl && lbl !== "" ? lbl : "(none)"}
+          <option value="">All</option>
+          {dataLabelOptions.map(lbl => (
+            <option key={lbl} value={lbl}>
+              {lbl}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Tag */}
       <div className="mb-6">
         <label className="block text-sm font-medium mb-1">Tag</label>
         <select
           value={selectedTag}
-          onChange={(e) => onTagChange(e.target.value)}
+          onChange={e => onTagChange(e.target.value)}
           className="w-full border rounded px-3 py-2 text-sm"
         >
-          <option key="all-tag" value="">
-            All
-          </option>
-
-          {tagOptions.map((t, idx) => (
-            <option
-              key={t != null && t !== "" ? t : `tag-${idx}`}
-              value={t ?? ""}
-            >
-              {t && t !== "" ? t : "(none)"}
+          <option value="">All</option>
+          {tagOptions.map(t => (
+            <option key={t} value={t}>
+              {t}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Date Range */}
       <div className="mb-6">
         <label className="block text-sm font-medium mb-1">Date From</label>
         <input
           type="date"
           value={startDate}
-          onChange={(e) => onDateChange("start", e.target.value)}
+          onChange={e => onDateChange("start", e.target.value)}
           className="w-full border rounded px-2 py-1 text-sm"
         />
       </div>
+
       <div className="mb-6">
         <label className="block text-sm font-medium mb-1">Date To</label>
         <input
           type="date"
           value={endDate}
-          onChange={(e) => onDateChange("end", e.target.value)}
+          onChange={e => onDateChange("end", e.target.value)}
           className="w-full border rounded px-2 py-1 text-sm"
         />
       </div>
