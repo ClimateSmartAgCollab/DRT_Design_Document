@@ -612,51 +612,50 @@ def export_summary_to_drt_view(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-
 def export_summary_to_drt():
     """
     Aggregate and store anonymized summary statistics per (owner, dataset_ID, data_label)
     and then break out per tag.
     """
-    print("🔄 Starting export_summary_to_drt()")
 
-    # 1) Build the per-(owner, dataset_ID, data_label) stats
     per_group_stats = (
         NLink.objects
         .values('owner_id', 'dataset_ID', 'data_label')
         .annotate(
             total_requests=Count('negotiation'),
-            completed_requests=Count('negotiation', filter=Q(negotiation__state='completed')),
-            rejected_requests=Count('negotiation',   filter=Q(negotiation__state='rejected')),
-            requestor_open=Count('negotiation',    filter=Q(negotiation__state='requestor_open')),
-            owner_open=Count('negotiation',        filter=Q(negotiation__state='owner_open')),
+            completed_requests=Count('negotiation', filter=Q(
+                negotiation__state='completed')),
+            rejected_requests=Count('negotiation',   filter=Q(
+                negotiation__state='rejected')),
+            requestor_open=Count('negotiation',    filter=Q(
+                negotiation__state='requestor_open')),
+            owner_open=Count('negotiation',        filter=Q(
+                negotiation__state='owner_open')),
         )
     )
     print(f"  → Found {per_group_stats.count()} owner/dataset groups")
 
-    # 2) Iterate each group
     for idx, grp in enumerate(per_group_stats, start=1):
-        owner_pk    = grp['owner_id']
-        ds_id       = grp['dataset_ID']
-        ds_label    = grp['data_label']
-        print(f"\n[{idx}] owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}")
-        print("    Counts:",
-              f"total={grp['total_requests']},",
-              f"done={grp['completed_requests']},",
-              f"rej={grp['rejected_requests']},",
-              f"req_open={grp['requestor_open']},",
-              f"own_open={grp['owner_open']}")
+        owner_pk = grp['owner_id']
+        ds_id = grp['dataset_ID']
+        ds_label = grp['data_label']
 
-        # 3) Grab any single NLink for this group to hang our FK off of
         nlink = NLink.objects.filter(
             owner_id=owner_pk,
             dataset_ID=ds_id,
             data_label=ds_label,
         ).first()
         if not nlink:
-            print(f"    ⚠️  No NLink found; skipping.")
+            # Log the missing NLink and skip this group
+            logger.warning(
+                f"No NLink found for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}. Skipping this group."
+            )
+            # print(f"No NLink found; skipping.")
             continue
-        print(f"    ✅ Using NLink pk={nlink.pk}")
+        # Log the NLink being used
+        logger.info(
+            f"Using NLink pk={nlink.pk} for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}")
+        # print(f"Using NLink pk={nlink.pk}")
 
         # 4) Build domain breakdown
         domain_qs = (
@@ -669,16 +668,12 @@ def export_summary_to_drt():
             row['domain']: row['request_count']
             for row in domain_qs
         }
-        print(f"    Domains: {requestor_domains}")
 
-        # 5) Collect ALL tags in this group
         tags = set()
         for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label):
             tags.update(link.tags)
         tags = sorted(tags)
-        print(f"    Found tags: {tags}")
 
-        # 6) Prepare the common payload
         overall_stat = {
             'total_requests':    grp['total_requests'],
             'accepted_requests': grp['completed_requests'],
@@ -690,7 +685,6 @@ def export_summary_to_drt():
         }
         datasets_list = [ds_id]
 
-        # 7) Write the “aggregate” row (tag = blank)
         try:
             agg_obj, created = SummaryStatistic.objects.update_or_create(
                 owner_id=nlink,
@@ -699,11 +693,17 @@ def export_summary_to_drt():
                 tag='',
                 defaults={'overall_stat': overall_stat},
             )
-            print(f"    ✅ {'Created' if created else 'Updated'} aggregate SummaryStatistic(pk={agg_obj.pk})")
+            # Log the creation or update of the aggregate row
+            logger.info(
+                f"{'Created' if created else 'Updated'} aggregate SummaryStatistic(pk={agg_obj.pk})")
+            # print(
+            #     f"{'Created' if created else 'Updated'} aggregate SummaryStatistic(pk={agg_obj.pk})")
         except Exception as e:
-            print(f"    ❌ Failed aggregate row: {e}")
+            # Log the error and continue
+            logger.error(
+                f"Failed to create aggregate SummaryStatistic for owner={owner_pk!r}, dataset_ID={ds_id!r}: {e}")
+            # print(f"Failed aggregate row: {e}")
 
-        # 8) Write one row per tag
         for t in tags:
             try:
                 tag_obj, created = SummaryStatistic.objects.update_or_create(
@@ -713,9 +713,16 @@ def export_summary_to_drt():
                     tag=t,
                     defaults={'overall_stat': overall_stat},
                 )
-                print(f"    ✅ {'Created' if created else 'Updated'} tag={t!r} SummaryStatistic(pk={tag_obj.pk})")
+                # Log the creation or update of the tag
+                logger.info(
+                    f"{'Created' if created else 'Updated'} tag={t!r} SummaryStatistic(pk={tag_obj.pk})")
+                # print(
+                #     f"{'Created' if created else 'Updated'} tag={t!r} SummaryStatistic(pk={tag_obj.pk})")
             except Exception as e:
-                print(f"    ❌ Failed tag={t!r} row: {e}")
+                # Log the error and continue
+                logger.error(
+                    f"Failed to create SummaryStatistic for tag={t!r} in owner={owner_pk!r}, dataset_ID={ds_id!r}: {e}")
+                # print(f" Failed tag={t!r} row: {e}")
 
 
 # def export_summary_to_drt():
@@ -868,24 +875,20 @@ def negotiation_list_api_req(request, email):
 
     return JsonResponse(data, safe=False)
 
-#all negotioations. not only for specific owner!
-def negotiation_list_api(request, email):
-    
-    cache_data      = cache.get("owner_table") or {}
+# all negotioations. not only for specific owner!
 
-    
+
+def negotiation_list_api(request, email):
+    cache_data = cache.get("owner_table") or {}
+
     owner_ids = [
         owner_id
         for owner_id, info in cache_data.items()
         if info.get("owner_email") == email
     ]
-    
+
     qs = Negotiation.objects.select_related('link') \
-          .filter(link__owner_id__in=owner_ids)
-    
-    print(f"Found {qs.count()} negotiations for owner email '{email}'")  # <-- debug
-    if not qs.exists():
-        print(f"No negotiations found for owner email '{email}'")
+        .filter(link__owner_id__in=owner_ids)
 
     data = []
     for n in qs:
@@ -893,7 +896,7 @@ def negotiation_list_api(request, email):
         data.append({
             'negotiation_id':     str(n.negotiation_id),
             'conversation_id':    str(n.conversation_id),
-            'requestor_responses':n.requestor_responses,
+            'requestor_responses': n.requestor_responses,
             'owner_responses':    n.owner_responses,
             'comments':           n.comments,
             'state':              n.state,
@@ -944,23 +947,18 @@ def summary_statistics_view(request, owner_id):
     """Endpoint for retrieving summary statistics based on the provided owner_id (string)."""
     try:
         stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
-
         if not stats_qs.exists():
             logger.warning(
                 f"No SummaryStatistic found for owner_id={owner_id}")
             return JsonResponse({'error': 'No summary statistics found.'}, status=404)
 
-        logger.debug(
-            f"Retrieved {stats_qs.count()} SummaryStatistic row(s) for owner {owner_id}")
-
         statistics_data = []
         for stat in stats_qs:
-            ds_list = stat.datasets_requested or []
-            data_label = ds_list[0] if ds_list else None
 
             stats_block = stat.overall_stat or {}
             statistics_data.append({
-                'data_label':               data_label,
+                'data_label':               stat.data_label,
+                'tag':                     stat.tag or '',
                 'total_requests':           stats_block.get('total_requests', 0),
                 'accepted_requests':        stats_block.get('accepted_requests', 0),
                 'rejected_requests':        stats_block.get('rejected_requests', 0),
