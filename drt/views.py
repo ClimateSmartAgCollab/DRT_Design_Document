@@ -614,8 +614,8 @@ def export_summary_to_drt_view(request):
 
 def export_summary_to_drt():
     """
-    Aggregate and store anonymized summary statistics per (owner, dataset_ID, data_label)
-    and then break out per tag.
+    Aggregate and store anonymized summary statistics per (owner, dataset_ID, data_label),
+    and then break out per tag with correct, per-tag counts.
     """
 
     per_group_stats = (
@@ -625,7 +625,7 @@ def export_summary_to_drt():
             total_requests=Count('negotiation'),
             completed_requests=Count('negotiation', filter=Q(
                 negotiation__state='completed')),
-            rejected_requests=Count('negotiation',   filter=Q(
+            rejected_requests=Count('negotiation',  filter=Q(
                 negotiation__state='rejected')),
             requestor_open=Count('negotiation',    filter=Q(
                 negotiation__state='requestor_open')),
@@ -633,9 +633,9 @@ def export_summary_to_drt():
                 negotiation__state='owner_open')),
         )
     )
-    print(f"  → Found {per_group_stats.count()} owner/dataset groups")
+    logger.info(f"Found {per_group_stats.count()} owner/dataset groups")
 
-    for idx, grp in enumerate(per_group_stats, start=1):
+    for grp in per_group_stats:
         owner_pk = grp['owner_id']
         ds_id = grp['dataset_ID']
         ds_label = grp['data_label']
@@ -646,18 +646,13 @@ def export_summary_to_drt():
             data_label=ds_label,
         ).first()
         if not nlink:
-            # Log the missing NLink and skip this group
             logger.warning(
-                f"No NLink found for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}. Skipping this group."
+                f"No NLink found for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}; skipping."
             )
-            # print(f"No NLink found; skipping.")
             continue
-        # Log the NLink being used
         logger.info(
-            f"Using NLink pk={nlink.pk} for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}")
-        # print(f"Using NLink pk={nlink.pk}")
+            f"Using NLink pk={nlink.pk} for {owner_pk!r}/{ds_id!r}/{ds_label!r}")
 
-        # 4) Build domain breakdown
         domain_qs = (
             NLink.objects
             .filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label)
@@ -668,11 +663,6 @@ def export_summary_to_drt():
             row['domain']: row['request_count']
             for row in domain_qs
         }
-
-        tags = set()
-        for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label):
-            tags.update(link.tags)
-        tags = sorted(tags)
 
         overall_stat = {
             'total_requests':    grp['total_requests'],
@@ -685,123 +675,56 @@ def export_summary_to_drt():
         }
         datasets_list = [ds_id]
 
-        try:
-            agg_obj, created = SummaryStatistic.objects.update_or_create(
+        SummaryStatistic.objects.update_or_create(
+            owner_id=nlink,
+            datasets_requested=datasets_list,
+            data_label=ds_label,
+            tag='',  # empty string = “no tag”
+            defaults={'overall_stat': overall_stat},
+        )
+        logger.info(f"Upserted no‐tag summary for NLink pk={nlink.pk}")
+
+        tags = set()
+        for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label):
+            tags.update(link.tags)
+        tags = sorted(tags)
+
+        for t in tags:
+            tag_stats = NLink.objects.filter(
+                owner_id=owner_pk,
+                dataset_ID=ds_id,
+                data_label=ds_label,
+                tags__contains=[t],
+            ).aggregate(
+                total_requests=Count('negotiation'),
+                completed_requests=Count('negotiation', filter=Q(
+                    negotiation__state='completed')),
+                rejected_requests=Count('negotiation',  filter=Q(
+                    negotiation__state='rejected')),
+                requestor_open=Count('negotiation',    filter=Q(
+                    negotiation__state='requestor_open')),
+                owner_open=Count('negotiation',        filter=Q(
+                    negotiation__state='owner_open')),
+            )
+
+            tag_stat_payload = {
+                'total_requests':    tag_stats['total_requests'],
+                'accepted_requests': tag_stats['completed_requests'],
+                'rejected_requests': tag_stats['rejected_requests'],
+                'requestor_open':    tag_stats['requestor_open'],
+                'owner_open':        tag_stats['owner_open'],
+                'requestor_domains': requestor_domains,
+                'generated_at':      timezone.now().isoformat(),
+            }
+
+            SummaryStatistic.objects.update_or_create(
                 owner_id=nlink,
                 datasets_requested=datasets_list,
                 data_label=ds_label,
-                tag='',
-                defaults={'overall_stat': overall_stat},
+                tag=t,
+                defaults={'overall_stat': tag_stat_payload},
             )
-            # Log the creation or update of the aggregate row
-            logger.info(
-                f"{'Created' if created else 'Updated'} aggregate SummaryStatistic(pk={agg_obj.pk})")
-            # print(
-            #     f"{'Created' if created else 'Updated'} aggregate SummaryStatistic(pk={agg_obj.pk})")
-        except Exception as e:
-            # Log the error and continue
-            logger.error(
-                f"Failed to create aggregate SummaryStatistic for owner={owner_pk!r}, dataset_ID={ds_id!r}: {e}")
-            # print(f"Failed aggregate row: {e}")
-
-        for t in tags:
-            try:
-                tag_obj, created = SummaryStatistic.objects.update_or_create(
-                    owner_id=nlink,
-                    datasets_requested=datasets_list,
-                    data_label=ds_label,
-                    tag=t,
-                    defaults={'overall_stat': overall_stat},
-                )
-                # Log the creation or update of the tag
-                logger.info(
-                    f"{'Created' if created else 'Updated'} tag={t!r} SummaryStatistic(pk={tag_obj.pk})")
-                # print(
-                #     f"{'Created' if created else 'Updated'} tag={t!r} SummaryStatistic(pk={tag_obj.pk})")
-            except Exception as e:
-                # Log the error and continue
-                logger.error(
-                    f"Failed to create SummaryStatistic for tag={t!r} in owner={owner_pk!r}, dataset_ID={ds_id!r}: {e}")
-                # print(f" Failed tag={t!r} row: {e}")
-
-
-# def export_summary_to_drt():
-#     """
-#     Aggregate and store anonymized summary statistics *per* dataset_ID.
-#     """
-#     # First, build a queryset that joins NLink → Negotiation and groups by dataset_ID
-#     per_dataset_stats = (
-#         NLink.objects
-#         # group key
-#         .values('owner_id', 'data_label')
-#         .annotate(
-#             total_requests=Count('negotiation'),
-#             completed_requests=Count('negotiation', filter=Q(
-#                 negotiation__state='completed')),
-#             rejected_requests=Count('negotiation', filter=Q(
-#                 negotiation__state='rejected')),
-#             requestor_open=Count('negotiation', filter=Q(
-#                 negotiation__state='requestor_open')),
-#             owner_open=Count('negotiation', filter=Q(
-#                 negotiation__state='owner_open')),
-#             # If you want average response time (assuming timestamps is a DurationField)
-#             # average_response_time=Avg(F('negotiation__response_time')),
-#         )
-#     )
-
-#     for entry in per_dataset_stats:
-#         owner_pk = entry['owner_id']
-#         ds_id = entry['data_label']
-#         print(f"Processing dataset {ds_id} for owner {owner_pk}")
-
-#         nlink = NLink.objects.filter(
-#             owner_id=owner_pk, data_label=ds_id).first()
-#         if not nlink:
-#             logger.warning(
-#                 f"Skipping summary for owner={owner_pk}, dataset={ds_id}: no NLink found."
-#             )
-#             continue
-
-#         # Pull domain‐counts just for this dataset
-#         domain_qs = (
-#             NLink.objects
-#             .filter(owner_id=owner_pk, data_label=ds_id)
-#             .values(domain=F('requestor_email'))
-#             .annotate(request_count=Count('negotiation'))
-#         )
-#         requestor_domains = {d['domain']: d['request_count']
-#                              for d in domain_qs}
-
-#         # Build payload
-#         summary_data = {
-#             'owner_id': nlink,  # if you have a single owner per dataset, fetch it here
-#             'datasets_requested': [ds_id],
-#             'overall_stat': {
-#                 'total_requests':       entry['total_requests'],
-#                 'accepted_requests':    entry['completed_requests'],
-#                 'rejected_requests':    entry['rejected_requests'],
-#                 'requestor_open':       entry['requestor_open'],
-#                 'owner_open':           entry['owner_open'],
-#                 # 'average_response_time': str(entry['average_response_time']) if entry['average_response_time'] else None,
-#                 'requestor_domains':    requestor_domains,
-#                 'generated_at':         timezone.now().isoformat(),
-#             }
-#         }
-
-#         owner = summary_data.pop('owner_id')
-#         datasets = summary_data.pop('datasets_requested')
-
-#         try:
-#             SummaryStatistic.objects.update_or_create(
-#                 owner_id=owner,
-#                 datasets_requested=datasets,        # match on exactly that list
-#                 defaults={'overall_stat': summary_data['overall_stat']}
-#             )
-#         except Exception as e:
-#             logger.error(
-#                 f"Failed to create SummaryStatistic for owner={owner_pk}, "
-#                 f"dataset={ds_id}: {e}"
-#             )
+            logger.info(f"Upserted tag={t!r} summary for NLink pk={nlink.pk}")
 
 
 # Delete old negotiations
@@ -874,8 +797,6 @@ def negotiation_list_api_req(request, email):
         })
 
     return JsonResponse(data, safe=False)
-
-# all negotioations. not only for specific owner!
 
 
 def negotiation_list_api(request, email):
