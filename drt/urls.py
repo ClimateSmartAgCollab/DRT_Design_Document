@@ -47,7 +47,7 @@ urlpatterns = [
          views.delete_old_negotiations_view,
          name='delete_old_negotiations'),
 
-    path('negotiations/<str:email>/',
+    path('negotiations/',
          views.negotiation_list_api,
          name='negotiation_list_api'),  # Display all negotiations
 

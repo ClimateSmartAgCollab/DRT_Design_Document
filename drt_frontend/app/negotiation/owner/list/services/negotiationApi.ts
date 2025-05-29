@@ -2,8 +2,8 @@
 import fetchApi from "@/app/api/apiHelper";
 import type { Negotiation } from "../types";
 
-export async function fetchNegotiations(email: string): Promise<Negotiation[]> {
-  const res = await fetchApi(`/drt/negotiations/${email}/`);
+export async function fetchNegotiations(): Promise<Negotiation[]> {
+  const res = await fetchApi(`/drt/negotiations/`);
   if (!res.ok) throw new Error(res.statusText);
   return res.json();
 }

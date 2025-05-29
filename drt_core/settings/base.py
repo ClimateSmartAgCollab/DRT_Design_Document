@@ -5,6 +5,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-secret-key")
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
+
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
+# Optional: make sure the cookie expires quickly
+SESSION_COOKIE_AGE = 60 * 60  # 1 hour
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+
+
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]

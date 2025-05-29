@@ -73,7 +73,7 @@ export default function OwnerHomePage() {
     },
     {
       name: "Negotiation List",
-      href: `/negotiation/owner/list?email=${encodeURIComponent(email)}`,
+      href: `/negotiation/owner/list`,
       emoji: "📋",
     },
     {

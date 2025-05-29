@@ -27,9 +27,25 @@ import logging
 import json
 import traceback
 from django.core.mail import EmailMultiAlternatives
-
+from django.http import JsonResponse
+from functools import wraps
+from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
+
+
+def owner_otp_required(view_func):
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        email = request.session.get("owner_email")
+        if not email:
+            return JsonResponse(
+                {"error": "OTP login required"}, status=401
+            )
+        # attach it for the view:
+        request.owner_email = email
+        return view_func(request, *args, **kwargs)
+    return _wrapped
 
 
 @csrf_exempt
@@ -222,6 +238,9 @@ def verify_owner_otp(request, email):
         return Response({'error': 'OTP expired'}, status=400)
     if entry['otp'] != otp_sub:
         return Response({'error': 'Wrong OTP'}, status=400)
+
+    # just store the email in the *signed cookie* session:
+    request.session["owner_email"] = email
 
     # mark as “logged in” (e.g. set a short‐lived token or flag in cache)
     cache.set(f"owner_logged_in:{email}", True, 3600)
@@ -799,8 +818,17 @@ def negotiation_list_api_req(request, email):
     return JsonResponse(data, safe=False)
 
 
-def negotiation_list_api(request, email):
+@owner_otp_required
+def negotiation_list_api(request):
+
+    email = request.owner_email
+    print(f"🔍 negotiation_list_api: email param = '{email}'")  # <-- debug
+
+    print("🔍 negotiation_list_api called")  # <-- debug
     cache_data = cache.get("owner_table") or {}
+
+    if not email:
+        return JsonResponse({'error': 'Email parameter is required'}, status=400)
 
     owner_ids = [
         owner_id

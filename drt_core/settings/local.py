@@ -12,10 +12,10 @@ CSRF_TRUSTED_ORIGINS = ["http://*"]
 
 # during local dev over HTTP, cookies must NOT be “secure-only”
 # CSRF_COOKIE_SECURE = False  
-SESSION_COOKIE_SECURE = False
+# SESSION_COOKIE_SECURE = False
 
-CSRF_COOKIE_SAMESITE = "Lax"    # default, works on HTTP
-CSRF_COOKIE_SECURE = False     # allow cookie over HTTP
+# CSRF_COOKIE_SAMESITE = "Lax"    # default, works on HTTP
+# CSRF_COOKIE_SECURE = False     # allow cookie over HTTP
 
 # explicitly trust your Next.js origin(s)
 CSRF_TRUSTED_ORIGINS = [
@@ -23,6 +23,13 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
 ]
 
+# allow the sessionid cookie in cross-site requests
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE   = True
+
+# also do the same for the CSRF token
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE   = True
 
 
 # INSTALLED_APPS  ["anymail"]
