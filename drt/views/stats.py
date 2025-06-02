@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 from .utils import owner_otp_required, requestor_otp_required
 from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 import json
 import logging
@@ -25,7 +26,6 @@ def export_summary_to_drt_view(request):
     HTTP GET → run the per-dataset export_summary_to_drt and return JSON status.
     """
     try:
-        # call your exporter (which now takes no args)
         export_summary_to_drt()
         return JsonResponse({'message': 'Summary statistics exported successfully.'})
     except Exception as e:
@@ -154,9 +154,72 @@ def delete_old_negotiations_view(request):
     return delete_old_negotiations()
 
 
+
 @owner_otp_required
-def summary_statistics_view(request, owner_id):
+def owner_links_api(request):
+
+    raw_owner_cache = cache.get("owner_table") or {}
+
+    user_email = request.owner_email
+
+    logger.debug(f"owner_links_api: user_email = {user_email}")
+
+    owner_ids = [
+        owner_id
+        for owner_id, info in raw_owner_cache.items()
+        if info.get("owner_email") == user_email
+    ]
+
+
+    # If no owner_id matches, return empty list
+    if not owner_ids:
+        logger.warning(
+            f"No owner_id found for email {user_email}. Returning empty links list."
+        )
+        return JsonResponse({"links": []})
+
+    logger.debug(f"owner_links_api: owner_ids = {owner_ids}")
+
+
+    raw_link_cache = cache.get("link_table") or {}
+
+    
+    entries = []
+    for link_url, row in raw_link_cache.items():
+        if row.get("owner_id") in owner_ids:
+            entries.append(
+                {
+                    "url": link_url,
+                    "questionnaireId": row.get("questionnaire_id"),
+                    "licenseId": row.get("license_id"),
+                    "expiry": row.get("expiry") or "Never",
+                    "label": row.get("data_label", ""),
+                    "tags": row.get("tags", "(none)"),
+                }
+            )
+
+    return JsonResponse({"links": entries})
+
+
+@owner_otp_required
+def summary_statistics_view(request):
     """Endpoint for retrieving summary statistics based on the provided owner_id (string)."""
+
+    email = request.owner_email
+
+    cache_data = cache.get("owner_table") or {}
+
+    if not email:
+        return JsonResponse({'error': 'Email parameter is required'}, status=400)
+
+    owner_ids = [
+        owner_id
+        for owner_id, info in cache_data.items()
+        if info.get("owner_email") == email
+    ]
+
+    owner_id = owner_ids[0] if owner_ids else None
+
     try:
         stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
         if not stats_qs.exists():
@@ -280,9 +343,7 @@ def negotiation_list_api_req(request, email):
 def negotiation_list_api(request):
 
     email = request.owner_email
-    print(f"🔍 negotiation_list_api: email param = '{email}'")  # <-- debug
 
-    print("🔍 negotiation_list_api called")  # <-- debug
     cache_data = cache.get("owner_table") or {}
 
     if not email:

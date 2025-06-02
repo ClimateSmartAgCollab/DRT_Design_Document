@@ -39,8 +39,6 @@ interface SummaryStat {
 }
 
 export default function OwnerSummaryPage() {
-  const params = useSearchParams();
-  const ownerEmail = params.get("owner") ?? "";
 
   // ——— raw data, loading & error states ———
   const [allData, setAllData] = useState<SummaryStat[]>([]);
@@ -55,28 +53,13 @@ export default function OwnerSummaryPage() {
 
   // ——— fetch once on mount ———
   useEffect(() => {
-    if (!ownerEmail) {
-      setError("Owner email missing in URL");
-      setLoading(false);
-      return;
-    }
 
     (async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // 1) lookup ownerId by email
-        const ownerRes = await fetchApi("/datastore/get_cached_data/owner_table");
-        if (!ownerRes.ok) throw new Error("Failed to load owner table");
-        const { owner_table } = await ownerRes.json();
-        const entry = Object.entries(owner_table)
-          .find(([_, o]) => (o as any).owner_email === ownerEmail);
-        if (!entry) throw new Error(`No owner found for ${ownerEmail}`);
-        const ownerId = entry[0];
-
-        // 2) fetch all summary stats
-        const res = await fetchApi(`/drt/summary-statistics/${ownerId}`);
+        const res = await fetchApi(`/drt/summary-statistics/`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || `Status ${res.status}`);
         setAllData(json.summary_statistics);
@@ -86,7 +69,7 @@ export default function OwnerSummaryPage() {
         setLoading(false);
       }
     })();
-  }, [ownerEmail]);
+  }, []);
 
   // ——— derive filter options from the full dataset ———
   const dataLabelOptions = useMemo(
