@@ -52,11 +52,13 @@ export default function OwnerSummaryPage() {
 
   // ——— fetch once on mount ———
   useEffect(() => {
+
     (async () => {
       try {
         setLoading(true);
         setError(null);
 
+        const res = await fetchApi(`/drt/summary-statistics/`);
         const res = await fetchApi(`/drt/summary-statistics/`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || `Status ${res.status}`);
@@ -67,6 +69,7 @@ export default function OwnerSummaryPage() {
         setLoading(false);
       }
     })();
+  }, []);
   }, []);
 
   // ——— derive filter options from the full dataset ———
