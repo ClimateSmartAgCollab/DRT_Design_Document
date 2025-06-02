@@ -4,7 +4,7 @@ from .views import (generate_nlinks, requestor_email_entry, verify_otp, request_
                     owner_email_entry, verify_owner_otp, owner_review, archive_view,
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
-                    req_email_entry
+                    req_email_entry, owner_links_api
                     )
 
 urlpatterns = [
@@ -65,12 +65,14 @@ urlpatterns = [
     #          name='resend_requester_reminder'),
 
 
-    path('summary-statistics/<str:owner_id>/',
+    path('summary-statistics/',
          summary_statistics_view,
          name='summary_statistics'),
     path('export_summary_to_drt/',
          export_summary_to_drt_view,
          name='export_summary_to_drt_view'),
+
+     path("owner/links/", owner_links_api, name="owner_links_api"),         
 
     path('api/submission/<uuid:uuid>', submission_view, name='submission'),
 ]

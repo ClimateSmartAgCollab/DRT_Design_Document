@@ -68,7 +68,7 @@ export default function OwnerHomePage() {
   const ownerPages = [
     {
       name: "My Links",
-      href: `/negotiation/owner/links?email=${encodeURIComponent(email)}`,
+      href: `/negotiation/owner/links`,
       emoji: "🔗",
     },
     {
@@ -78,7 +78,7 @@ export default function OwnerHomePage() {
     },
     {
       name: "Summary Statistics",
-      href: `/negotiation/owner/summary?owner=${encodeURIComponent(email)}`,
+      href: `/negotiation/owner/summary`,
       emoji: "📊",
     },
   ];
