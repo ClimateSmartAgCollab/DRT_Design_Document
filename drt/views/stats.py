@@ -154,7 +154,6 @@ def delete_old_negotiations_view(request):
     return delete_old_negotiations()
 
 
-
 @owner_otp_required
 def owner_links_api(request):
 
@@ -170,7 +169,6 @@ def owner_links_api(request):
         if info.get("owner_email") == user_email
     ]
 
-
     # If no owner_id matches, return empty list
     if not owner_ids:
         logger.warning(
@@ -180,10 +178,8 @@ def owner_links_api(request):
 
     logger.debug(f"owner_links_api: owner_ids = {owner_ids}")
 
-
     raw_link_cache = cache.get("link_table") or {}
 
-    
     entries = []
     for link_url, row in raw_link_cache.items():
         if row.get("owner_id") in owner_ids:
@@ -314,7 +310,13 @@ def delete_negotiation_files(request, negotiation_id):
 
 
 @requestor_otp_required
-def negotiation_list_api_req(request, email):
+def negotiation_list_api_req(request):
+    print("🔍 negotiation_list_api_req: requestor_email =", request.requestor_email)  # <<–– debug
+    email = request.requestor_email
+    print(f"🔍 negotiation_list_api_req: email = {email}")  # <<–– debug
+    if not email:
+        return JsonResponse({'error': 'Email parameter is required'}, status=400)
+
     # only pull negotiations whose NLink.requestor_email matches
     qs = Negotiation.objects.select_related(
         'link').filter(link__requestor_email=email)

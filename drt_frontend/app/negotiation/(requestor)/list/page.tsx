@@ -13,11 +13,7 @@ import {
 } from "./services/negotiationApi";
 
 export default function NegotiationListPage() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email") || "";
-
-  // TODO: Replace 'someId' with the actual id you want to use
-  const { data: negs, error, reload } = useNegotiations(email);
+  const { data: negs, error, reload } = useNegotiations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [searchTerm, setSearchTerm] = useState("");

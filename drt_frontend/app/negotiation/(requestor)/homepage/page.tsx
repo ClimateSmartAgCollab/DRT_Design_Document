@@ -68,7 +68,7 @@ export default function requestorHomePage() {
   const requestorPages = [
     {
       name: "Negotiation List",
-      href: `/negotiation/list?email=${encodeURIComponent(email)}`,
+      href: `/negotiation/list`,
       emoji: "📋",
     },
     {

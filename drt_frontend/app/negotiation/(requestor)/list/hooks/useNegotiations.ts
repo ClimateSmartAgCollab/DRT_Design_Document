@@ -3,13 +3,13 @@ import { useState, useEffect } from "react";
 import { fetchNegotiations } from "../services/negotiationApi";
 import type { Negotiation } from "../types";
 
-export function useNegotiations(id: string) {
+export function useNegotiations() {
   const [data, setData] = useState<Negotiation[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const reload = async () => {
     try {
-      const list = await fetchNegotiations(id);
+      const list = await fetchNegotiations();
       setData(list);
     } catch (e: any) {
       setError(e.message);
@@ -18,7 +18,7 @@ export function useNegotiations(id: string) {
 
   useEffect(() => {
     reload();
-  }, [id]);
+  }, []);
 
   return { data, error, reload };
 }
