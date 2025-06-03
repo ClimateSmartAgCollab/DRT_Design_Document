@@ -23,7 +23,7 @@ export default function OwnerVerifyOtp() {
       body: JSON.stringify({ otp })
     })
     if (res.ok) {
-      router.push(`/negotiation/owner/homepage?email=${encodeURIComponent(email)}`)
+      router.push(`/negotiation/owner/homepage`)
     } else {
       const body = await res.json()
       setError(body.error || 'OTP verification failed')

@@ -7,18 +7,35 @@ import Link from "next/link";
 import fetchApi from "@/app/api/apiHelper";
 
 export default function requestorHomePage() {
-  const params = useSearchParams();
   const router = useRouter();
-  const email = params.get("email") || "";
+  const [email, setEmail] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!email) {
-      router.replace("/negotiation/email-entry");
+    async function fetchOwner() {
+      try {
+        // NOTE: fetchApi will send sessionid cookie automatically
+        const res = await fetchApi("/drt/requestor/whoami/", {
+          method: "GET",
+        });
+        if (res.status !== 200) {
+          // Not logged in → redirect to email-entry
+          router.replace("/negotiation/email-entry");
+          return;
+        }
+        const data = await res.json();
+        setEmail(data.email);
+      } catch (err) {
+        console.error("Error fetching whoami:", err);
+        router.replace("/negotiation/email-entry");
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [email, router]);
+    fetchOwner();
+  }, [router]);
 
   useEffect(() => {
     if (!email) return;

@@ -18,66 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 
-@csrf_exempt
-@api_view(['POST'])
-def owner_email_entry(request):
-    email = request.data.get('email')
-    try:
-        validate_email(email)
-    except ValidationError:
-        return Response({'error': 'Invalid email'}, status=400)
-
-    # generate OTP
-    otp = "9832"  # for testing
-    # uncomment the next line for production
-    # otp = get_random_string(6, '0123456789')
-
-    expiry = timezone.now() + datetime.timedelta(minutes=10)
-    # store in cache under "owner_auth:{email}"
-    cache.set(f"owner_auth:{email}", {'otp': otp, 'expiry': expiry}, 600)
-
-    # # send it
-    # EmailMultiAlternatives(
-    #   subject="Your Owner OTP",
-    #   body=f"Your OTP is {otp}. Expires at {expiry:%H:%M}.",
-    #   from_email=settings.DEFAULT_FROM_EMAIL,
-    #   to=[email],
-    # ).send(fail_silently=False)
-
-    return Response({'message': 'OTP sent'}, status=200)
-
-
-# @csrf_exempt
-@api_view(['POST'])
-def req_email_entry(request):
-    email = request.data.get('email')
-    try:
-        validate_email(email)
-    except ValidationError:
-        return Response({'error': 'Invalid email'}, status=400)
-
-    # generate OTP
-    otp = "9832"  # for testing
-    # uncomment the next line for production
-    # otp = get_random_string(6, '0123456789')
-
-    expiry = timezone.now() + datetime.timedelta(minutes=10)
-    # store in cache under "req_auth:{email}"
-    cache.set(f"req_auth:{email}", {'otp': otp, 'expiry': expiry}, 600)
-    print(f"OTP for {email}: {otp}")  # <-- debug
-    print(f"Your OTP is {otp}. Expires at {expiry:%H:%M}.")  # <-- debug
-
-    # # send it
-    # EmailMultiAlternatives(
-    #   subject="Your Req OTP",
-    #   body=f"Your OTP is {otp}. Expires at {expiry:%H:%M}.",
-    #   from_email=settings.DEFAULT_FROM_EMAIL,
-    #   to=[email],
-    # ).send(fail_silently=False)
-
-    return Response({'message': 'OTP sent'}, status=200)
-
-
 @api_view(['GET', 'POST'])
 @ensure_csrf_cookie      # on a GET it will set csrftoken
 @csrf_exempt             # only if you reorder so this still applies

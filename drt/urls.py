@@ -4,7 +4,7 @@ from .views import (generate_nlinks, requestor_email_entry, verify_otp, request_
                     owner_email_entry, verify_owner_otp, owner_review, archive_view,
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
-                    req_email_entry, owner_links_api
+                    req_email_entry, owner_links_api,whoami, req_whoami
                     )
 
 urlpatterns = [
@@ -14,6 +14,9 @@ urlpatterns = [
     path('verify/requestor/<str:link_id>/',
          requestor_email_entry, name='requestor_email_entry'),
     path('verify/otp/<str:link_id>/', verify_otp, name='verify_otp'),
+     path("requestor/whoami/",
+          req_whoami,
+          name="owner-whoami"),    
     path('request_access/<str:link_id>/',
          request_access, name='request_access'),
     path('fill_questionnaire/<str:link_id>/',
@@ -34,6 +37,10 @@ urlpatterns = [
     path('verify/owner-otp/<str:email>/',
          verify_owner_otp,
          name='verify_owner_otp'),
+
+     path("owner/whoami/",
+          whoami,
+          name="owner-whoami"),
 
     path('owner_review/<str:link_id>/',
          owner_review,
