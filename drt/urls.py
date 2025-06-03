@@ -18,12 +18,11 @@ urlpatterns = [
          request_access, name='request_access'),
     path('fill_questionnaire/<str:link_id>/',
          fill_questionnaire, name='fill_questionnaire'),
-        path('verify/req-email/',
-             req_email_entry,   name='req_email_entry'),
+    path('verify/req-email/',
+         req_email_entry,   name='req_email_entry'),
     path('verify/req-otp/<str:email>/',
          verify_req_otp,     name='verify_owner_otp'),
-    path(
-        'req_negotiations/<str:email>/',
+    path('req_negotiations/',
         negotiation_list_api_req,   name='negotiation_list_api_req'
     ),
 
@@ -72,7 +71,7 @@ urlpatterns = [
          export_summary_to_drt_view,
          name='export_summary_to_drt_view'),
 
-     path("owner/links/", owner_links_api, name="owner_links_api"),         
+    path("owner/links/", owner_links_api, name="owner_links_api"),
 
     path('api/submission/<uuid:uuid>', submission_view, name='submission'),
 ]

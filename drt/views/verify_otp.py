@@ -39,6 +39,9 @@ def verify_req_otp(request, email):
         return Response({'error': 'OTP expired'}, status=400)
     if entry['otp'] != otp_sub:
         return Response({'error': 'Wrong OTP'}, status=400)
+    
+    # just store the email in the *signed cookie* session:
+    request.session["requestor_email"] = email    
 
     # mark as “logged in” (e.g. set a short‐lived token or flag in cache)
     cache.set(f"req_logged_in:{email}", True, 3600)
