@@ -1,4 +1,4 @@
-// app/owner/email-entry/page.tsx
+// drt_frontend\app\negotiation\owner\email-entry\page.tsx
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,9 +30,11 @@ export default function OwnerEmailEntry() {
       body: JSON.stringify({ email }),
     });
     if (res.ok) {
-      // pass email along as a query param to OTP page
+      // Save the email in sessionStorage
+      sessionStorage.setItem("ownerEmail", email);
+      
       router.push(
-        `/negotiation/owner/verify-otp/?email=${encodeURIComponent(email)}`
+        `/negotiation/owner/verify-otp/`
       );
     } else {
       const body = await res.json();
