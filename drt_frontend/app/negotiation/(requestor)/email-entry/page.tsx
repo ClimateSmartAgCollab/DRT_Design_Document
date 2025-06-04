@@ -31,9 +31,11 @@ export default function ReqEmailEntry() {
       body: JSON.stringify({ email }),
     });
     if (res.ok) {
-      // pass email along as a query param to OTP page
+      // Save the email in sessionStorage
+      sessionStorage.setItem("reqEmail", email);
+
       router.push(
-        `/negotiation/verify-otp/?email=${encodeURIComponent(email)}`
+        `/negotiation/verify-otp/`
       );
     } else {
       const body = await res.json();
