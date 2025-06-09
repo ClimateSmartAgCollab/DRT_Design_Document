@@ -1,3 +1,5 @@
+/* drt_frontend\app\components\Form\Form.module.css */
+
 .formContainer {
   position: relative;
   display: flex;
@@ -5,7 +7,6 @@
   min-height: 100vh;
   overflow-y: auto;
 }
-
 
 .mainContent {
   flex: 1;
@@ -22,7 +23,7 @@
   padding: 0;
   box-sizing: border-box;
   position: absolute;
-  top: 0; 
+  top: 0;
   left: 0;
   width: 100%;
 }
@@ -60,9 +61,8 @@
   font-size: 0.875rem;
 }
 
-
 .fullPageReview {
-  min-height: 100vh; 
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -72,7 +72,6 @@
   padding: 2rem;
   margin-right: 250px;
 }
-
 
 @media (max-width: 768px) {
   .sidebar {
