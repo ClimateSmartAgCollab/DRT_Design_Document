@@ -1,3 +1,5 @@
+//drt_frontend\app\components\type.ts
+
 export interface Root {
   d: string
   type: string
