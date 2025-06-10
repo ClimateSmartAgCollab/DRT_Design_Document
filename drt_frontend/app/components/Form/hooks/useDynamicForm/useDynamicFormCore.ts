@@ -10,7 +10,6 @@ import { validateCurrentPageData } from "./validation";
 import { useHandleNavigate, usePageNavigation } from "./navigation";
 import { useSubmissionMapping } from "./mapping";
 
-
 // The main hook. Returns all values/functions needed by FormWrapper.
 export function useDynamicForm(parsedSteps: Step[]) {
   const [language, setLanguage] = useState("eng");
@@ -23,7 +22,7 @@ export function useDynamicForm(parsedSteps: Step[]) {
       return acc;
     }, {} as Record<string, number>);
   });
-  
+
   const [visitedSteps, setVisitedSteps] = useState<Set<string>>(
     new Set([parsedSteps[0]?.id])
   );
@@ -214,7 +213,6 @@ export function useDynamicForm(parsedSteps: Step[]) {
 
   // Prefill DOM elements with stored data whenever step or page changes
   const prefillCurrentPageData = useCallback(() => {
-
     const stepObj = parsedSteps[currentStep];
     if (!stepObj) return;
 
