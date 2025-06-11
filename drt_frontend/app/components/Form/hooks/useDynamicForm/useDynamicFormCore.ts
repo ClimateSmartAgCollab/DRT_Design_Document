@@ -6,7 +6,7 @@ import { getParentSteps } from "../../utils/steps";
 import { useFormData } from "../../context/FormDataContext";
 
 import { isValid__UTF8 } from "./utils";
-import { validateCurrentPageData } from "./validation";
+import { validateCurrentPageData, validateField } from "./validation";
 import { useHandleNavigate, usePageNavigation } from "./navigation";
 import { useSubmissionMapping } from "./mapping";
 
@@ -105,17 +105,21 @@ export function useDynamicForm(parsedSteps: Step[]) {
         }));
       }
 
-      // Validate this single field and store in fieldErrors
-      const errorMsg = validateCurrentPageData(
-        parsedSteps,
-        currentStep,
-        pageIndexByStep,
-        language,
-        formFieldRefs,
-        (errs) => setFieldErrors((prev) => ({ ...prev, ...errs }))
-      )
-        ? ""
-        : `Invalid input for ${field.id}`;
+      // // Validate this single field and store in fieldErrors
+      // const errorMsg = validateCurrentPageData(
+      //   parsedSteps,
+      //   currentStep,
+      //   pageIndexByStep,
+      //   language,
+      //   formFieldRefs,
+      //   (errs) => setFieldErrors((prev) => ({ ...prev, ...errs }))
+      // )
+      //   ? ""
+      //   : `Invalid input for ${field.id}`;
+      
+      // Field-level validation for just this field:
+      const errorMsg = validateField(field, normalizedValue, language) || "";
+
       setFieldErrors((prev) => ({
         ...prev,
         [field.id]: errorMsg,
