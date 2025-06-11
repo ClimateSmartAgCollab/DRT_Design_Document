@@ -119,7 +119,8 @@ export function useSubmissionMapping(
   const handleVerifyAndSubmit = useCallback(
     async (format: 'json' | 'license' | 'odrl') => {
       if (!reviewOutput) return
-      const url = `https://drt-design-document.onrender.com/drt/api/submission/?format=${format}`
+      const url = `http://127.0.0.1:8000/drt/api/submission/?format=${format}`
+      // const url = `https://drt-design-document.onrender.com/drt/api/submission/?format=${format}`
       console.log('Submitting to:', url)
       try {
         const getCookie = (name: string): string | null => {
