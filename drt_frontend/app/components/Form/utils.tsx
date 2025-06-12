@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { ParsedStep, ParsedField } from "./types";
+import { ParsedStep} from "./types";
 
 
 export function getStepIndex(steps: ParsedStep[], stepId: string): number {
