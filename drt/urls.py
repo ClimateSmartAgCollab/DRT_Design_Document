@@ -16,7 +16,7 @@ urlpatterns = [
     path('verify/otp/<str:link_id>/', verify_otp, name='verify_otp'),
      path("requestor/whoami/",
           req_whoami,
-          name="owner-whoami"),    
+          name="req-whoami"),    
     path('request_access/<str:link_id>/',
          request_access, name='request_access'),
     path('fill_questionnaire/<str:link_id>/',

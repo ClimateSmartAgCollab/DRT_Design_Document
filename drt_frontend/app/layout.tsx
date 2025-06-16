@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { FormDataProvider } from "./components/Form/context/FormDataContext";
+import { Providers } from "./providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -28,7 +28,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className={inter.className}>
-        <FormDataProvider>{children}</FormDataProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
