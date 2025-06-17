@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import fetchApi from "@/app/api/apiHelper";
 import { Bar } from "react-chartjs-2";
 import "chart.js/auto";
@@ -29,31 +29,30 @@ ChartJS.register(
 
 interface SummaryStat {
   data_label: string;
-  tag: string;               // still a plain string
+  tag: string; // still a plain string
   total_requests: number;
   accepted_requests: number;
   rejected_requests: number;
   requestor_open: number;
   owner_open: number;
-  generated_at: string;      // ISO timestamp
+  generated_at: string; // ISO timestamp
 }
 
 export default function OwnerSummaryPage() {
-
+  const router = useRouter();
   // ——— raw data, loading & error states ———
   const [allData, setAllData] = useState<SummaryStat[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // ——— filter state ———
   const [dataLabel, setDataLabel] = useState("");
-  const [tag, setTag]             = useState("");
+  const [tag, setTag] = useState("");
   const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate]     = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // ——— fetch once on mount ———
   useEffect(() => {
-
     (async () => {
       try {
         setLoading(true);
@@ -73,17 +72,17 @@ export default function OwnerSummaryPage() {
 
   // ——— derive filter options from the full dataset ———
   const dataLabelOptions = useMemo(
-    () => Array.from(new Set(allData.map(d => d.data_label))),
+    () => Array.from(new Set(allData.map((d) => d.data_label))),
     [allData]
   );
   const tagOptions = useMemo(
-    () => Array.from(new Set(allData.map(d => d.tag).filter(t => t))),
+    () => Array.from(new Set(allData.map((d) => d.tag).filter((t) => t))),
     [allData]
   );
 
   // ——— apply filters client-side ———
   const filteredData = useMemo(() => {
-    return allData.filter(d => {
+    return allData.filter((d) => {
       // Data label filter
       if (dataLabel && d.data_label !== dataLabel) return false;
 
@@ -109,27 +108,38 @@ export default function OwnerSummaryPage() {
   }, [allData, dataLabel, tag, startDate, endDate]);
 
   // ——— build chart data from filteredData ———
-  const chartData = useMemo(() => ({
-    labels: filteredData.map(d => `${d.data_label} / ${d.tag || "(all)"}`),
-    datasets: [
-      { label: "Total",    data: filteredData.map(d => d.total_requests) },
-      { label: "Accepted", data: filteredData.map(d => d.accepted_requests) },
-      { label: "Rejected", data: filteredData.map(d => d.rejected_requests) },
-      { label: "Req. Open", data: filteredData.map(d => d.requestor_open) },
-      { label: "Own. Open", data: filteredData.map(d => d.owner_open) },
-    ],
-  }), [filteredData]);
+  const chartData = useMemo(
+    () => ({
+      labels: filteredData.map((d) => `${d.data_label} / ${d.tag || "(all)"}`),
+      datasets: [
+        { label: "Total", data: filteredData.map((d) => d.total_requests) },
+        {
+          label: "Accepted",
+          data: filteredData.map((d) => d.accepted_requests),
+        },
+        {
+          label: "Rejected",
+          data: filteredData.map((d) => d.rejected_requests),
+        },
+        { label: "Req. Open", data: filteredData.map((d) => d.requestor_open) },
+        { label: "Own. Open", data: filteredData.map((d) => d.owner_open) },
+      ],
+    }),
+    [filteredData]
+  );
 
   // ——— render ———
   if (loading) return <div className="p-6">Loading…</div>;
-  if (error)  return (
-    <div className="p-6">
-      <div className="bg-red-50 border-l-4 border-red-400 p-4 text-red-700">
-        ⚠️ {error}
+  if (error)
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 text-red-700">
+          ⚠️ {error}
+        </div>
       </div>
-    </div>
-  );
-  if (!allData.length) return <div className="p-6">No statistics available.</div>;
+    );
+  if (!allData.length)
+    return <div className="p-6">No statistics available.</div>;
 
   return (
     <main className="flex">
@@ -154,6 +164,13 @@ export default function OwnerSummaryPage() {
       />
 
       <div className="flex-1 p-6 space-y-8">
+        {/* ← Back button */}
+        <button
+          onClick={() => router.push("/negotiation/owner/homepage")}
+          className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+        >
+          Back to homepage
+        </button>
         <h1 className="text-3xl font-bold">Summary Statistics</h1>
 
         <section className="bg-white p-4 rounded shadow">
@@ -182,13 +199,15 @@ export default function OwnerSummaryPage() {
                   "Req. Open",
                   "Own. Open",
                   "Generated At",
-                ].map(h => (
-                  <th key={h} className="border px-4 py-2">{h}</th>
+                ].map((h) => (
+                  <th key={h} className="border px-4 py-2">
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filteredData.map(d => (
+              {filteredData.map((d) => (
                 <tr key={`${d.data_label}-${d.tag}-${d.generated_at}`}>
                   <td className="border px-4 py-2">{d.data_label}</td>
                   <td className="border px-4 py-2">{d.tag || "(all)"}</td>

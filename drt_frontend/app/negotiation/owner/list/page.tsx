@@ -1,8 +1,10 @@
-// src/app/negotiations/page.tsx
+// drt_frontend\app\negotiation\owner\list\page.tsx
 "use client";
 import React, { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useNegotiations } from "./hooks/useNegotiations";
-import { Negotiation, Status, ArchivedFilter, SortOption } from "./types";
+import { Status, ArchivedFilter, SortOption } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { BulkActionBar } from "./components/BulkActionBar";
 import { NegotiationItem } from "./components/NegotiationItem";
@@ -12,15 +14,19 @@ import {
 } from "./services/negotiationApi";
 
 export default function NegotiationListPage() {
-  const { data: negs, error, reload } = useNegotiations();
+  const router = useRouter();
+  const qc = useQueryClient();
+  const { data: negs, error, isLoading, reload } = useNegotiations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Status[]>([]);
-  const [archivedFilter, setArchivedFilter] = useState<ArchivedFilter>("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [sortOption, setSortOption] = useState<SortOption>("created_desc");
+  const deleteOne = useMutation({
+    mutationFn: (id: string) => deleteNegotiation(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["negotiations"] }),
+  });
+  const deleteOld = useMutation({
+    mutationFn: deleteOldNegotiations,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["negotiations"] }),
+  });
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -30,9 +36,20 @@ export default function NegotiationListPage() {
     });
   }, []);
 
-  const handleReload = useCallback(() => {
-    reload();
-  }, [reload]);
+  const deleteSelected = async () => {
+    if (!selected.size) return;
+    await Promise.all(
+      Array.from(selected).map((id) => deleteOne.mutateAsync(id))
+    );
+    setSelected(new Set());
+  };
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Status[]>([]);
+  const [archivedFilter, setArchivedFilter] = useState<ArchivedFilter>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [sortOption, setSortOption] = useState<SortOption>("created_desc");
 
   const toggleStatus = (status: Status) =>
     setStatusFilter((prev) =>
@@ -42,8 +59,7 @@ export default function NegotiationListPage() {
     );
 
   const onDateChange = (field: "start" | "end", value: string) => {
-    if (field === "start") setStartDate(value);
-    else setEndDate(value);
+    field === "start" ? setStartDate(value) : setEndDate(value);
   };
 
   const resetFilters = () => {
@@ -113,13 +129,6 @@ export default function NegotiationListPage() {
       Date.now() - new Date(n.timestamps).getTime() > 30 * 24 * 60 * 60 * 1000
   );
 
-  const deleteSelected = async () => {
-    if (!selected.size) return;
-    await Promise.all(Array.from(selected).map((id) => deleteNegotiation(id)));
-    setSelected(new Set());
-    reload();
-  };
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar
@@ -136,20 +145,29 @@ export default function NegotiationListPage() {
         onSortChange={setSortOption}
         onReset={resetFilters}
       />
+
       <main className="flex-1 p-8">
+        {/* ← Back button */}
+        <button
+          onClick={() => router.push("/negotiation/owner/homepage")}
+          className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+        >
+          Back to homepage
+        </button>
+
         <h1 className="text-3xl font-extrabold mb-6 text-gray-800">
           Negotiations ({sorted.length})
         </h1>
+
+        {isLoading && <p className="text-gray-600">Loading…</p>}
         {error && <p className="text-red-600 mb-4">{error}</p>}
+
         {hasOld && (
           <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
             <p className="text-gray-700">
               There are negotiations older than 30 days.
               <button
-                onClick={async () => {
-                  await deleteOldNegotiations();
-                  reload();
-                }}
+                onClick={() => deleteOld.mutate()}
                 className="ml-4 px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-sm"
               >
                 Delete Old
@@ -157,10 +175,12 @@ export default function NegotiationListPage() {
             </p>
           </div>
         )}
+
         <BulkActionBar
           selectedCount={selected.size}
           onDeleteSelected={deleteSelected}
         />
+
         <ul className="space-y-4">
           {sorted.map((n) => (
             <NegotiationItem
@@ -168,7 +188,7 @@ export default function NegotiationListPage() {
               negotiation={n}
               isSelected={selected.has(n.negotiation_id)}
               onToggleSelect={handleToggleSelect}
-              onReload={handleReload}
+              onReload={reload}
             />
           ))}
         </ul>
