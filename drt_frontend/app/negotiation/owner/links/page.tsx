@@ -80,6 +80,14 @@ export default function OwnerLinks() {
     <Providers>
       <main className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* ← Back button */}
+          <button
+            onClick={() => router.push("/negotiation/owner/homepage")}
+            className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+          >
+            Back to homepage
+          </button>
+
           <h1 className="text-3xl font-bold text-gray-800">
             Your Link Library
           </h1>
