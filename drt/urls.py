@@ -4,30 +4,53 @@ from .views import (generate_nlinks, requestor_email_entry, verify_otp, request_
                     owner_email_entry, verify_owner_otp, owner_review, archive_view,
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
-                    req_email_entry, owner_links_api,whoami, req_whoami
+                    req_email_entry, owner_links_api, whoami, req_whoami
                     )
 
 urlpatterns = [
     # requestor
     path('generate_nlinks/<str:link_id>/',
-         generate_nlinks, name='generate_nlinks'),
-    path('verify/requestor/<str:link_id>/',
-         requestor_email_entry, name='requestor_email_entry'),
-    path('verify/otp/<str:link_id>/', verify_otp, name='verify_otp'),
-     path("requestor/whoami/",
-          req_whoami,
-          name="req-whoami"),    
-    path('request_access/<str:link_id>/',
-         request_access, name='request_access'),
-    path('fill_questionnaire/<str:link_id>/',
-         fill_questionnaire, name='fill_questionnaire'),
+         generate_nlinks,
+         name='generate_nlinks'),
+
+    #     path('verify/requestor/<str:link_id>/',
+    #          requestor_email_entry, name='requestor_email_entry'),
+
+    #     path('verify/requestor-email/',
+    #          requestor_email_entry,
+    #          name='requestor_email_entry'),
+
+    #     path('verify/otp/<str:link_id>/',
+    #          verify_otp,
+    #          name='verify_otp'),
+
+
     path('verify/req-email/',
-         req_email_entry,   name='req_email_entry'),
+         req_email_entry,
+         name='req_email_entry'),
+
     path('verify/req-otp/<str:email>/',
-         verify_req_otp,     name='verify_owner_otp'),
+         verify_req_otp,
+         name='verify_owner_otp'),
+
+    path("requestor/whoami/",
+         req_whoami,
+         name="req-whoami"),
+
+
+    path('request_access/<str:link_id>/',
+         request_access,
+         name='request_access'),
+
+
+    path('fill_questionnaire/<str:link_id>/',
+         fill_questionnaire,
+         name='fill_questionnaire'),
+
     path('req_negotiations/',
-        negotiation_list_api_req,   name='negotiation_list_api_req'
-    ),
+         negotiation_list_api_req,
+         name='negotiation_list_api_req'
+         ),
 
     # owner
     path('verify/owner-email/',
@@ -38,9 +61,9 @@ urlpatterns = [
          verify_owner_otp,
          name='verify_owner_otp'),
 
-     path("owner/whoami/",
-          whoami,
-          name="owner-whoami"),
+    path("owner/whoami/",
+         whoami,
+         name="owner-whoami"),
 
     path('owner_review/<str:link_id>/',
          owner_review,
