@@ -1,40 +1,27 @@
-// drt_frontend/app/negotiation/(requestor)/verify-otp/page.tsx
+// app/negotiation/[link_id]/otp-verification/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
-export default function ReqVerifyOtp() {
+export default function OTPVerificationPage() {
+  const { link_id: linkId } = useParams<{ link_id: string }>();
   const router = useRouter();
-  const [email, setEmail] = useState<string | null>(null);
+
   const [otp, setOtp] = useState("");
   
-  // Load stored email or redirect
-  useEffect(() => {
-    const stored = sessionStorage.getItem("reqEmail");
-    if (!stored) {
-      router.replace("/negotiation/email-entry");
-    } else {
-      setEmail(stored);
-    }
-  }, [router]);
-
-  // Verify OTP mutation
-  // Define the mutation function separately
-  const verifyOtpMutation = async ({ email, otp }: { email: string; otp: string }) => {
-    const res = await fetchApi(
-      `/drt/verify/req-otp/${encodeURIComponent(email)}/`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ otp }),
-      }
-    );
+  // Mutation to verify OTP
+  const verifyOtpMutationFn = async (code: string) => {
+    const res = await fetchApi(`/drt/verify/otp/${linkId}/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ otp: code }),
+    });
     if (!res.ok) {
-      const body = await res.json();
-      throw new Error(body.error || "OTP verification failed");
+      const data = await res.json();
+      throw new Error(data.error || "Invalid OTP. Please try again.");
     }
   };
 
@@ -43,14 +30,14 @@ export default function ReqVerifyOtp() {
     isPending: isVerifying,
     isError: verifyError,
     error: verifyErrorObj,
-  } = useMutation<void, Error, { email: string; otp: string }>({
-    mutationFn: verifyOtpMutation,
+  } = useMutation<void, Error, string>({
+    mutationFn: verifyOtpMutationFn,
     onSuccess: () => {
-      router.push("/negotiation/homepage");
+      router.push(`/negotiation/${linkId}/request-access`);
     },
   });
 
-  // Resend OTP mutation
+  // Mutation to resend OTP
   const {
     mutate: resendOtp,
     isPending: isResending,
@@ -59,25 +46,20 @@ export default function ReqVerifyOtp() {
     data: resendMessage,
   } = useMutation<string, Error, void>({
     mutationFn: async () => {
-      const res = await fetchApi(
-        `/drt/verify/req-otp/${encodeURIComponent(email!)}/`,
-        { method: "GET" }
-      );
+      const res = await fetchApi(`/drt/verify/otp/${linkId}/`, {
+        method: "GET",
+      });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Could not resend OTP");
+        throw new Error(data.error || "Could not resend OTP. Please try again.");
       }
       return data.message || "OTP resent! Check your inbox.";
     }
   });
 
-  // While email is loading
-  if (email === null) {
-    return null;
-  }
 
   const isVerifyDisabled = isVerifying || otp.trim().length === 0;
-  const isResendDisabled = isResending;
+
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -108,10 +90,10 @@ export default function ReqVerifyOtp() {
 
         {/* Instructions */}
         <p className="text-gray-600">
-          Enter the code sent to <span className="font-medium">{email}</span>.
+          Enter the code sent to your email to continue.
         </p>
 
-        {/* Messages */}
+        {/* Error or Success Messages */}
         {verifyError && (
           <p className="text-red-600">{verifyErrorObj?.message}</p>
         )}
@@ -126,17 +108,18 @@ export default function ReqVerifyOtp() {
         <input
           type="text"
           value={otp}
-          onChange={(e) => setOtp(e.target.value)}
-          placeholder="Enter 6-digit code"
-          maxLength={6}
+          onChange={(e) => {
+            setOtp(e.target.value);
+          }}
+          placeholder="Enter OTP"
           required
-          className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full border border-gray-300 px-3 py-2 rounded text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
 
         {/* Actions */}
         <div className="flex gap-3">
           <button
-            onClick={() => verifyOtp({ email: email!, otp })}
+            onClick={() => verifyOtp(otp)}
             disabled={isVerifyDisabled}
             className={`flex-1 rounded-lg px-4 py-2 font-medium text-white transition ${
               isVerifyDisabled
@@ -146,11 +129,12 @@ export default function ReqVerifyOtp() {
           >
             {isVerifying ? "Verifying…" : "Verify"}
           </button>
+
           <button
             onClick={() => resendOtp()}
-            disabled={isResendDisabled}
+            disabled={isResending}
             className={`flex-1 rounded-lg px-4 py-2 font-medium text-gray-800 transition border ${
-              isResendDisabled
+              isResending
                 ? "bg-gray-200 cursor-not-allowed"
                 : "bg-gray-100 hover:bg-gray-200"
             }`}
