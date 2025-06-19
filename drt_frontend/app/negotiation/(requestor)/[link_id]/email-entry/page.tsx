@@ -1,14 +1,16 @@
-// drt_frontend/app/negotiation/(requestor)/email-entry/page.tsx
+// app/negotiation/[link_id]/email-entry/page.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
-export default function ReqEmailEntry() {
+export default function EmailEntry() {
   const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { link_id } = useParams(); // Access `link_id` with `useParams`
 
   function getCSRFToken(): string {
     return (
@@ -23,10 +25,9 @@ export default function ReqEmailEntry() {
     mutate: sendOtp,
     isPending,
     isError,
-    error,
   } = useMutation<void, Error, string>({
     mutationFn: async (emailToSend: string) => {
-      const res = await fetchApi("/drt/verify/req-email/", {
+      const res = await fetchApi(`/drt/verify/requestor/${link_id}/`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -42,13 +43,11 @@ export default function ReqEmailEntry() {
     },
     onSuccess: (_data, variables) => {
       sessionStorage.setItem("reqEmail", variables);
-      router.push("/negotiation/verify-otp/");
+      router.push(`/negotiation/${link_id}/otp-verification`);
     },
   });
 
-  // Simple email format check
   const isValidEmail = /\S+@\S+\.\S+/.test(email);
-
   const isDisabled = isPending || !isValidEmail;
 
   return (
@@ -82,8 +81,8 @@ export default function ReqEmailEntry() {
         </p>
 
         {/* Validation & Errors */}
-        {isError && (
-          <p className="text-red-600 text-sm">{error?.message}</p>
+        {isError && error && (
+          <p className="text-red-600 text-sm">{error}</p>
         )}
         {!isValidEmail && email && (
           <p className="text-yellow-600 text-sm">

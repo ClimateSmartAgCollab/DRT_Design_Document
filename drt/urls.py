@@ -13,17 +13,17 @@ urlpatterns = [
          generate_nlinks,
          name='generate_nlinks'),
 
-    #     path('verify/requestor/<str:link_id>/',
-    #          requestor_email_entry, name='requestor_email_entry'),
+    path('verify/requestor/<str:link_id>/',
+         requestor_email_entry,
+         name='requestor_email_entry'),
 
     #     path('verify/requestor-email/',
     #          requestor_email_entry,
     #          name='requestor_email_entry'),
 
-    #     path('verify/otp/<str:link_id>/',
-    #          verify_otp,
-    #          name='verify_otp'),
-
+    path('verify/otp/<str:link_id>/',
+         verify_otp,
+         name='verify_otp'),
 
     path('verify/req-email/',
          req_email_entry,

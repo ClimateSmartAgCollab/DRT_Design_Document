@@ -1,53 +1,61 @@
 // app/negotiation/[link_id]/request-access.tsx
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import fetchApi from '@/app/api/apiHelper';
+import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import fetchApi from "@/app/api/apiHelper";
 
-const RequestAccessPage = () => {
-  const [accessLink, setAccessLink] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const { link_id } = useParams();
+async function fetchAccessLink(linkId: string): Promise<string> {
+  const res = await fetchApi(`/drt/request_access/${linkId}/`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to request access");
+  return `/negotiation/${linkId}/fill-questionnaire`;
+}
 
-  useEffect(() => {
-    const fetchAccessLink = async () => {
-      try {
-        const response = await fetchApi(`/drt/request_access/${link_id}/`);
-        if (response.ok) {
-          // const data = await response.json();
-          setAccessLink(`/negotiation/${link_id}/fill-questionnaire`);
-        } else {
-          const errorData = await response.json();
-          setError(errorData.error || 'Failed to load access link.');
-        }
-      } catch (err) {
-        console.error('Access request error:', err);
-        setError('Failed to load access link.');
-      }
-    };
-    fetchAccessLink();
-  }, [link_id]);
+export default function RequestAccessPage() {
+  const { link_id: linkId } = useParams<{ link_id: string }>();
+  const router = useRouter();
+
+  const {
+    data: accessLink,
+    isLoading,
+    isError,
+    error,
+  } = useQuery<string, Error>({
+    queryKey: ["requestAccess", linkId],
+    queryFn: () => fetchAccessLink(linkId!),
+    enabled: !!linkId,
+    retry: false,
+  });
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white p-6 rounded shadow-md text-center w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-black">New request started</h2>
-        {error ? (
-          <p className="text-red-500">{error}</p>
-        ) : accessLink ? (
-          <p className="text-gray-700">
-            click on the link to start answering questions: <br />
-            <a href={accessLink} className="text-blue-500 underline">
-              {accessLink}
-            </a>
-          </p>
-        ) : (
-          <p>Loading access link...</p>
-        )}
-      </div>
-    </div>
-  );
-};
+    <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <section className="bg-white w-full max-w-md p-6 rounded-xl shadow-lg text-center space-y-6">
 
-export default RequestAccessPage;
+        {/* Title */}
+        <h1 className="text-2xl font-semibold text-gray-800">
+          New Request Started
+        </h1>
+
+        {/* Body */}
+        {isLoading ? (
+          <p className="text-gray-600">Requesting access link…</p>
+        ) : isError ? (
+          <p className="text-red-600">{error.message}</p>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-gray-700">
+              Click the button below to begin the questionnaire:
+            </p>
+            <button
+              onClick={() => router.push(accessLink!)}
+              className="inline-block rounded-lg bg-blue-600 px-4 py-2 text-white font-medium transition hover:bg-blue-700"
+            >
+              Start Questionnaire
+            </button>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
