@@ -10,7 +10,7 @@ export default function ReqVerifyOtp() {
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
-  
+
   // Load stored email or redirect
   useEffect(() => {
     const stored = sessionStorage.getItem("reqEmail");
@@ -23,7 +23,13 @@ export default function ReqVerifyOtp() {
 
   // Verify OTP mutation
   // Define the mutation function separately
-  const verifyOtpMutation = async ({ email, otp }: { email: string; otp: string }) => {
+  const verifyOtpMutation = async ({
+    email,
+    otp,
+  }: {
+    email: string;
+    otp: string;
+  }) => {
     const res = await fetchApi(
       `/drt/verify/req-otp/${encodeURIComponent(email)}/`,
       {
@@ -61,14 +67,18 @@ export default function ReqVerifyOtp() {
     mutationFn: async () => {
       const res = await fetchApi(
         `/drt/verify/req-otp/${encodeURIComponent(email!)}/`,
-        { method: "GET" }
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }
       );
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Could not resend OTP");
       }
       return data.message || "OTP resent! Check your inbox.";
-    }
+    },
   });
 
   // While email is loading
@@ -118,9 +128,7 @@ export default function ReqVerifyOtp() {
         {resendError && (
           <p className="text-red-600">{resendErrorObj?.message}</p>
         )}
-        {resendMessage && (
-          <p className="text-green-600">{resendMessage}</p>
-        )}
+        {resendMessage && <p className="text-green-600">{resendMessage}</p>}
 
         {/* OTP Input */}
         <input

@@ -58,41 +58,71 @@ export default function OwnerEmailEntry() {
 
   // Simple email format check
   const isValidEmail = /\S+@\S+\.\S+/.test(email);
+  const isDisabled = isLoading || !isValidEmail;
 
   return (
-    <main className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Owner Login</h1>
-
-      <input
-        type="email"
-        placeholder="Your email"
-        value={email}
-        onChange={(e) => {
-          setEmail(e.target.value);
-          setError(null);
-        }}
-        className="w-full border rounded p-2 mb-2"
-      />
-    
-
-      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-      {!isValidEmail && email && (
-        <p className="text-yellow-600 text-sm mb-2">
-          Please enter a valid email address.
+    <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
+        {/* Mail Icon */}
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+          <svg
+            className="h-6 w-6 text-blue-600"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 8V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z"
+            />
+          </svg>
+        </div>
+        {/* Title & Description */}
+        <h1 className="text-2xl font-semibold text-gray-800">
+          Verify Your Email
+        </h1>
+        <p className="text-gray-600">
+          We’ll send you a one-time code to access the questionnaire.
         </p>
-      )}
 
-      <button
-        onClick={() => mutation.mutate(email)}
-        disabled={isLoading || !isValidEmail}
-        className={`w-full py-2 rounded text-white font-semibold transition-colors duration-200 ${
-          isLoading || !isValidEmail
-            ? "bg-gray-400 cursor-not-allowed"
-            : "bg-blue-600 hover:bg-blue-700"
-        }`}
-      >
-        {isLoading ? "Sending OTP…" : "Send OTP"}
-      </button>
+        {/* Validation & Errors */}
+        {isError && <p className="text-red-600 text-sm">{error}</p>}
+        {!isValidEmail && email && (
+          <p className="text-yellow-600 text-sm">
+            Please enter a valid email address.
+          </p>
+        )}
+
+        {/* Email Input */}
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setError(null);
+          }}
+          placeholder="you@example.com"
+          required
+          className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+
+        {/* Send OTP Button */}
+        <button
+          onClick={() => mutation.mutate(email)}
+          disabled={isDisabled}
+          className={`w-full rounded-lg px-4 py-2 font-medium text-white transition ${
+            isDisabled
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {isLoading ? "Sending…" : "Send OTP"}
+        </button>
+      </section>
     </main>
   );
 }

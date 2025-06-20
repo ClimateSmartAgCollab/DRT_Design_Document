@@ -23,7 +23,13 @@ export default function OwnerVerifyOtp() {
     }
   }, [router]);
 
-  const verifyOtp = async ({ email, otp }: { email: string; otp: string }): Promise<void> => {
+  const verifyOtp = async ({
+    email,
+    otp,
+  }: {
+    email: string;
+    otp: string;
+  }): Promise<void> => {
     const res = await fetchApi(
       `/drt/verify/owner-otp/${encodeURIComponent(email)}/`,
       {
@@ -42,14 +48,13 @@ export default function OwnerVerifyOtp() {
       }
       throw new Error(msg);
     }
-    // success 
+    // success
   };
 
   const mutation = useMutation<void, Error, { email: string; otp: string }>({
     mutationFn: verifyOtp,
-    retry: 1, 
+    retry: 1,
     onError: (err) => {
-      
       setError(err.message);
     },
     onSuccess: (_, vars) => {
@@ -57,42 +62,121 @@ export default function OwnerVerifyOtp() {
     },
   });
 
-  const isLoading = mutation.status === "pending";
+  // Resend OTP mutation
+  const {
+    mutate: resendOtp,
+    isPending: isResending,
+    isError: resendError,
+    error: resendErrorObj,
+    data: resendMessage,
+  } = useMutation<string, Error, void>({
+    mutationFn: async () => {
+      // no `otp` in the body when resending
+      const res = await fetchApi(
+        `/drt/verify/owner-otp/${encodeURIComponent(email!)}/`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Could not resend OTP");
+      }
+      return data.message || "OTP resent! Check your inbox.";
+    },
+  });
 
+  // While email is loading
+  if (email === null) {
+    return null;
+  }
+
+  const isLoading = mutation.status === "pending";
   const isDisabled = isLoading || otp.trim().length === 0;
 
   return (
-    <main className="p-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Enter OTP</h1>
+    <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <section className="bg-white w-full max-w-md p-6 rounded-xl shadow-lg text-center space-y-6">
+        {/* Lock Icon */}
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+          <svg
+            className="h-6 w-6 text-blue-600"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 11V7a4 4 0 118 0v4m-4 8h-8a2 2 0 01-2-2v-5a2 2 0 012-2h8a2 2 0 012 2v5a2 2 0 01-2 2z"
+            />
+          </svg>
+        </div>
 
-      <input
-        type="text"
-        placeholder="6-digit code"
-        value={otp}
-        onChange={(e) => {
-          setOtp(e.target.value);
-          setError(null);
-        }}
-        className="w-full border rounded p-2 mb-2"
-      />
+        {/* Header */}
+        <h1 className="text-2xl font-semibold text-gray-800">
+          Verify One-Time Passcode
+        </h1>
+        {/* Instructions */}
+        <p className="text-gray-600">
+          Enter the code sent to <span className="font-medium">{email}</span>.
+        </p>
 
-      {/* show error from server or network */}
-      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+        {/* Messages */}
+        {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+        {resendError && (
+          <p className="text-red-600">{resendErrorObj?.message}</p>
+        )}
+        {resendMessage && <p className="text-green-600">{resendMessage}</p>}
 
-      <button
-        onClick={() => {
-          if (!email) return;
-          mutation.mutate({ email, otp });
-        }}
-        disabled={isDisabled}
-        className={`w-full py-2 rounded text-white font-semibold transition-colors duration-200 ${
-          isDisabled
-            ? "bg-gray-400 cursor-not-allowed"
-            : "bg-green-600 hover:bg-green-700"
-        }`}
-      >
-        {isLoading ? "Verifying…" : "Verify OTP"}
-      </button>
+        {/* OTP Input */}
+        <input
+          type="text"
+          value={otp}
+          onChange={(e) => {
+            setOtp(e.target.value);
+            setError(null);
+          }}
+          placeholder="Enter 6-digit code"
+          maxLength={6}
+          required
+          className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              if (!email) return;
+              mutation.mutate({ email, otp });
+            }}
+            disabled={isDisabled}
+            className={`flex-1 rounded-lg px-4 py-2 font-medium text-white transition ${
+              isDisabled
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            {isLoading ? "Verifying…" : "Verify"}
+          </button>
+          <button
+            onClick={() => resendOtp()}
+            disabled={isResending}
+            className={`flex-1 rounded-lg px-4 py-2 font-medium text-gray-800 transition border ${
+              isResending
+                ? "bg-gray-200 cursor-not-allowed"
+                : "bg-gray-100 hover:bg-gray-200"
+            }`}
+          >
+            {isResending ? "Resending…" : "Resend Code"}
+          </button>
+        </div>
+      </section>
     </main>
   );
 }
