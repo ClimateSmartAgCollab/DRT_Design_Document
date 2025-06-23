@@ -25,7 +25,6 @@ import ReviewSection from "./ReviewSection";
 import styles from "./Form.module.css";
 import Footer from "../../../Footer/footer";
 
-// 1️⃣ Build & type your schema
 const unsorted = parseJsonToFormStructure();
 const parsedSteps = sortStepsByReferences(unsorted);
 const validationSchema = buildValidationSchema(parsedSteps);
@@ -38,7 +37,7 @@ export default function FormWrapper({
   onSave,
   onSubmit,
 }: FormProps) {
-  // 2️⃣ RHF setup
+  // RHF setup
   const methods = useForm<FormValues>({
     resolver: yupResolver(validationSchema),
     defaultValues: initialAnswers as any,
@@ -52,7 +51,7 @@ export default function FormWrapper({
     formState: { errors, touchedFields },
   } = methods;
 
-  // 3️⃣ Your dynamic‐form hook
+  // dynamic‐form hook
   const {
     language,
     setLanguage,
@@ -91,17 +90,16 @@ export default function FormWrapper({
     prefillCurrentPageData,
   }: UseDynamicFormReturn = useDynamicForm(parsedSteps);
 
-  // 4️⃣ Sync external formData → RHF
+
   useEffect(() => {
     reset(formData as any);
-  }, [formData, reset]);
+  }, [currentStep, pageIndexByStep, currentChildId, reset]);
 
-  // 5️⃣ Pre-fill on step/page changes
   useEffect(() => {
     prefillCurrentPageData();
   }, [currentStep, pageIndexByStep, currentChildId, prefillCurrentPageData]);
 
-  // 6️⃣ One-time init from initialAnswers
+  // One-time init from initialAnswers
   const didInit = useRef(false);
   useEffect(() => {
     if (
@@ -115,12 +113,11 @@ export default function FormWrapper({
     }
   }, [initialAnswers, setFormData, finishHandler]);
 
-  // 7️⃣ Nothing to render yet?
   if (!parsedSteps.length) {
     return <div>Loading form structure...</div>;
   }
 
-  // 8️⃣ REVIEW MODE
+  // REVIEW MODE
   if (reviewOutput) {
     const { parentFormData } = useFormData();
     return (
@@ -139,13 +136,10 @@ export default function FormWrapper({
     );
   }
 
-  // 9️⃣ NORMAL FORM MODE
+  // NORMAL FORM MODE
   return (
     <FormProvider {...methods}>
-      <form
-        className={styles.formLayout}
-        onSubmit={handleSubmit(onSubmit)}
-      >
+      <form className={styles.formLayout} onSubmit={handleSubmit(onSubmit)}>
         <FormHeader
           language={language}
           setLanguage={setLanguage}
@@ -204,8 +198,9 @@ export default function FormWrapper({
                     // RHF error & touched
                     const errorMsg = (errors as any)?.[step.id]?.[field.id]
                       ?.message as string | undefined;
-                    const wasTouched = (touchedFields as any)?.[step.id]
-                      ?.[field.id] as boolean | undefined;
+                    const wasTouched = (touchedFields as any)?.[step.id]?.[
+                      field.id
+                    ] as boolean | undefined;
 
                     return (
                       <div key={field.id} className="mb-4">
@@ -228,10 +223,7 @@ export default function FormWrapper({
                           // dynamic onChange + keep RHF in sync:
                           handleFieldChange={(newVal) => {
                             handleFieldChange(field, newVal);
-                            methods.setValue(name, newVal, {
-                              shouldValidate: true,
-                              shouldTouch: true,
-                            });
+                            methods.setValue(name, newVal);
                           }}
                           saveCurrentPageData={() => onSave(formData)}
                           formData={formData}
