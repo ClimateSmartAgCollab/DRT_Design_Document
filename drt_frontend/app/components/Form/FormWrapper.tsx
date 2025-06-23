@@ -1,16 +1,20 @@
-// drt_frontend\app\components\Form\FormWrapper.tsx
+// drt_frontend/app/components/Form/FormWrapper.tsx
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import { useForm, FormProvider } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import { motion } from "framer-motion";
 
 import { parseJsonToFormStructure } from "../parser";
-import { ParsedStep, FormProps, UseDynamicFormReturn } from "./types";
+import type { ParsedStep, FormProps, UseDynamicFormReturn } from "./types";
 import {
   useDynamicForm,
   sortStepsByReferences,
 } from "../Form/hooks/useDynamicForm";
 import { useFormData } from "../Form/context/FormDataContext";
+import { buildValidationSchema } from "./hooks/useDynamicForm/validationSchema";
 
 import FormHeader from "./FormHeader";
 import FieldRenderer from "./FieldRenderer";
@@ -21,6 +25,12 @@ import ReviewSection from "./ReviewSection";
 import styles from "./Form.module.css";
 import Footer from "../../../Footer/footer";
 
+// 1️⃣ Build & type your schema
+const unsorted = parseJsonToFormStructure();
+const parsedSteps = sortStepsByReferences(unsorted);
+const validationSchema = buildValidationSchema(parsedSteps);
+type FormValues = yup.InferType<typeof validationSchema>;
+
 export default function FormWrapper({
   initialAnswers = {},
   ownerComments = {},
@@ -28,16 +38,28 @@ export default function FormWrapper({
   onSave,
   onSubmit,
 }: FormProps) {
-  const unsortedSteps: ParsedStep[] = parseJsonToFormStructure();
-  const parsedSteps: ParsedStep[] = sortStepsByReferences(unsortedSteps);
+  // 2️⃣ RHF setup
+  const methods = useForm<FormValues>({
+    resolver: yupResolver(validationSchema),
+    defaultValues: initialAnswers as any,
+    mode: "onBlur",
+    reValidateMode: "onBlur",
+  });
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, touchedFields },
+  } = methods;
 
+  // 3️⃣ Your dynamic‐form hook
   const {
     language,
     setLanguage,
-    currentStep,
-    visitedSteps,
     formData,
     setFormData,
+    currentStep,
+    visitedSteps,
     parentSteps,
     onNavigate,
     finishHandler,
@@ -57,7 +79,6 @@ export default function FormWrapper({
     isLastPageOfThisStep,
     isFirstPageOfThisStep,
     step,
-    fieldErrors,
     handleFieldChange,
     registerFieldRef,
     editExistingChild,
@@ -70,20 +91,23 @@ export default function FormWrapper({
     prefillCurrentPageData,
   }: UseDynamicFormReturn = useDynamicForm(parsedSteps);
 
-  const { parentFormData } = useFormData();
+  // 4️⃣ Sync external formData → RHF
+  useEffect(() => {
+    reset(formData as any);
+  }, [formData, reset]);
 
-  // Prefill DOM fields whenever step / page / child context changes
+  // 5️⃣ Pre-fill on step/page changes
   useEffect(() => {
     prefillCurrentPageData();
   }, [currentStep, pageIndexByStep, currentChildId, prefillCurrentPageData]);
 
-  // One‐time effect: load initialAnswers if provided
+  // 6️⃣ One-time init from initialAnswers
   const didInit = useRef(false);
   useEffect(() => {
     if (
       !didInit.current &&
       initialAnswers &&
-      Object.keys(initialAnswers).length > 0
+      Object.keys(initialAnswers).length
     ) {
       didInit.current = true;
       setFormData(initialAnswers);
@@ -91,14 +115,14 @@ export default function FormWrapper({
     }
   }, [initialAnswers, setFormData, finishHandler]);
 
-  if (!parsedSteps || parsedSteps.length === 0) {
+  // 7️⃣ Nothing to render yet?
+  if (!parsedSteps.length) {
     return <div>Loading form structure...</div>;
   }
 
-  const save = () => onSave(formData);
-
-  // REVIEW MODE
+  // 8️⃣ REVIEW MODE
   if (reviewOutput) {
+    const { parentFormData } = useFormData();
     return (
       <ReviewSection
         parsedSteps={parsedSteps}
@@ -115,154 +139,182 @@ export default function FormWrapper({
     );
   }
 
-  // NORMAL FORM MODE
+  // 9️⃣ NORMAL FORM MODE
   return (
-    <form className={styles.formLayout}>
-      {/* ─── HEADER ───────────────────────────────────── */}
-      <FormHeader
-        language={language}
-        setLanguage={setLanguage}
-        formTitle={
-          parsedSteps[0].title || {
-            eng: "Default Title",
-            fra: "Titre par défaut",
+    <FormProvider {...methods}>
+      <form
+        className={styles.formLayout}
+        onSubmit={handleSubmit(onSubmit)}
+      >
+        <FormHeader
+          language={language}
+          setLanguage={setLanguage}
+          formTitle={
+            parsedSteps[0].title || {
+              eng: "Default Title",
+              fra: "Titre par défaut",
+            }
           }
-        }
-      />
+        />
 
-      {/* ─── MAIN CONTENT (current page) ─────────────────────── */}
-      <div className={styles.mainContent}>
-        {currentPage ? (
-          <motion.div
-            key={currentChildId || currentPage.pageKey}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            {currentPage.pageLabel[language] && (
-              <h2 className="mb-4 text-2xl font-semibold">
-                {currentPage.pageLabel[language] || currentPage.pageLabel.eng}
-              </h2>
-            )}
-            {currentPage.subheading && (
-              <p className="text-md mb-4 italic text-gray-600">
-                {currentPage.subheading[language] || currentPage.subheading.eng}
-              </p>
-            )}
+        <div className={styles.mainContent}>
+          {currentPage ? (
+            <motion.div
+              key={currentChildId || currentPage.pageKey}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {/* Page Title & Subheading */}
+              {currentPage.pageLabel[language] && (
+                <h2 className="mb-4 text-2xl font-semibold">
+                  {currentPage.pageLabel[language]}
+                </h2>
+              )}
+              {currentPage.subheading && (
+                <p className="text-md mb-4 italic text-gray-600">
+                  {currentPage.subheading[language]}
+                </p>
+              )}
 
-            {currentPage.sections.map((section) => (
-              <div key={section.sectionKey} className="mb-8 bg-gray-50 p-4">
-                {section.sectionLabel[language] && (
-                  <h3 className="mb-2 text-xl font-medium">
-                    {section.sectionLabel[language] || section.sectionLabel.eng}
-                  </h3>
-                )}
+              {/* Sections & Fields */}
+              {currentPage.sections.map((section) => (
+                <div
+                  key={section.sectionKey}
+                  className="mb-8 bg-gray-50 p-4 rounded"
+                >
+                  {section.sectionLabel[language] && (
+                    <h3 className="mb-2 text-xl font-medium">
+                      {section.sectionLabel[language]}
+                    </h3>
+                  )}
 
-                {section.fields.map((field) => {
-                  const fieldValue =
-                    currentChildId && currentChildParentId
-                      ? editExistingChild(currentChildParentId, currentChildId)
-                          ?.data[field.id] ?? ""
-                      : formData[step.id]?.[field.id] ?? "";
+                  {section.fields.map((field) => {
+                    // RHF name: "stepId.fieldId"
+                    const name = `${step.id}.${field.id}` as const;
 
-                  return (
-                    <div key={field.id} className="mb-4">
-                      {/* Field Label */}
-                      <label className="mb-1 block text-sm font-medium">
-                        {field.labels[language]?.[field.id] ||
-                          field.labels.eng?.[field.id]}
-                      </label>
+                    // current dynamic value
+                    const value =
+                      currentChildId && currentChildParentId
+                        ? editExistingChild(
+                            currentChildParentId,
+                            currentChildId
+                          )?.data[field.id] ?? ""
+                        : (formData[step.id]?.[field.id] as any) ?? "";
 
-                      {/* Field Renderer handles each type */}
-                      <FieldRenderer
-                        field={field}
-                        value={fieldValue}
-                        language={language}
-                        registerFieldRef={registerFieldRef}
-                        handleFieldChange={(newVal) =>
-                          handleFieldChange(field, newVal)
-                        }
-                        saveCurrentPageData={save}
-                        formData={formData}
-                        stepId={step.id}
-                        createNewChild={createNewChild}
-                        editExistingChild={editExistingChild}
-                        deleteChild={deleteChild}
-                        onNavigate={onNavigate}
-                        parsedSteps={parsedSteps}
-                        parentFormData={parentFormData}
-                        currentChildId={currentChildId}
-                        currentChildParentId={currentChildParentId}
-                        isNewChild={isNewChild}
-                        setIsNewChild={setIsNewChild}
-                      />
+                    // RHF error & touched
+                    const errorMsg = (errors as any)?.[step.id]?.[field.id]
+                      ?.message as string | undefined;
+                    const wasTouched = (touchedFields as any)?.[step.id]
+                      ?.[field.id] as boolean | undefined;
 
-                      {/* Owner Comment */}
-                      {ownerComments[field.id] && (
-                        <div className="mt-2 p-2 bg-yellow-100 text-sm rounded">
-                          <strong>Owner Comment:</strong>{" "}
-                          {ownerComments[field.id]}
-                        </div>
-                      )}
-                      {/* Validation Error */}
-                      {fieldErrors[field.id] && (
-                        <div className="mt-1 text-sm text-red-600">
-                          {fieldErrors[field.id]}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+                    return (
+                      <div key={field.id} className="mb-4">
+                        <label
+                          htmlFor={name}
+                          className="mb-1 block text-sm font-medium"
+                        >
+                          {field.labels[language]?.[field.id] ||
+                            field.labels.eng?.[field.id]}
+                        </label>
 
-            {/* ─── NAVIGATION BUTTONS ──────────────────────────── */}
-            <NavigationButtons
-              step={step}
-              parentSteps={parentSteps}
-              isParentStep={isParentStep}
-              isVeryLastPageOfLastStep={isVeryLastPageOfLastStep}
-              isFirstPageOfThisStep={isFirstPageOfThisStep}
-              isLastPageOfThisStep={isLastPageOfThisStep}
-              handleNextPage={() => {
-                handleNextPage();
-                window.scrollTo(0, 0);
-              }}
-              handlePreviousPage={() => {
-                handlePreviousPage();
-                window.scrollTo(0, 0);
-              }}
-              cancelHandler={cancelHandler}
-              finishHandler={finishHandler}
-              handleSubmit_openAIRE={() => {
-                handleSubmit_openAIRE();
-                save();
-              }}
-            />
-          </motion.div>
-        ) : (
-          <div>No pages found for this step.</div>
-        )}
-      </div>
+                        <FieldRenderer
+                          id={name}
+                          field={field}
+                          value={value}
+                          language={language}
+                          registerFieldRef={registerFieldRef}
+                          // Register with RHF:
+                          register={(register as any)(name)}
+                          // dynamic onChange + keep RHF in sync:
+                          handleFieldChange={(newVal) => {
+                            handleFieldChange(field, newVal);
+                            methods.setValue(name, newVal, {
+                              shouldValidate: true,
+                              shouldTouch: true,
+                            });
+                          }}
+                          saveCurrentPageData={() => onSave(formData)}
+                          formData={formData}
+                          stepId={step.id}
+                          createNewChild={createNewChild}
+                          editExistingChild={editExistingChild}
+                          deleteChild={deleteChild}
+                          onNavigate={onNavigate}
+                          parsedSteps={parsedSteps}
+                          parentFormData={useFormData().parentFormData}
+                          currentChildId={currentChildId}
+                          currentChildParentId={currentChildParentId}
+                          isNewChild={isNewChild}
+                          setIsNewChild={setIsNewChild}
+                        />
 
-      {/* ─── SIDEBAR ───────────────────────────────────── */}
-      <Sidebar
-        parsedSteps={parsedSteps}
-        visitedSteps={visitedSteps}
-        currentStep={step}
-        pageIndexByStep={pageIndexByStep}
-        onNavigate={handleNavigate}
-        language={language}
-        expandedStep={expandedStep}
-        setExpandedStep={setExpandedStep}
-      />
+                        {/* only show error if blurred */}
+                        {errorMsg && wasTouched && (
+                          <p className="mt-1 text-sm text-red-600">
+                            {errorMsg}
+                          </p>
+                        )}
 
-      {/* ─── FOOTER ─────────────────────────────────────── */}
-      <div className={styles.footer}>
-        <Footer />
-        <p className="text-center text-gray-600">
-          © 2025 University of Guelph. All rights reserved.
-        </p>
-      </div>
-    </form>
+                        {/* Owner Comment */}
+                        {ownerComments[field.id] && (
+                          <div className="mt-2 p-2 bg-yellow-100 text-sm rounded">
+                            <strong>Owner Comment:</strong>{" "}
+                            {ownerComments[field.id]}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {/* Navigation */}
+              <NavigationButtons
+                step={step}
+                parentSteps={parentSteps}
+                isParentStep={isParentStep}
+                isVeryLastPageOfLastStep={isVeryLastPageOfLastStep}
+                isFirstPageOfThisStep={isFirstPageOfThisStep}
+                isLastPageOfThisStep={isLastPageOfThisStep}
+                handleNextPage={() => {
+                  handleNextPage();
+                  window.scrollTo(0, 0);
+                }}
+                handlePreviousPage={() => {
+                  handlePreviousPage();
+                  window.scrollTo(0, 0);
+                }}
+                cancelHandler={cancelHandler}
+                finishHandler={handleSubmit(onSubmit)}
+                handleSubmit_openAIRE={() => {
+                  handleSubmit_openAIRE();
+                  onSave(formData);
+                }}
+              />
+            </motion.div>
+          ) : (
+            <div>No pages found for this step.</div>
+          )}
+        </div>
+
+        {/* Sidebar & Footer */}
+        <Sidebar
+          parsedSteps={parsedSteps}
+          visitedSteps={visitedSteps}
+          currentStep={step}
+          pageIndexByStep={pageIndexByStep}
+          onNavigate={handleNavigate}
+          language={language}
+          expandedStep={expandedStep}
+          setExpandedStep={setExpandedStep}
+        />
+        <div className={styles.footer}>
+          <Footer />
+          <p className="text-center text-gray-600">
+            © 2025 University of Guelph. All rights reserved.
+          </p>
+        </div>
+      </form>
+    </FormProvider>
   );
 }

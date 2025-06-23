@@ -3,7 +3,8 @@
     "@netlify/plugin-nextjs": "^5.11.1",
     "@types/chart.js": "^2.9.41",
     "@types/react": "^19.1.8",
-    "@types/react-chartjs-2": "^2.0.2"
+    "@types/react-chartjs-2": "^2.0.2",
+    "@types/yup": "^0.29.14"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

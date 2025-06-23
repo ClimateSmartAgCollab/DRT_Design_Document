@@ -21,6 +21,7 @@ interface SidebarProps {
 export default function Sidebar({
   parsedSteps,
   visitedSteps,
+  currentStep,
   pageIndexByStep,
   onNavigate,
   language,
