@@ -1,31 +1,40 @@
-// drt_frontend\app\components\Form\DateTimeField.tsx
+// drt_frontend/app/components/Form/DateTimeField.tsx
+"use client";
+
 import React from "react";
+import type { UseFormRegisterReturn } from "react-hook-form";
 
 interface DateTimeFieldProps {
+  id: string;  // html id + RHF name
   field: {
     id: string;
     validation?: { format?: string };
   };
   format: string;
   fieldValue: any;
-  registerFieldRef: (id: string, el: HTMLInputElement | null) => void;
+  /** RHF register for this field */
+  register: UseFormRegisterReturn;
   handleFieldChange: (field: any, value: string) => void;
   saveCurrentPageData: () => void;
 }
 
-/**
- * Renders an <input> of type date, time, month, or week if the regex `format`
- * matches a standard HTML input type. Otherwise, falls back to <input type="text" />
- * with a placeholder describing the expected format.
- */
 const DateTimeField: React.FC<DateTimeFieldProps> = ({
+  id,
   field,
   format,
   fieldValue,
-  registerFieldRef,
+  register,
   handleFieldChange,
   saveCurrentPageData,
 }) => {
+  // 1️⃣ pull RHF handlers & ref
+  const {
+    onChange: rhfOnChange,
+    onBlur:   rhfOnBlur,
+    name:     rhfName,
+    ref:      rhfRef
+  } = register;
+
   function formatPlaceholder(regexFormat: string) {
     switch (regexFormat) {
       case "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$":
@@ -41,85 +50,42 @@ const DateTimeField: React.FC<DateTimeFieldProps> = ({
     }
   }
 
-  const { id } = field;
+  // helper to render each <input> type
+  const renderInput = (type: string, placeholder?: string) => (
+    <input
+      id={id}
+      name={rhfName}
+      type={type}
+      className="w-full rounded border p-2"
+      defaultValue={fieldValue ?? ""}
+      placeholder={placeholder}
+      ref={el => {
+        rhfRef(el);
+      }}
+      onChange={e => {
+        rhfOnChange(e);
+        handleFieldChange(field, e.target.value);
+      }}
+      onBlur={e => {
+        rhfOnBlur(e);
+        saveCurrentPageData();
+      }}
+    />
+  );
 
-  // Determine which <input> type to render based on the regex "format" string
-  let inputElement: React.ReactNode;
-
+  // 2️⃣ choose correct input type
   if (format === "^(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$") {
-    inputElement = (
-      <input
-        name={id}
-        type="date"
-        value={fieldValue || ""}
-        className="w-full rounded border p-2"
-        ref={(el) => registerFieldRef(id, el)}
-        onChange={(e) => {
-          handleFieldChange(field, e.target.value);
-        }}
-        onBlur={saveCurrentPageData}
-      />
-    );
+    return renderInput("date");
   } else if (format === "^([01]\\d|2[0-3]):([0-5]\\d)$") {
-    inputElement = (
-      <input
-        name={id}
-        type="time"
-        value={fieldValue || ""}
-        className="w-full rounded border p-2"
-        ref={(el) => registerFieldRef(id, el)}
-        onChange={(e) => {
-          handleFieldChange(field, e.target.value);
-        }}
-        onBlur={saveCurrentPageData}
-      />
-    );
+    return renderInput("time");
   } else if (format === "^(\\d{4})-(0[1-9]|1[0-2])$") {
-    inputElement = (
-      <input
-        name={id}
-        type="month"
-        value={fieldValue || ""}
-        className="w-full rounded border p-2"
-        ref={(el) => registerFieldRef(id, el)}
-        onChange={(e) => {
-          handleFieldChange(field, e.target.value);
-        }}
-        onBlur={saveCurrentPageData}
-      />
-    );
+    return renderInput("month");
   } else if (format === "^(?:\\d{4})-W(0[1-9]|[1-4][0-9]|5[0-3])$") {
-    inputElement = (
-      <input
-        name={id}
-        type="week"
-        value={fieldValue || ""}
-        className="w-full rounded border p-2"
-        ref={(el) => registerFieldRef(id, el)}
-        onChange={(e) => {
-          handleFieldChange(field, e.target.value);
-        }}
-        onBlur={saveCurrentPageData}
-      />
-    );
+    return renderInput("week");
   } else {
-    inputElement = (
-      <input
-        name={id}
-        type="text"
-        defaultValue={fieldValue || ""}
-        placeholder={formatPlaceholder(format)}
-        className="w-full rounded border p-2"
-        ref={(el) => registerFieldRef(id, el)}
-        onChange={(e) => {
-          handleFieldChange(field, e.target.value);
-        }}
-        onBlur={saveCurrentPageData}
-      />
-    );
+    // fallback to text with placeholder
+    return renderInput("text", formatPlaceholder(format));
   }
-
-  return <>{inputElement}</>;
 };
 
 export default DateTimeField;
