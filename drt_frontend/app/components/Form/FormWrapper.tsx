@@ -15,6 +15,7 @@ import {
 } from "../Form/hooks/useDynamicForm";
 import { useFormData } from "../Form/context/FormDataContext";
 import { buildValidationSchema } from "./hooks/useDynamicForm/validationSchema";
+import { useTheme } from "./hooks/useTheme";
 
 import FormHeader from "./FormHeader";
 import FieldRenderer from "./FieldRenderer";
@@ -23,7 +24,7 @@ import Sidebar from "./Sidebar";
 import ReviewSection from "./ReviewSection";
 
 import styles from "./Form.module.css";
-import Footer from "../../../Footer/footer";
+import Footer from "../Footer/footer";
 
 const unsorted = parseJsonToFormStructure();
 const parsedSteps = sortStepsByReferences(unsorted);
@@ -37,6 +38,8 @@ export default function FormWrapper({
   onSave,
   onSubmit,
 }: FormProps) {
+  const theme = useTheme();
+  
   // RHF setup
   const methods = useForm<FormValues>({
     resolver: yupResolver(validationSchema),
@@ -90,7 +93,6 @@ export default function FormWrapper({
     prefillCurrentPageData,
   }: UseDynamicFormReturn = useDynamicForm(parsedSteps);
 
-
   useEffect(() => {
     reset(formData as any);
   }, [currentStep, pageIndexByStep, currentChildId, reset]);
@@ -139,7 +141,15 @@ export default function FormWrapper({
   // NORMAL FORM MODE
   return (
     <FormProvider {...methods}>
-      <form className={styles.formLayout} onSubmit={handleSubmit(onSubmit)}>
+      <form 
+        className={styles.formLayout} 
+        onSubmit={handleSubmit(onSubmit)}
+        style={{
+          fontFamily: theme.fonts.body,
+          backgroundColor: theme.colors.background,
+          color: theme.colors.text,
+        }}
+      >
         <FormHeader
           language={language}
           setLanguage={setLanguage}
@@ -160,12 +170,18 @@ export default function FormWrapper({
             >
               {/* Page Title & Subheading */}
               {currentPage.pageLabel[language] && (
-                <h2 className="mb-4 text-2xl font-semibold">
+                <h2 
+                  className="mb-4 text-2xl font-semibold"
+                  style={{ fontFamily: theme.fonts.heading, color: theme.colors.primary }}
+                >
                   {currentPage.pageLabel[language]}
                 </h2>
               )}
               {currentPage.subheading && (
-                <p className="text-md mb-4 italic text-gray-600">
+                <p 
+                  className="text-md mb-4 italic"
+                  style={{ color: theme.colors.grey[600] }}
+                >
                   {currentPage.subheading[language]}
                 </p>
               )}
@@ -174,10 +190,14 @@ export default function FormWrapper({
               {currentPage.sections.map((section) => (
                 <div
                   key={section.sectionKey}
-                  className="mb-8 bg-gray-50 p-4 rounded"
+                  className="mb-8 p-4 rounded"
+                  style={{ backgroundColor: theme.colors.grey[200] }}
                 >
                   {section.sectionLabel[language] && (
-                    <h3 className="mb-2 text-xl font-medium">
+                    <h3 
+                      className="mb-2 text-xl font-medium"
+                      style={{ fontFamily: theme.fonts.heading, color: theme.colors.primary }}
+                    >
                       {section.sectionLabel[language]}
                     </h3>
                   )}
@@ -207,6 +227,7 @@ export default function FormWrapper({
                         <label
                           htmlFor={name}
                           className="mb-1 block text-sm font-medium"
+                          style={{ color: theme.colors.text }}
                         >
                           {field.labels[language]?.[field.id] ||
                             field.labels.eng?.[field.id]}
@@ -242,14 +263,23 @@ export default function FormWrapper({
 
                         {/* only show error if blurred */}
                         {errorMsg && wasTouched && (
-                          <p className="mt-1 text-sm text-red-600">
+                          <p 
+                            className="mt-1 text-sm"
+                            style={{ color: theme.colors.secondary }}
+                          >
                             {errorMsg}
                           </p>
                         )}
 
                         {/* Owner Comment */}
                         {ownerComments[field.id] && (
-                          <div className="mt-2 p-2 bg-yellow-100 text-sm rounded">
+                          <div 
+                            className="mt-2 p-2 text-sm rounded"
+                            style={{ 
+                              backgroundColor: theme.colors.pink[200],
+                              color: theme.colors.dark 
+                            }}
+                          >
                             <strong>Owner Comment:</strong>{" "}
                             {ownerComments[field.id]}
                           </div>
@@ -302,9 +332,6 @@ export default function FormWrapper({
         />
         <div className={styles.footer}>
           <Footer />
-          <p className="text-center text-gray-600">
-            © 2025 University of Guelph. All rights reserved.
-          </p>
         </div>
       </form>
     </FormProvider>

@@ -3,6 +3,7 @@
 
 import React from "react";
 import { ParsedStep } from "./types";
+import { useTheme } from "./hooks/useTheme";
 
 interface NavigationButtonsProps {
   step: ParsedStep;
@@ -31,14 +32,58 @@ export default function NavigationButtons({
   finishHandler,
   handleSubmit_openAIRE,
 }: NavigationButtonsProps) {
+  const theme = useTheme();
+  
   const isFirstParentPage =
     parentSteps.findIndex((p) => p.id === step.id) === 0 &&
     isFirstPageOfThisStep;
 
+  // Common button styles
+  const buttonBaseStyle = {
+    padding: "0.75rem 1.5rem",
+    borderRadius: "0.375rem",
+    border: "none",
+    cursor: "pointer",
+    fontFamily: theme.fonts.body,
+    fontWeight: "500",
+    fontSize: "0.875rem",
+    transition: "all 0.2s ease-in-out",
+  };
+
+  const primaryButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: theme.colors.primary,
+    color: theme.colors.white,
+  };
+
+  const secondaryButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: theme.colors.grey[300],
+    color: theme.colors.text,
+  };
+
+  const successButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: theme.colors.green[400],
+    color: theme.colors.white,
+  };
+
+  const dangerButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: theme.colors.secondary,
+    color: theme.colors.white,
+  };
+
+  const disabledButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: theme.colors.grey[200],
+    color: theme.colors.grey[600],
+    cursor: "not-allowed",
+    opacity: 0.5,
+  };
+
   // If this is a parent step, show back to previous parent or page, and either Next or Review
   if (isParentStep(step)) {
-    // console.log("isFirstParentPage", isFirstParentPage);
-    // console.log("isFirstPageOfThisStep", isFirstPageOfThisStep);
     return (
       <div className="mt-8 flex items-center space-x-4">
         <button
@@ -50,12 +95,17 @@ export default function NavigationButtons({
             }
           }}
           disabled={isFirstParentPage}
-          className={
-            `rounded px-4 py-2 ` +
-            (isFirstParentPage
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-50"
-              : "bg-gray-300 text-gray-800 hover:bg-gray-400")
-          }
+          style={isFirstParentPage ? disabledButtonStyle : secondaryButtonStyle}
+          onMouseEnter={(e) => {
+            if (!isFirstParentPage) {
+              e.currentTarget.style.backgroundColor = theme.colors.grey[600];
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isFirstParentPage) {
+              e.currentTarget.style.backgroundColor = theme.colors.grey[300];
+            }
+          }}
         >
           Back
         </button>
@@ -66,7 +116,13 @@ export default function NavigationButtons({
             onClick={() => {
               handleSubmit_openAIRE();
             }}
-            className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+            style={successButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "0.9";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "1";
+            }}
           >
             Review
           </button>
@@ -77,7 +133,13 @@ export default function NavigationButtons({
               handleNextPage();
               window.scrollTo(0, 0);
             }}
-            className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+            style={primaryButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "0.9";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "1";
+            }}
           >
             Next
           </button>
@@ -86,7 +148,7 @@ export default function NavigationButtons({
     );
   }
 
-  // If on a child step and it’s not the last page: Back + Next
+  // If on a child step and it's not the last page: Back + Next
   if (!isLastPageOfThisStep) {
     return (
       <div className="mt-8 flex items-center space-x-4">
@@ -96,8 +158,18 @@ export default function NavigationButtons({
             handlePreviousPage();
             window.scrollTo(0, 0);
           }}
-          className="rounded bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400"
+          style={secondaryButtonStyle}
           disabled={isFirstPageOfThisStep}
+          onMouseEnter={(e) => {
+            if (!isFirstPageOfThisStep) {
+              e.currentTarget.style.backgroundColor = theme.colors.grey[600];
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isFirstPageOfThisStep) {
+              e.currentTarget.style.backgroundColor = theme.colors.grey[300];
+            }
+          }}
         >
           Back
         </button>
@@ -107,7 +179,13 @@ export default function NavigationButtons({
             handleNextPage();
             window.scrollTo(0, 0);
           }}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+          style={primaryButtonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = "0.9";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = "1";
+          }}
         >
           Next
         </button>
@@ -115,20 +193,32 @@ export default function NavigationButtons({
     );
   }
 
-  // If on a child step’s last page: Cancel + Finish
+  // If on a child step's last page: Cancel + Finish
   return (
     <div className="mt-8 flex items-center space-x-4">
       <button
         type="button"
         onClick={cancelHandler}
-        className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+        style={dangerButtonStyle}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.opacity = "0.9";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.opacity = "1";
+        }}
       >
         Cancel
       </button>
       <button
         type="button"
         onClick={finishHandler}
-        className="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+        style={successButtonStyle}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.opacity = "0.9";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.opacity = "1";
+        }}
       >
         Finish
       </button>
