@@ -5,6 +5,7 @@ import React from "react";
 import { ParsedStep } from "./types";
 import { NavigationItem } from "./NavigationItem";
 import { getStepIndex } from "./utils";
+import { useTheme } from "./hooks/useTheme";
 import styles from "./Form.module.css";
 
 interface SidebarProps {
@@ -28,9 +29,26 @@ export default function Sidebar({
   expandedStep,
   setExpandedStep,
 }: SidebarProps) {
+  const theme = useTheme();
+
   return (
-    <nav className={styles.sidebar}>
-      <h2 className="mb-4 text-xl font-semibold">Pages / Steps</h2>
+    <nav 
+      className={styles.sidebar}
+      style={{
+        backgroundColor: theme.colors.blue[100],
+        borderLeft: `1px solid ${theme.colors.grey[300]}`,
+        fontFamily: theme.fonts.body,
+      }}
+    >
+      <h2 
+        className="mb-4 text-xl font-semibold"
+        style={{ 
+          color: theme.colors.primary,
+          fontFamily: theme.fonts.heading,
+        }}
+      >
+        Pages / Steps
+      </h2>
       <ul className="space-y-4">
         {parsedSteps
           .filter((s) => visitedSteps.has(s.id) || s.id === parsedSteps[0].id)

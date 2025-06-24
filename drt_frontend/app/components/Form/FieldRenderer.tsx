@@ -6,6 +6,7 @@ import DateTimeField from "./DateTimeField";
 import { ParsedField, ParsedStep } from "./types";
 import { useFormData } from "../Form/context/FormDataContext";
 import type { UseFormRegisterReturn } from "react-hook-form";
+import { useTheme } from "./hooks/useTheme";
 
 interface FieldRendererProps {
   /** RHF name & event handlers for this field */
@@ -55,6 +56,8 @@ export default function FieldRenderer({
   parentFormData,
   setIsNewChild,
 }: FieldRendererProps) {
+  const theme = useTheme();
+  
   // pull in your context helpers
   const {
     createNewChild: ctxCreate,
@@ -70,6 +73,21 @@ export default function FieldRenderer({
     ref: rhfRef,
   } = register;
 
+  // Common field styles
+  const fieldStyles = {
+    border: `1px solid ${theme.colors.grey[300]}`,
+    backgroundColor: theme.colors.white,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.body,
+  };
+
+  const buttonStyles = {
+    backgroundColor: theme.colors.primary,
+    color: theme.colors.white,
+    border: 'none',
+    fontFamily: theme.fonts.body,
+  };
+
   // 1) TEXTAREA
   if (field.type === "textarea") {
     return (
@@ -80,7 +98,8 @@ export default function FieldRenderer({
         placeholder={
           field.placeholder?.[language] || field.placeholder?.eng || ""
         }
-        className="w-full rounded border p-2"
+        className="w-full rounded p-2"
+        style={fieldStyles}
         // register the DOM ref both with RHF & your own ref-tracker
         ref={el => {
           rhfRef(el);
@@ -132,6 +151,7 @@ export default function FieldRenderer({
               key={optKey}
               htmlFor={`${id}-${optKey}`}
               className="flex items-center space-x-2"
+              style={{ color: theme.colors.text, fontFamily: theme.fonts.body }}
             >
               <input
                 id={`${id}-${optKey}`}
@@ -139,6 +159,7 @@ export default function FieldRenderer({
                 name={rhfName}
                 value={optKey}
                 checked={value === optKey}
+                style={{ accentColor: theme.colors.primary }}
                 ref={el => {
                   rhfRef(el);
                   registerFieldRef(field.id, el);
@@ -174,7 +195,11 @@ export default function FieldRenderer({
             selectedValues.map(k => (
               <span
                 key={k}
-                className="flex items-center rounded bg-blue-100 px-3 py-1 text-sm text-blue-800"
+                className="flex items-center rounded px-3 py-1 text-sm"
+                style={{ 
+                  backgroundColor: theme.colors.blue[100],
+                  color: theme.colors.blue[900]
+                }}
               >
                 {field.options?.[language]?.[k] || k}
                 <button
@@ -184,7 +209,8 @@ export default function FieldRenderer({
                     handleFieldChange(updated);
                     saveCurrentPageData();
                   }}
-                  className="ml-2 text-red-500 hover:text-red-700"
+                  className="ml-2 hover:opacity-70"
+                  style={{ color: theme.colors.secondary }}
                   aria-label={`Remove ${k}`}
                 >
                   ×
@@ -192,7 +218,9 @@ export default function FieldRenderer({
               </span>
             ))
           ) : (
-            <p className="text-sm text-gray-500">No options selected.</p>
+            <p className="text-sm" style={{ color: theme.colors.grey[600] }}>
+              No options selected.
+            </p>
           )}
         </div>
 
@@ -200,7 +228,8 @@ export default function FieldRenderer({
           id={id}
           name={rhfName}
           multiple
-          className="w-full rounded border p-2"
+          className="w-full rounded p-2"
+          style={fieldStyles}
           value={selectedValues}
           ref={el => {
             rhfRef(el);
@@ -232,7 +261,8 @@ export default function FieldRenderer({
 
         {selectedValues.length > 0 && (
           <button
-            className="mt-2 rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600"
+            className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
+            style={{ backgroundColor: theme.colors.secondary }}
             type="button"
             onClick={() => {
               handleFieldChange([]);
@@ -262,7 +292,8 @@ export default function FieldRenderer({
             if (idx >= 0) onNavigate(idx);
             window.scrollTo(0, 0);
           }}
-          className="mt-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+          className="mt-2 rounded px-4 py-2 text-white hover:opacity-90"
+          style={buttonStyles}
         >
           +
           {field.reference_button_text?.[language] ||
@@ -271,7 +302,13 @@ export default function FieldRenderer({
         </button>
 
         {children.length > 0 && (
-          <div className="mt-4 rounded border bg-gray-100 p-4">
+          <div 
+            className="mt-4 rounded border p-4"
+            style={{ 
+              backgroundColor: theme.colors.grey[200],
+              borderColor: theme.colors.grey[300]
+            }}
+          >
             {/* …render table of children… */}
           </div>
         )}
@@ -285,7 +322,8 @@ export default function FieldRenderer({
       id={id}
       name={rhfName}
       type="text"
-      className="mt-1 p-2 border rounded w-full"
+      className="w-full rounded p-2"
+      style={fieldStyles}
       value={value ?? ""}
       ref={el => {
         rhfRef(el);

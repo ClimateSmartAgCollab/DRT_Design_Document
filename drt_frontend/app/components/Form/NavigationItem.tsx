@@ -3,6 +3,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ParsedStep } from "./types";
 import { FiChevronDown, FiChevronRight } from "react-icons/fi";
+import { useTheme } from "./hooks/useTheme";
 
 interface NavigationItemProps {
   step: ParsedStep;
@@ -25,6 +26,8 @@ export const NavigationItem = React.memo(function NavigationItem({
   expandedStep,
   setExpandedStep,
 }: NavigationItemProps) {
+  const theme = useTheme();
+  
   const stepIndex = getIndex(step.id);
   const isExpanded = expandedStep === step.id;
   const isActiveStep = currentStep === stepIndex;
@@ -33,7 +36,26 @@ export const NavigationItem = React.memo(function NavigationItem({
     setExpandedStep(isExpanded ? null : step.id);
   };
 
-  const stepButtonClass = isExpanded ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800";
+  const stepButtonStyle = isExpanded 
+    ? {
+        backgroundColor: theme.colors.primary,
+        color: theme.colors.white,
+        fontFamily: theme.fonts.body,
+        fontWeight: "500",
+      }
+    : {
+        backgroundColor: theme.colors.grey[200],
+        color: theme.colors.text,
+        fontFamily: theme.fonts.body,
+        fontWeight: "500",
+      };
+
+  const pageButtonStyle = (isActivePage: boolean) => ({
+    backgroundColor: isActivePage ? theme.colors.primary : theme.colors.white,
+    color: isActivePage ? theme.colors.white : theme.colors.text,
+    fontFamily: theme.fonts.body,
+    fontSize: "0.875rem",
+  });
 
   return (
     <li className="mb-2">
@@ -43,7 +65,18 @@ export const NavigationItem = React.memo(function NavigationItem({
         whileTap={{ scale: 0.98 }}
         type="button"
         onClick={toggleExpand}
-        className={`flex w-full items-center justify-between rounded px-4 py-2 text-left transition-all ${stepButtonClass}`}
+        className="flex w-full items-center justify-between rounded px-4 py-2 text-left transition-all"
+        style={stepButtonStyle}
+        onMouseEnter={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.backgroundColor = theme.colors.grey[300];
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.backgroundColor = theme.colors.grey[200];
+          }
+        }}
       >
         <span>
           {step.sidebar_label?.[language] ||
@@ -75,9 +108,18 @@ export const NavigationItem = React.memo(function NavigationItem({
                 <button
                   type="button"
                   onClick={() => onNavigate(stepIndex, pageIndex)}
-                  className={`w-full rounded px-4 py-2 text-left ${
-                    isActivePage ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-800"
-                  }`}
+                  className="w-full rounded px-4 py-2 text-left transition-all"
+                  style={pageButtonStyle(isActivePage)}
+                  onMouseEnter={(e) => {
+                    if (!isActivePage) {
+                      e.currentTarget.style.backgroundColor = theme.colors.grey[200];
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActivePage) {
+                      e.currentTarget.style.backgroundColor = isActivePage ? theme.colors.primary : theme.colors.white;
+                    }
+                  }}
                 >
                   {page.sidebar_label?.[language] ?? page.sidebar_label?.["eng"] ?? ""}
                 </button>
