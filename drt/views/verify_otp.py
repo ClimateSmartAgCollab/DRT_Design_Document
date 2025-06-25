@@ -7,14 +7,11 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework.response import Response
 from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 import datetime
 from ..models import Requestor, NLink
 import logging
 logger = logging.getLogger(__name__)
-
-
-
-
 
 
 @csrf_exempt
@@ -34,20 +31,29 @@ def verify_otp(request, link_id):
         requestor.otp_expiry = timezone.now() + datetime.timedelta(minutes=10)
         requestor.save()
 
-        # try:
-        #     msg = EmailMultiAlternatives(
-        #         subject='DART System One-Time Password',
-        #         body=f'Use OTP: {requestor.otp}',
-        #         from_email=settings.DEFAULT_FROM_EMAIL,
-        #         to=[requestor.requestor_email],
-        #         headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
-        #     )
-        #     msg.send(fail_silently=False)
-        # except Exception:
-        #     return Response(
-        #         {'error': 'Unable to send OTP email. Please try again later.'},
-        #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        #     )
+        try:
+            msg = EmailMultiAlternatives(
+                subject="One-Time Password Verification",
+                body=(
+                    "Hello,\n\n"
+                    f"Your one-time password (OTP) is:\n\n"
+                    f"    {otp}\n\n"
+                    "For your security, please do not share this code with anyone. "
+                    "If you did not request this OTP, simply ignore this message or "
+                    "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                    "Best regards,\n"
+                    "The DRT System"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[requestor.requestor_email],
+                headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
+            )
+            msg.send(fail_silently=False)
+        except Exception:
+            return Response(
+                {'error': 'Unable to send OTP email. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         # print(f"Resent OTP to {requestor.requestor_email}: {requestor.otp}")
 
@@ -73,4 +79,3 @@ def verify_otp(request, link_id):
 
     return Response({'error': 'Method not allowed.'},
                     status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
