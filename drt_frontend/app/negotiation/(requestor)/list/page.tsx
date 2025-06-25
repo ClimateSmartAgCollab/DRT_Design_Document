@@ -2,6 +2,7 @@
 "use client";
 import React, { useState, useMemo, useCallback } from "react";
 import { useNegotiations } from "./hooks/useNegotiations";
+import { useFilterState } from "./hooks/useFilterState";
 import { useRouter } from "next/navigation";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Status, ArchivedFilter, SortOption } from "./types";
@@ -18,6 +19,17 @@ export default function NegotiationListPage() {
   const qc = useQueryClient();
   const { data: negs, error, reload } = useNegotiations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Use the new filter state hook
+  const {
+    filters,
+    setSearchTerm,
+    toggleStatus,
+    setArchivedFilter,
+    setDateRange,
+    setSortOption,
+    resetFilters,
+  } = useFilterState();
 
   const deleteOne = useMutation({
     mutationFn: (id: string) => deleteNegotiation(id),
@@ -44,49 +56,22 @@ export default function NegotiationListPage() {
     setSelected(new Set());
   };
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Status[]>([]);
-  const [archivedFilter, setArchivedFilter] = useState<ArchivedFilter>("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [sortOption, setSortOption] = useState<SortOption>("created_desc");
-
-  const toggleStatus = (status: Status) =>
-    setStatusFilter((prev) =>
-      prev.includes(status)
-        ? prev.filter((s) => s !== status)
-        : [...prev, status]
-    );
-
-  const onDateChange = (field: "start" | "end", value: string) => {
-    field === "start" ? setStartDate(value) : setEndDate(value);
-  };
-
-  const resetFilters = () => {
-    setSearchTerm("");
-    setStatusFilter([]);
-    setArchivedFilter("all");
-    setStartDate("");
-    setEndDate("");
-    setSortOption("created_desc");
-  };
-
   const filtered = useMemo(() => {
     return negs.filter((n) => {
       const created = new Date(n.timestamps);
-      const txt = searchTerm.trim().toLowerCase();
+      const txt = filters.searchTerm.trim().toLowerCase();
       const matchesSearch =
         !txt ||
         n.negotiation_id.toLowerCase().includes(txt) ||
         n.conversation_id.toLowerCase().includes(txt);
       const matchesStatus =
-        statusFilter.length === 0 || statusFilter.includes(n.state as Status);
+        filters.statusFilter.length === 0 || filters.statusFilter.includes(n.state as Status);
       const matchesArchived =
-        archivedFilter === "all" ||
-        (archivedFilter === "archived" && n.archived) ||
-        (archivedFilter === "active" && !n.archived);
-      const afterStart = !startDate || created >= new Date(startDate);
-      const beforeEnd = !endDate || created <= new Date(endDate);
+        filters.archivedFilter === "all" ||
+        (filters.archivedFilter === "archived" && n.archived) ||
+        (filters.archivedFilter === "active" && !n.archived);
+      const afterStart = !filters.startDate || created >= new Date(filters.startDate);
+      const beforeEnd = !filters.endDate || created <= new Date(filters.endDate);
       return (
         matchesSearch &&
         matchesStatus &&
@@ -95,12 +80,12 @@ export default function NegotiationListPage() {
         beforeEnd
       );
     });
-  }, [negs, searchTerm, statusFilter, archivedFilter, startDate, endDate]);
+  }, [negs, filters.searchTerm, filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
     arr.sort((a, b) => {
-      switch (sortOption) {
+      switch (filters.sortOption) {
         case "created_asc":
           return (
             new Date(a.timestamps).getTime() - new Date(b.timestamps).getTime()
@@ -122,26 +107,25 @@ export default function NegotiationListPage() {
       }
     });
     return arr;
-  }, [filtered, sortOption]);
+  }, [filtered, filters.sortOption]);
 
   const hasOld = negs.some(
     (n) =>
       Date.now() - new Date(n.timestamps).getTime() > 30 * 24 * 60 * 60 * 1000
   );
 
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar
-        searchTerm={searchTerm}
+        searchTerm={filters.searchTerm}
         onSearchChange={setSearchTerm}
-        statusFilter={statusFilter}
+        statusFilter={filters.statusFilter}
         onToggleStatus={toggleStatus}
-        archivedFilter={archivedFilter}
-        startDate={startDate}
-        endDate={endDate}
-        onDateChange={onDateChange}
-        sortOption={sortOption}
+        archivedFilter={filters.archivedFilter}
+        startDate={filters.startDate}
+        endDate={filters.endDate}
+        onDateChange={setDateRange}
+        sortOption={filters.sortOption}
         onSortChange={setSortOption}
         onReset={resetFilters}
       />
