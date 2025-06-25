@@ -10,12 +10,12 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework.response import Response
+from django.utils.crypto import get_random_string
 from django.core.mail import EmailMultiAlternatives
 import datetime
 from ..models import Requestor, NLink
 import logging
 logger = logging.getLogger(__name__)
-
 
 
 @api_view(['GET', 'POST'])
@@ -29,10 +29,13 @@ def requestor_email_entry(request, link_id):
             return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
         validate_email(email)
 
-        # generate + store OTP
-        otp = "9832"  # for testing
-        # uncomment the next line for production
-        # otp = get_random_string(6, '0123456789')
+        # generate OTP
+        if settings.ENVIRONMENT == 'production':
+            otp = get_random_string(6, '0123456789')
+        else:
+            # in staging/testing we can still generate random, but you can stub if you like:
+            otp = get_random_string(6, '0123456789')
+            # or: otp = "9832"
 
         expiry = timezone.now() + datetime.timedelta(minutes=10)
         # find or make the Requestor, then reset its OTP & expiry
@@ -48,22 +51,24 @@ def requestor_email_entry(request, link_id):
         nlink.requestor_email = email
         nlink.save(update_fields=['requestor_email'])
 
-        # build and send the email
-        subject = "DART System One-Time Password"
-        text_content = (
-            f"Hello,\n\n"
-            f"Your one-time password (OTP) is:\n\n    {otp}\n\n"
-            f"It expires at {expiry:%Y-%m-%d %H:%M:%S}.\n\n"
-            f"— DART System Team"
+        msg = EmailMultiAlternatives(
+            subject="One-Time Password for Requestor Verification",
+            body=(
+                "Hello Dear Requestor,\n\n"
+                f"Your one-time password (OTP) is:\n\n"
+                f"    {otp}\n\n"
+                f"This code will expire at {expiry:%H:%M}.\n\n"
+                "For your security, please do not share this code with anyone. "
+                "If you did not request this OTP, simply ignore this message or "
+                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "Best regards,\n"
+                "The DRT System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
         )
-        # msg = EmailMultiAlternatives(
-        #     subject=subject,
-        #     body=text_content,
-        #     from_email=settings.DEFAULT_FROM_EMAIL,
-        #     to=[email],
-        #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-        # )
-        # msg.send(fail_silently=False)
+        msg.send(fail_silently=False)
 
         # return the frontend redirect
         otp_path = reverse('verify_otp', kwargs={'link_id': link_id})
@@ -79,4 +84,3 @@ def requestor_email_entry(request, link_id):
             {'error': 'Server error. Check logs for details.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-

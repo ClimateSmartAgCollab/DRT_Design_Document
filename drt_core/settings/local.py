@@ -59,6 +59,38 @@ CSRF_COOKIE_SECURE   = True
 # DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 
 
+# settings.py
+
+
+ENVIRONMENT = os.environ.get('ENVIRONMENT', default='development')
+
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# DEFAULT_FROM_EMAIL = 'no-reply@yourdomain.test'
+
+# if ENVIRONMENT == 'staging':
+#     EMAIL_HOST         = 'sandbox.smtp.mailtrap.io'
+#     EMAIL_HOST_USER    = os.environ.get('EMAIL_HOST_USER')
+#     EMAIL_HOST_PASSWORD= os.environ.get('EMAIL_HOST_PASSWORD')
+#     EMAIL_PORT         = 2525
+#     EMAIL_USE_TLS      = True
+# elif ENVIRONMENT == 'production':
+#     EMAIL_HOST         = 'smtp.mailgun.org'
+#     EMAIL_HOST_USER    = os.environ.get('MAILGUN_SMTP_LOGIN')
+#     EMAIL_HOST_PASSWORD= os.environ.get('MAILGUN_SMTP_PASSWORD')
+#     EMAIL_PORT         = 587
+#     EMAIL_USE_TLS      = True
+
+
+# settings.py
+if ENVIRONMENT == "staging":
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = "smtp.ethereal.email"
+    EMAIL_PORT = 587
+    EMAIL_HOST_USER = os.environ.get("ETHEREAL_USER")
+    EMAIL_HOST_PASSWORD = os.environ.get("ETHEREAL_PASS")
+    EMAIL_USE_TLS = True
+    DEFAULT_FROM_EMAIL = "no-reply@yourapp.test"
+
 
 
 CORS_ORIGIN_ALLOW_ALL = True

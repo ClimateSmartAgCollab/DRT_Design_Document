@@ -12,10 +12,12 @@ import datetime
 import logging
 import json
 import traceback
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from ..services.license import generate_license_and_notify_owner
 
 logger = logging.getLogger(__name__)
+
 
 @csrf_exempt
 @api_view(['GET'])
@@ -50,8 +52,8 @@ def generate_nlinks(request, link_id):
     # todo: use uuid7 that includes embedded timestamp data,to manage time-related functionality for link expiration.
     # Create NLink and associate it with the Negotiation
     owner_link_id, requestor_link_id = uuid.uuid4(), uuid.uuid4()
-    print(f"Owner Link ID: {owner_link_id}")  # <-- debug
-    print(f"Requestor Link ID: {requestor_link_id}")  # <-- debug
+    # print(f"Owner Link ID: {owner_link_id}")  # <-- debug
+    # print(f"Requestor Link ID: {requestor_link_id}")  # <-- debug
 
     nlink = NLink.objects.create(
         negotiation=negotiation,
@@ -65,7 +67,7 @@ def generate_nlinks(request, link_id):
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
     )
 
-    print(f"Created NLink with ID: {nlink.requestor_link}")  # <-- debug
+    # print(f"Created NLink with ID: {nlink.requestor_link}")  # <-- debug
     # # Redirect the requestor to the email entry page
     # return redirect('requestor_email_entry', link_id=requestor_link_id)
 
@@ -73,6 +75,7 @@ def generate_nlinks(request, link_id):
     return JsonResponse({
         'requestor_link_id': str(requestor_link_id)
     })
+
 
 @api_view()
 def request_access(request, link_id):
@@ -84,7 +87,7 @@ def request_access(request, link_id):
 
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
-    print(f"Questionnaire Link: {questionnaire_url}")
+    # print(f"Questionnaire Link: {questionnaire_url}")
 
     return Response({'status': 'Link sent successfully!', 'link': questionnaire_url})
 
@@ -121,14 +124,20 @@ def fill_questionnaire(request, link_id):
             negotiation.state = 'owner_open'
             negotiation.save()
 
-            # msg = EmailMultiAlternatives(
-            #     subject='Data Request Submission Confirmation',
-            #     body=f'Your request has been submitted successfully.\n\n we will notify you once the owner has reviewed it.',
-            #     from_email=settings.DEFAULT_FROM_EMAIL,
-            #     to=[nlink.requestor_email],
-            #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-            # )
-            # msg.send(fail_silently=False)
+            msg = EmailMultiAlternatives(
+                subject="Your Data Request Has Been Received",
+                body=(
+                    "Hello Dear Requestor,\n\n"
+                    "Thank you for submitting your data request. We have received it successfully and will notify you as soon as the owner has reviewed it.\n\n"
+                    "If you have any questions in the meantime, please reach out to our support team at ssanavi@uoguelph.ca.\n\n"
+                    "Best regards,\n"
+                    "The DRT System"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[nlink.requestor_email],
+                headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+            )
+            msg.send(fail_silently=False)
 
             owner_table = cache.get("owner_table")
             if owner_table and nlink.owner_id in owner_table:
@@ -139,17 +148,27 @@ def fill_questionnaire(request, link_id):
                 # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
                 owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
-                # msg = EmailMultiAlternatives(
-                #     subject='New Data Request to Review',
-                #     body=f'A new data request has been submitted. Please review it at {owner_review_url}',
-                #     from_email=settings.DEFAULT_FROM_EMAIL,
-                #     to=[owner_email],
-                #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-                # )
-                # msg.send(fail_silently=False)
+                msg = EmailMultiAlternatives(
+                    subject="Owner Action Required: New Data Request Submitted",
+                    body=(
+                        "Hello Dear Owner,\n\n"
+                        "A new data request has been submitted and is awaiting your review.\n\n"
+                        f"You can review the request here:\n\n"
+                        f"    {owner_review_url}\n\n"
+                        "Please log in and provide your feedback at your earliest convenience. "
+                        "If you have any questions, simply reach out to our support team at ssanavi@uoguelph.ca.\n\n"
+                        "Thank you for your prompt attention.\n\n"
+                        "Best regards,\n"
+                        "The DRT System"
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[owner_email],
+                    headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+                )
+                msg.send(fail_silently=False)
 
-                print(
-                    f"Email sent to {owner_email} with link: {owner_review_url}")
+                # print(
+                #     f"Email sent to {owner_email} with link: {owner_review_url}")
 
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
 
@@ -200,9 +219,9 @@ def owner_review(request, link_id):
         if 'save' in data:
             negotiation.owner_responses = data.get('owner_responses', '')
             # Debugging line
-            print(f"Owner Responses: {negotiation.owner_responses}")
+            # print(f"Owner Responses: {negotiation.owner_responses}")
             negotiation.comments = data.get('comments', '')
-            print(f"Comments: {negotiation.comments}")  # Debugging line
+            # print(f"Comments: {negotiation.comments}")  # Debugging line
             negotiation.save()
             return Response({'message': 'Review saved successfully!'})
 
@@ -244,11 +263,20 @@ def send_clarification_email(requestor_email, link_id):
 
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
-    # msg = EmailMultiAlternatives(
-    #     subject='Clarification Required',
-    #     body=f'Please provide additional information.\n\n Access your form in this link: {clarification_url}',
-    #     from_email=settings.DEFAULT_FROM_EMAIL,
-    #     to=[requestor_email],
-    #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-    # )
-    # msg.send(fail_silently=False)
+    msg = EmailMultiAlternatives(
+        subject="Requestor Action Needed: Additional Information Required",
+        body=(
+            "Hello Dear Requestor,\n\n"
+            "We need a bit more information to proceed with your request. "
+            "Please complete the necessary details by accessing your form at the link below:\n\n"
+            f"    {clarification_url}\n\n"
+            "If you have any questions or need assistance, simply reach out to our support team at ssanavi@uoguelph.ca.\n\n"
+            "Thank you for your prompt attention.\n\n"
+            "Best regards,\n"
+            "The DRT System"
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[requestor_email],
+        headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+    )
+    msg.send(fail_silently=False)
