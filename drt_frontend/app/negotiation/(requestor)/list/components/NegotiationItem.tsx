@@ -67,6 +67,8 @@ export function NegotiationItem({
             <Link
               href={`/negotiation/${n.requestor_link}/fill-questionnaire`}
               className="ml-4 text-blue-600 underline hover:text-blue-800"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               Access Your Review Link
             </Link>
