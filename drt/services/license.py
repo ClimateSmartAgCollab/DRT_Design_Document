@@ -2,6 +2,7 @@ from django.core.cache import cache
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from django.utils.translation import gettext_lazy as _
 from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 
 def generate_license_and_notify_owner(nlink):
 
@@ -48,15 +49,15 @@ def generate_license_and_notify_owner(nlink):
         f"Requestor Email: {nlink.requestor_email}\n\n"
         f"Best,\nDART System"
     )
-    # email = EmailMultiAlternatives(
-    #     subject=subject,
-    #     body=body,
-    #     from_email=settings.DEFAULT_FROM_EMAIL,
-    #     to=[owner_email],
-    # )
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[owner_email],
+    )
 
-    # for filename, content, mimetype in attachments:
-    #     email.attach(filename, content, mimetype)
+    for filename, content, mimetype in attachments:
+        email.attach(filename, content, mimetype)
 
-    # email.send()
+    email.send()
 
