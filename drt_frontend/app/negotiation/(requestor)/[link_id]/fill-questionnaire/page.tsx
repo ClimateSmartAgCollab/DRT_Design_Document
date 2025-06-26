@@ -128,6 +128,11 @@ export default function FillQuestionnairePage() {
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="w-full max-w-3xl p-4">
           {error && <p className="text-red-500 mb-4">{error}</p>}
+          {isSubmitting && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+              <span className="bg-white px-4 py-2 rounded shadow">Loading…</span>
+            </div>
+          )}
           <Form
             initialAnswers={initialAnswers}
             ownerComments={ownerComments}
