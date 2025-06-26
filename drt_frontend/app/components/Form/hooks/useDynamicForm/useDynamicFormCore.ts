@@ -7,7 +7,7 @@ import { useFormData } from "../../context/FormDataContext";
 
 import { isValid__UTF8 } from "./utils";
 import { validateCurrentPageData, validateField } from "./validation";
-import { useHandleNavigate, usePageNavigation } from "./navigation";
+import { useHandleNavigate, usePageNavigation } from "../useDynamicForm";
 import { useSubmissionMapping } from "./mapping";
 
 // The main hook. Returns all values/functions needed by FormWrapper.
@@ -180,12 +180,12 @@ export function useDynamicForm(parsedSteps: Step[]) {
     parsedSteps,
     currentStep,
     pageIndexByStep,
-    (errs) => setFieldErrors(errs),
+    (errs: any) => setFieldErrors(errs),
     formFieldRefs,
     language,
     saveCurrentPageData,
-    (idx) => setCurrentStep(idx),
-    (fn) => setVisitedSteps(fn)
+    (idx: any) => setCurrentStep(idx),
+    (fn: any) => setVisitedSteps(fn)
   );
 
   const {
@@ -202,9 +202,9 @@ export function useDynamicForm(parsedSteps: Step[]) {
     formFieldRefs,
     language,
     saveCurrentPageData,
-    (errs) => setFieldErrors(errs),
-    (newMap) => setPageIndexByStep(newMap),
-    (idx) => setCurrentStep(idx),
+    (errs: any) => setFieldErrors(errs),
+    (newMap: any) => setPageIndexByStep(newMap),
+    (idx: any) => setCurrentStep(idx),
     onNavigate
   );
 
@@ -264,6 +264,15 @@ export function useDynamicForm(parsedSteps: Step[]) {
     editExistingChild,
   ]);
 
+  const [debugMode, setDebugMode] = useState(false);
+
+  const resetForm = () => {
+    setFormData({});
+    setCurrentStep(0);
+    setVisitedSteps(new Set([parsedSteps[0]?.id]));
+    // ...any other resets...
+  };
+
   return {
     language,
     setLanguage,
@@ -314,5 +323,8 @@ export function useDynamicForm(parsedSteps: Step[]) {
     editExistingChild,
     handleVerifyAndSubmit,
     prefillCurrentPageData,
+    debugMode,
+    setDebugMode,
+    resetForm,
   };
 }
