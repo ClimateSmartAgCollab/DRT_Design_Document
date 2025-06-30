@@ -10,7 +10,7 @@ ALLOWED_HOSTS = ["*"]
 # CSRF_COOKIE_SECURE = True
 CSRF_TRUSTED_ORIGINS = ["http://*"]
 
-# during local dev over HTTP, cookies must NOT be “secure-only”
+# during local dev over HTTP, cookies must NOT be "secure-only"
 # CSRF_COOKIE_SECURE = False  
 # SESSION_COOKIE_SECURE = False
 
@@ -42,14 +42,14 @@ CSRF_COOKIE_SECURE   = True
 # DEFAULT_FROM_EMAIL = "DART System <postmaster@sandbox52c30de58b9b48c2925e0795c53759c9.mailgun.org>"
 
 
-# # Use SendGrid’s Web API backend
+# # Use SendGrid's Web API backend
 # EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
 # SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 
-# # Standard “from” address must match your Single-Sender
+# # Standard "from" address must match your Single-Sender
 # DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 
-# # Use SendGrid’s SMTP backend (optional)
+# # Use SendGrid's SMTP backend (optional)
 # EMAIL_BACKEND      = "django.core.mail.backends.smtp.EmailBackend"
 # EMAIL_HOST         = "smtp.sendgrid.net"
 # EMAIL_PORT         = 587

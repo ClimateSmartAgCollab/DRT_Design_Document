@@ -8,6 +8,7 @@ import fetchApi from "@/app/api/apiHelper";
 
 export default function EmailEntry() {
   const [email, setEmail] = useState("");
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { link_id } = useParams(); // Access `link_id` with `useParams`
@@ -22,7 +23,7 @@ export default function EmailEntry() {
   }
 
   const {
-    mutate: sendOtp,
+    mutate: sendMagicLink,
     isPending,
     isError,
   } = useMutation<void, Error, string>({
@@ -38,18 +39,56 @@ export default function EmailEntry() {
       });
       if (!res.ok) {
         const body = await res.json();
-        throw new Error(body.error || "Failed to send OTP");
+        throw new Error(body.error || "Failed to send magic link");
       }
     },
     onSuccess: (_data, variables) => {
       sessionStorage.setItem("reqEmail", variables);
-      router.push(`/negotiation/${link_id}/otp-verification`);
+      setSuccess(true);
     },
   });
 
   const isValidEmail = /\S+@\S+\.\S+/.test(email);
   const isDisabled = isPending || !isValidEmail;
-
+  if (success) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <svg
+              className="h-6 w-6 text-green-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Magic Link Sent!
+          </h1>
+          <p className="text-gray-600">
+            Check your email and click the magic link to access the dashboard.
+          </p>
+          <button
+            onClick={() => {
+              setSuccess(false);
+              setEmail("");
+            }}
+            className="w-full rounded-lg px-4 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 transition"
+          >
+            Send Another Link
+          </button>
+        </section>
+      </main>
+    );
+  }
   return (
     <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
@@ -77,13 +116,11 @@ export default function EmailEntry() {
           Verify Your Email
         </h1>
         <p className="text-gray-600">
-          We’ll send you a one-time code to access the questionnaire.
+          We'll send you a magic link to access the questionnaire.
         </p>
 
         {/* Validation & Errors */}
-        {isError && error && (
-          <p className="text-red-600 text-sm">{error}</p>
-        )}
+        {isError && error && <p className="text-red-600 text-sm">{error}</p>}
         {!isValidEmail && email && (
           <p className="text-yellow-600 text-sm">
             Please enter a valid email address.
@@ -100,9 +137,9 @@ export default function EmailEntry() {
           className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* Send OTP Button */}
+        {/* Send Magic Link Button */}
         <button
-          onClick={() => sendOtp(email)}
+          onClick={() => sendMagicLink(email)}
           disabled={isDisabled}
           className={`w-full rounded-lg px-4 py-2 font-medium text-white transition ${
             isDisabled
@@ -110,7 +147,7 @@ export default function EmailEntry() {
               : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
-          {isPending ? "Sending…" : "Send OTP"}
+          {isPending ? "Sending…" : "Send Magic Link"}
         </button>
       </section>
     </main>

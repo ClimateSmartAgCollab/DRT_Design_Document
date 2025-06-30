@@ -1,4 +1,3 @@
-// app/negotiation/[link_id]/magic-link-verification/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -20,13 +19,13 @@ export default function MagicLinkVerificationPage() {
   useEffect(() => {
     if (!uid || !token || !email) {
       setStatus('error');
-      setErrorMessage('Invalid magic link. Missing required parameters.');
+      setErrorMessage('Invalid magic link. The link is missing required parameters. Please use the link sent to your email.');
       return;
     }
 
     const verifyMagicLink = async () => {
       try {
-        const response = await fetchApi('/drt/auth/verify-req-magic-link/', {
+        const response = await fetchApi(`/drt/verify/magic-link/${linkId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -138,4 +137,4 @@ export default function MagicLinkVerificationPage() {
       </section>
     </main>
   );
-}
+} 
