@@ -1,13 +1,18 @@
 from django.urls import path
-from .views import (generate_nlinks, requestor_email_entry, verify_otp, request_access,
-                    fill_questionnaire, verify_req_otp, negotiation_list_api_req,
-                    owner_email_entry, verify_owner_otp, owner_review, archive_view,
+from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_view, request_access,
+                    fill_questionnaire, verify_req_magic_link, negotiation_list_api_req,
+                    owner_email_entry, verify_owner_magic_link, owner_review, archive_view,
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
-                    req_email_entry, owner_links_api, whoami, req_whoami
+                    req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint
                     )
 
 urlpatterns = [
+    # Test endpoint
+    path('test/',
+         test_endpoint,
+         name='test_endpoint'),
+
     # requestor
     path('generate_nlinks/<str:link_id>/',
          generate_nlinks,
@@ -21,17 +26,17 @@ urlpatterns = [
     #          requestor_email_entry,
     #          name='requestor_email_entry'),
 
-    path('verify/otp/<str:link_id>/',
-         verify_otp,
-         name='verify_otp'),
+    path('verify/magic-link/<str:link_id>/',
+         verify_magic_link_view,
+         name='verify_magic_link'),
 
     path('verify/req-email/',
          req_email_entry,
          name='req_email_entry'),
 
-    path('verify/req-otp/<str:email>/',
-         verify_req_otp,
-         name='verify_owner_otp'),
+    path('auth/verify-req-magic-link/',
+         verify_req_magic_link,
+         name='verify_req_magic_link'),
 
     path("requestor/whoami/",
          req_whoami,
@@ -57,9 +62,9 @@ urlpatterns = [
          owner_email_entry,
          name='owner_email_entry'),
 
-    path('verify/owner-otp/<str:email>/',
-         verify_owner_otp,
-         name='verify_owner_otp'),
+    path('auth/verify-owner-magic-link/',
+         verify_owner_magic_link,
+         name='verify_owner_magic_link'),
 
     path("owner/whoami/",
          whoami,

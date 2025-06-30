@@ -36,7 +36,7 @@ class Requestor(models.Model):
     requestor_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     requestor_email = models.EmailField(unique=True)
-    otp = models.CharField(max_length=6)
+    otp = models.CharField(max_length=64)
     otp_expiry = models.DateTimeField(null=True, blank=True)
     is_verified = models.BooleanField(default=False)
 

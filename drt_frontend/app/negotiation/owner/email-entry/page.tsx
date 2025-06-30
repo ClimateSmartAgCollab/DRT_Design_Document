@@ -10,6 +10,7 @@ export default function OwnerEmailEntry() {
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<boolean>(false);
 
   function getCSRFToken(): string {
     return (
@@ -33,7 +34,7 @@ export default function OwnerEmailEntry() {
       });
 
       if (!res.ok) {
-        let msg = "Failed to send OTP";
+        let msg = "Failed to send magic link";
         try {
           const body = await res.json();
           msg = body.error ?? msg;
@@ -49,7 +50,7 @@ export default function OwnerEmailEntry() {
     },
     onSuccess(_, emailSent) {
       sessionStorage.setItem("ownerEmail", emailSent);
-      router.push("/negotiation/owner/verify-otp");
+      setSuccess(true);
     },
   });
 
@@ -59,6 +60,46 @@ export default function OwnerEmailEntry() {
   // Simple email format check
   const isValidEmail = /\S+@\S+\.\S+/.test(email);
   const isDisabled = isLoading || !isValidEmail;
+
+  if (success) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <svg
+              className="h-6 w-6 text-green-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Magic Link Sent!
+          </h1>
+          <p className="text-gray-600">
+            Check your email and click the magic link to access the dashboard.
+          </p>
+          <button
+            onClick={() => {
+              setSuccess(false);
+              setEmail("");
+            }}
+            className="w-full rounded-lg px-4 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 transition"
+          >
+            Send Another Link
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -86,7 +127,7 @@ export default function OwnerEmailEntry() {
           Verify Your Email
         </h1>
         <p className="text-gray-600">
-          We’ll send you a one-time code to access the questionnaire.
+          We'll send you a magic link to access the dashboard.
         </p>
 
         {/* Validation & Errors */}
@@ -110,7 +151,7 @@ export default function OwnerEmailEntry() {
           className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
 
-        {/* Send OTP Button */}
+        {/* Send Magic Link Button */}
         <button
           onClick={() => mutation.mutate(email)}
           disabled={isDisabled}
@@ -120,7 +161,7 @@ export default function OwnerEmailEntry() {
               : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
-          {isLoading ? "Sending…" : "Send OTP"}
+          {isLoading ? "Sending…" : "Send Magic Link"}
         </button>
       </section>
     </main>

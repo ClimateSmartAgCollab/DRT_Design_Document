@@ -10,7 +10,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from ..services.negotiation import delete_old_negotiations, handle_negotiation_archive_and_summary
 from django.shortcuts import get_object_or_404
-from .utils import owner_otp_required, requestor_otp_required
+from .utils import owner_auth_required, requestor_auth_required
 from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
@@ -154,7 +154,7 @@ def delete_old_negotiations_view(request):
     return delete_old_negotiations()
 
 
-@owner_otp_required
+@owner_auth_required
 def owner_links_api(request):
 
     raw_owner_cache = cache.get("owner_table") or {}
@@ -197,7 +197,7 @@ def owner_links_api(request):
     return JsonResponse({"links": entries})
 
 
-@owner_otp_required
+@owner_auth_required
 def summary_statistics_view(request):
     """Endpoint for retrieving summary statistics based on the provided owner_id (string)."""
 
@@ -309,11 +309,11 @@ def delete_negotiation_files(request, negotiation_id):
     return JsonResponse({'message': _('Negotiation %(id)s deleted successfully') % {'id': negotiation_id}})
 
 
-@requestor_otp_required
+@requestor_auth_required
 def negotiation_list_api_req(request):
-    print("🔍 negotiation_list_api_req: requestor_email =", request.requestor_email)  # <<–– debug
+    # print("🔍 negotiation_list_api_req: requestor_email =", request.requestor_email)  # <<–– debug
     email = request.requestor_email
-    print(f"🔍 negotiation_list_api_req: email = {email}")  # <<–– debug
+    # print(f"🔍 negotiation_list_api_req: email = {email}")  # <<–– debug
     if not email:
         return JsonResponse({'error': 'Email parameter is required'}, status=400)
 
@@ -341,7 +341,7 @@ def negotiation_list_api_req(request):
     return JsonResponse(data, safe=False)
 
 
-@owner_otp_required
+@owner_auth_required
 def negotiation_list_api(request):
 
     email = request.owner_email
