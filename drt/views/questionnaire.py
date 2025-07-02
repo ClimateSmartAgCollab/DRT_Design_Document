@@ -1,3 +1,4 @@
+# drt\views\questionnaire.py
 
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
@@ -21,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 @api_view(['GET'])
-# todo: using cahce decorator ---> @cache_page(86400)
 def generate_nlinks(request, link_id):
     link_table = cache.get('link_table')
     if not link_table:
@@ -41,9 +41,7 @@ def generate_nlinks(request, link_id):
             state='requestor_open'
         )
     except Exception as e:
-        # Log full traceback to console
         logger.error(traceback.format_exc())
-        # Also return it in the response so front-end can display it
         return JsonResponse({'error': str(e)}, status=500)
 
     logger.info(f"Negotiation created with PK: {negotiation.pk}")
@@ -52,26 +50,19 @@ def generate_nlinks(request, link_id):
     # todo: use uuid7 that includes embedded timestamp data,to manage time-related functionality for link expiration.
     # Create NLink and associate it with the Negotiation
     owner_link_id, requestor_link_id = uuid.uuid4(), uuid.uuid4()
-    # print(f"Owner Link ID: {owner_link_id}")  # <-- debug
-    # print(f"Requestor Link ID: {requestor_link_id}")  # <-- debug
 
     nlink = NLink.objects.create(
         negotiation=negotiation,
-        owner_id=example_link['owner_id'],  # Owner ID from cache
-        license_id=example_link['license_id'],  # License ID from cache
-        # dataset_ID=example_link['data_label'],  # Dataset ID from cache
-        data_label=example_link['data_label'],  # Data label from cache
-        tags=example_link['tags'],  # Tags from cache
+        owner_id=example_link['owner_id'],  
+        license_id=example_link['license_id'],  
+        # dataset_ID=example_link['data_label'],  
+        data_label=example_link['data_label'],  
+        tags=example_link['tags'],  
         requestor_link=requestor_link_id,
         owner_link=owner_link_id,
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
     )
 
-    # print(f"Created NLink with ID: {nlink.requestor_link}")  # <-- debug
-    # # Redirect the requestor to the email entry page
-    # return redirect('requestor_email_entry', link_id=requestor_link_id)
-
-    # Instead of redirecting, return the requestor_link_id as JSON
     return JsonResponse({
         'requestor_link_id': str(requestor_link_id)
     })
@@ -87,7 +78,6 @@ def request_access(request, link_id):
 
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
-    # print(f"Questionnaire Link: {questionnaire_url}")
 
     return Response({'status': 'Link sent successfully!', 'link': questionnaire_url})
 
@@ -167,15 +157,12 @@ def fill_questionnaire(request, link_id):
                 )
                 msg.send(fail_silently=False)
 
-                # print(
-                #     f"Email sent to {owner_email} with link: {owner_review_url}")
 
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
 
         return JsonResponse({'error': 'Invalid action specified.'}, status=400)
 
     else:
-        # For GET requests, retrieve questionnaire, saved answers, AND any owner feedback
         sample_questionnaire = cache.get("OCA_package_schema_paper")
         saved_responses = negotiation.requestor_responses or {}
         owner_blob = negotiation.owner_responses or "{}"
@@ -194,7 +181,6 @@ def owner_review(request, link_id):
     nlink = get_object_or_404(NLink, owner_link=link_id)
     negotiation = nlink.negotiation
 
-    # Handle GET request and return JSON data
     if request.method == 'GET':
         bypass_completed = request.query_params.get('success') == 'true'
 
@@ -204,7 +190,6 @@ def owner_review(request, link_id):
         if negotiation.state == 'completed' and not bypass_completed:
             return Response({'error': 'The negotiation is completed and cannot be edited.'}, status=403)
 
-        # Return negotiation details as JSON
         return Response({
             'owner_responses': negotiation.owner_responses,
             'comments': negotiation.comments,
@@ -212,16 +197,12 @@ def owner_review(request, link_id):
             'state': negotiation.state,
         })
 
-    # Handle POST requests for different actions
     if request.method == 'POST':
-        data = request.data  # Use `request.data` to access JSON body
+        data = request.data  
 
         if 'save' in data:
             negotiation.owner_responses = data.get('owner_responses', '')
-            # Debugging line
-            # print(f"Owner Responses: {negotiation.owner_responses}")
             negotiation.comments = data.get('comments', '')
-            # print(f"Comments: {negotiation.comments}")  # Debugging line
             negotiation.save()
             return Response({'message': 'Review saved successfully!'})
 

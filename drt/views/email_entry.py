@@ -33,15 +33,13 @@ def requestor_email_entry(request, link_id):
                 'is_verified': False,
             }
         )
-        user_id = str(requestor.requestor_id)  
 
-        # Generate a secure random token for the magic link
         token = secrets.token_urlsafe(32)
         expiry = timezone.now() + datetime.timedelta(minutes=10)
 
-        # Store in cache for verification
-        cache.set(f"req_auth:{email}", {
-                  'uid': user_id, 'token': token, 'expiry': expiry, 'link_id': link_id}, 600)
+        cache.set(f"magic_token:{token}", {
+            'email': email, 'expiry': expiry, 'link_id': link_id
+        }, 600)
 
         # Update the Requestor with the new token and expiry
         requestor.otp = token  # Reusing otp field for token
@@ -53,11 +51,10 @@ def requestor_email_entry(request, link_id):
         nlink.requestor_email = email
         nlink.save(update_fields=['requestor_email'])
 
-        # Create magic link URL for this [link_id] flow
-        magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?uid={user_id}&token={token}&email={email}"
+        magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?token={token}"
 
         msg = EmailMultiAlternatives(
-            subject="Magic Link for Requestor Verification",
+            subject="Access Link for Requestor Verification",
             body=(
                 "Hello Dear Requestor,\n\n"
                 "Click the link below to verify your email and access the questionnaire:\n\n"
@@ -75,7 +72,7 @@ def requestor_email_entry(request, link_id):
         )
         msg.send(fail_silently=False)
 
-        magic_link_path = f"/negotiation/{link_id}/magic-link-verification?uid={user_id}&token={token}&email={email}"
+        magic_link_path = f"/negotiation/{link_id}/magic-link-verification?token={token}"
         return Response({'redirect_url': settings.FRONTEND_BASE_URL + magic_link_path})
 
     except ValidationError:
