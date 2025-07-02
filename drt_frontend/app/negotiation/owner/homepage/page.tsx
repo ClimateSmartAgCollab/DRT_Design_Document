@@ -45,14 +45,16 @@ export default function OwnerHomePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const whoamiQuery = useQuery<WhoamiResponse, Error>({
+  const whoamiQuery = useQuery({
     queryKey: ["owner", "whoami"],
-    queryFn: fetchWhoami,
-    staleTime: 1000 * 60 * 5, // 5m
-    retry: false, // no retry on 401
+    queryFn: async () => {
+      const res = await fetchApi("/drt/owner/whoami/");
+      if (!res.ok) throw new Error("Not authenticated");
+      return res.json();
+    },
+    retry: false,
   });
 
-  // Redirect on error
   React.useEffect(() => {
     if (whoamiQuery.isError) {
       router.replace("/negotiation/owner/email-entry");
