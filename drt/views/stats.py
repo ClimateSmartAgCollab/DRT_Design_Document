@@ -13,7 +13,6 @@ from django.shortcuts import get_object_or_404
 from .utils import owner_auth_required, requestor_auth_required
 from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.decorators import api_view
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 import json
 import logging
@@ -311,9 +310,7 @@ def delete_negotiation_files(request, negotiation_id):
 
 @requestor_auth_required
 def negotiation_list_api_req(request):
-    # print("🔍 negotiation_list_api_req: requestor_email =", request.requestor_email)  # <<–– debug
     email = request.requestor_email
-    # print(f"🔍 negotiation_list_api_req: email = {email}")  # <<–– debug
     if not email:
         return JsonResponse({'error': 'Email parameter is required'}, status=400)
 
@@ -401,9 +398,7 @@ def submission_view(request):
         return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
 
     submission = json.loads(request.body)
-    print("submission:", submission)  # <<–– debug
     fmt = request.GET.get("format", "json").lower()
-    print(f"🔍 submission_view: format param = '{fmt}'")   # <<–– debug
 
     env = Environment(
         loader=FileSystemLoader("drt/templates"),

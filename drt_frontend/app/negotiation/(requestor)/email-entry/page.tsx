@@ -38,7 +38,7 @@ export default function ReqEmailEntry() {
       });
       if (!res.ok) {
         const body = await res.json();
-        throw new Error(body.error || "Failed to send magic link");
+        throw new Error(body.error || "Failed to send Access link");
       }
     },
     onSuccess: (_data, variables) => {
@@ -73,10 +73,10 @@ export default function ReqEmailEntry() {
             </svg>
           </div>
           <h1 className="text-2xl font-semibold text-gray-800">
-            Magic Link Sent!
+            Access Link Sent!
           </h1>
           <p className="text-gray-600">
-            Check your email and click the magic link to access the dashboard.
+            Check your email and click the Access link to access the dashboard.
           </p>
           <button
             onClick={() => {
@@ -119,7 +119,7 @@ export default function ReqEmailEntry() {
           Verify Your Email
         </h1>
         <p className="text-gray-600">
-          We'll send you a magic link to access the dashboard.
+          We'll send you a Access link to access the dashboard.
         </p>
 
         {/* Validation & Errors */}
@@ -152,7 +152,7 @@ export default function ReqEmailEntry() {
               : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
-          {isPending ? "Sending…" : "Send Magic Link"}
+          {isPending ? "Sending…" : "Send Access Link"}
         </button>
       </section>
     </main>

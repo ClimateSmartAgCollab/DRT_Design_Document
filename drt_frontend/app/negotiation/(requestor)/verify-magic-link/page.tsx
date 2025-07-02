@@ -12,14 +12,12 @@ export default function RequestorVerifyMagicLink() {
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const uid = searchParams.get('uid');
   const token = searchParams.get('token');
-  const email = searchParams.get('email');
 
   useEffect(() => {
-    if (!uid || !token || !email) {
+    if (!token) {
       setStatus('error');
-      setErrorMessage('Invalid magic link. Missing required parameters.');
+      setErrorMessage('Invalid access link. Missing required parameters.');
       return;
     }
 
@@ -30,7 +28,7 @@ export default function RequestorVerifyMagicLink() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ uid, token, email }),
+          body: JSON.stringify({ token}),
         });
 
         if (response.ok) {
@@ -40,7 +38,7 @@ export default function RequestorVerifyMagicLink() {
           // Redirect to requestor dashboard after a short delay
           setTimeout(() => {
             router.push('/negotiation/homepage');
-          }, 2000);
+          }, 1000);
         } else {
           const errorData = await response.json();
           setStatus('error');
@@ -53,14 +51,14 @@ export default function RequestorVerifyMagicLink() {
     };
 
     verifyMagicLink();
-  }, [uid, token, email, router, queryClient]);
+  }, [token, router, queryClient]);
 
   if (status === 'verifying') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying your magic link...</p>
+          <p className="text-gray-600">Verifying your access link...</p>
         </div>
       </div>
     );

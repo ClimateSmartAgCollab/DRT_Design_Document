@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
 export default function MagicLinkVerificationPage() {
@@ -13,14 +12,12 @@ export default function MagicLinkVerificationPage() {
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const uid = searchParams.get('uid');
   const token = searchParams.get('token');
-  const email = searchParams.get('email');
 
   useEffect(() => {
-    if (!uid || !token || !email) {
+    if (!token) {
       setStatus('error');
-      setErrorMessage('Invalid magic link. Missing required parameters.');
+      setErrorMessage('Invalid access link. Missing required parameters.');
       return;
     }
 
@@ -31,7 +28,7 @@ export default function MagicLinkVerificationPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ uid, token, email }),
+          body: JSON.stringify({ token }),
         });
 
         if (response.ok) {
@@ -39,7 +36,7 @@ export default function MagicLinkVerificationPage() {
           // Redirect to request access page after a short delay
           setTimeout(() => {
             router.push(`/negotiation/${linkId}/request-access`);
-          }, 2000);
+          }, 1000);
         } else {
           const errorData = await response.json();
           setStatus('error');
@@ -52,7 +49,7 @@ export default function MagicLinkVerificationPage() {
     };
 
     verifyMagicLink();
-  }, [uid, token, email, router, linkId]);
+  }, [token, router, linkId]);
 
   if (status === 'verifying') {
     return (
@@ -64,9 +61,9 @@ export default function MagicLinkVerificationPage() {
           </div>
 
           <h1 className="text-2xl font-semibold text-gray-800">
-            Verifying Magic Link
+            Verifying Access Link
           </h1>
-          <p className="text-gray-600">Please wait while we verify your magic link...</p>
+          <p className="text-gray-600">Please wait while we verify your access link...</p>
         </section>
       </main>
     );
