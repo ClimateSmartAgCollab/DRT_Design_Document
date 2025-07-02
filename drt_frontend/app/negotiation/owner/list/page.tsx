@@ -1,8 +1,8 @@
 // drt_frontend\app\negotiation\owner\list\page.tsx
 "use client";
-import React, { useState, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useNegotiations } from "./hooks/useNegotiations";
 import { useFilterState } from "./hooks/useFilterState";
 import { Status, ArchivedFilter, SortOption } from "./types";
@@ -13,9 +13,11 @@ import {
   deleteOldNegotiations,
   deleteNegotiation,
 } from "./services/negotiationApi";
+import fetchApi from "@/app/api/apiHelper";
 
 export default function NegotiationListPage() {
   const router = useRouter();
+  const { link_id } = useParams();
   const qc = useQueryClient();
   const { data: negs, error, isLoading, reload } = useNegotiations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -113,6 +115,22 @@ export default function NegotiationListPage() {
     (n) =>
       Date.now() - new Date(n.timestamps).getTime() > 30 * 24 * 60 * 60 * 1000
   );
+
+  const whoamiQuery = useQuery({
+    queryKey: ["owner", "whoami"],
+    queryFn: async () => {
+      const res = await fetchApi("/drt/owner/whoami/");
+      if (!res.ok) throw new Error("Not authenticated");
+      return res.json();
+    },
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (whoamiQuery.isError) {
+      router.replace("/negotiation/owner/email-entry");
+    }
+  }, [whoamiQuery.isError, router]);
 
   return (
     <div className="flex min-h-screen bg-gray-50">

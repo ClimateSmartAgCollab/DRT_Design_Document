@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useNegotiations } from "./hooks/useNegotiations";
 import { useFilterState } from "./hooks/useFilterState";
 import { useRouter } from "next/navigation";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { Status, ArchivedFilter, SortOption } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { BulkActionBar } from "./components/BulkActionBar";
@@ -13,6 +13,7 @@ import {
   deleteOldNegotiations,
   deleteNegotiation,
 } from "./services/negotiationApi";
+import fetchApi from "@/app/api/apiHelper";
 
 export default function NegotiationListPage() {
   const router = useRouter();
@@ -113,6 +114,22 @@ export default function NegotiationListPage() {
     (n) =>
       Date.now() - new Date(n.timestamps).getTime() > 30 * 24 * 60 * 60 * 1000
   );
+
+  // Add authentication check
+  const whoamiQuery = useQuery({
+    queryKey: ["requestor", "whoami"],
+    queryFn: async () => {
+      const res = await fetchApi("/drt/auth/req_whoami/");
+      if (!res.ok) throw new Error("Not authenticated");
+      return res.json();
+    },
+    retry: false,
+  });
+  React.useEffect(() => {
+    if (whoamiQuery.isError) {
+      router.replace("/negotiation/email-entry");
+    }
+  }, [whoamiQuery.isError, router]);
 
   return (
     <div className="flex min-h-screen bg-gray-50">

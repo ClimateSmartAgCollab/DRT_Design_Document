@@ -44,14 +44,16 @@ async function fetchLoadData(): Promise<LoadResponse> {
 export default function RequestorHomePage() {
   const router = useRouter();
 
-  const whoamiQuery = useQuery<WhoamiResponse, Error>({
-    queryKey: ["owner", "whoami"],
-    queryFn: fetchWhoami,
-    staleTime: 1000 * 60 * 5, // 5m
-    retry: false, // no retry on 401
+  const whoamiQuery = useQuery({
+    queryKey: ["requestor", "whoami"],
+    queryFn: async () => {
+      const res = await fetchApi("/drt/auth/req_whoami/");
+      if (!res.ok) throw new Error("Not authenticated");
+      return res.json();
+    },
+    retry: false,
   });
 
-  // Redirect on error
   React.useEffect(() => {
     if (whoamiQuery.isError) {
       router.replace("/negotiation/email-entry");
