@@ -119,7 +119,7 @@ export default function NegotiationListPage() {
   const whoamiQuery = useQuery({
     queryKey: ["requestor", "whoami"],
     queryFn: async () => {
-      const res = await fetchApi("/drt/auth/req_whoami/");
+      const res = await fetchApi("/drt/requestor/whoami/");
       if (!res.ok) throw new Error("Not authenticated");
       return res.json();
     },

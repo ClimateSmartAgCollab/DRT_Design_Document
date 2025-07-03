@@ -100,7 +100,7 @@ def export_summary_to_drt():
             owner_id=nlink,
             datasets_requested=datasets_list,
             data_label=ds_label,
-            tag='',  # empty string = “no tag”
+            tag='',  # empty string = "no tag"
             defaults={'overall_stat': overall_stat},
         )
         logger.info(f"Upserted no‐tag summary for NLink pk={nlink.pk}")
@@ -333,6 +333,7 @@ def negotiation_list_api_req(request):
             'timestamps': n.timestamps.isoformat(),
             # 'archived': n.archived,
             'requestor_link': str(requestor_link.requestor_link) if requestor_link else None,
+            'rationale': n.rationale,
         })
 
     return JsonResponse(data, safe=False)
@@ -372,6 +373,7 @@ def negotiation_list_api(request):
             'timestamps':         n.timestamps.isoformat(),
             'archived':           n.archived,
             'owner_link':         str(link.owner_link) if link else None,
+            'rationale':          n.rationale,
         })
 
     return JsonResponse(data, safe=False)

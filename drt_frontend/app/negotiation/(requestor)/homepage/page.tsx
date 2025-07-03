@@ -18,7 +18,9 @@ type LoadResponse = {
 };
 
 async function fetchWhoami(): Promise<WhoamiResponse> {
-  const res = await fetchApi("/drt/requestor/whoami/");
+  const res = await fetchApi("/drt/requestor/whoami/", {
+    credentials: "include", // ensure cookies (session/token) are sent
+  });
   if (!res.ok) {
     throw new Error("Not authenticated");
   }
@@ -46,11 +48,7 @@ export default function RequestorHomePage() {
 
   const whoamiQuery = useQuery({
     queryKey: ["requestor", "whoami"],
-    queryFn: async () => {
-      const res = await fetchApi("/drt/auth/req_whoami/");
-      if (!res.ok) throw new Error("Not authenticated");
-      return res.json();
-    },
+    queryFn: fetchWhoami,
     retry: false,
   });
 
@@ -60,29 +58,28 @@ export default function RequestorHomePage() {
     }
   }, [whoamiQuery.isError, router]);
 
-  
-    const loadDataQuery = useQuery<LoadResponse, Error>({
-      queryKey: ["datastore", "load-data"],
-      queryFn: fetchLoadData,
-      enabled: !!whoamiQuery.data, // wait for whoami
-      retry: 1, // retry once
-      staleTime: Infinity, // keep in cache for session
-    });
-  
-    // handle error side effects
-    React.useEffect(() => {
-      if (loadDataQuery.isError) {
-        console.error("Failed to load cache data:", loadDataQuery.error);
-      }
-    }, [loadDataQuery.isError, loadDataQuery.error]);
-  
-    if (whoamiQuery.isLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-screen text-gray-600">
-          Loading owner…
-        </div>
-      );
+  const loadDataQuery = useQuery<LoadResponse, Error>({
+    queryKey: ["datastore", "load-data"],
+    queryFn: fetchLoadData,
+    enabled: !!whoamiQuery.data, // wait for whoami
+    retry: 1, // retry once
+    staleTime: Infinity, // keep in cache for session
+  });
+
+  // handle error side effects
+  React.useEffect(() => {
+    if (loadDataQuery.isError) {
+      console.error("Failed to load cache data:", loadDataQuery.error);
     }
+  }, [loadDataQuery.isError, loadDataQuery.error]);
+
+  if (whoamiQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-600">
+        Loading owner…
+      </div>
+    );
+  }
   // whoamiQuery.onError already redirected, so we can bail silently:
   if (whoamiQuery.isError || !whoamiQuery.data) {
     return null;
@@ -104,7 +101,6 @@ export default function RequestorHomePage() {
   }
 
   const email = (whoamiQuery.data as unknown as WhoamiResponse).email;
-
 
   // ender the dashboard
   const requestorPages = [

@@ -63,6 +63,7 @@ class Negotiation(models.Model):
     questionnaire_SAID = models.CharField(max_length=255)
     timestamps = models.DateTimeField(auto_now_add=True)
     archived = models.BooleanField(default=False)
+    rationale = models.TextField(blank=True, null=True)
 
 
 class Archive(models.Model):

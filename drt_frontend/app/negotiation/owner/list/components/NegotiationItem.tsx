@@ -15,6 +15,14 @@ interface NegotiationItemProps {
   onReload: () => void;
 }
 
+function PrettyJSON({ data }: { data: any }) {
+  return (
+    <pre className="bg-gray-100 p-3 rounded-lg overflow-auto text-sm text-gray-800 whitespace-pre-wrap break-words border border-gray-200">
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
+}
+
 export function NegotiationItem({
   negotiation: n,
   isSelected,
@@ -88,20 +96,23 @@ export function NegotiationItem({
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">
-                  Requestor Responses
-                </h4>
-                <pre className="bg-white p-3 rounded-lg overflow-auto text-sm text-gray-700">
-                  {payload}
-                </pre>
+                <div className="mb-4">
+                  <h4 className="font-semibold text-gray-700 mb-2">Requestor Responses</h4>
+                  <PrettyJSON data={n.requestor_responses} />
+                </div>
               </div>
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">
-                  Owner Responses
-                </h4>
-                <pre className="bg-white p-3 rounded-lg overflow-auto text-sm text-gray-700">
-                  {JSON.stringify(n.owner_responses, null, 2)}
-                </pre>
+                <div className="mb-4">
+                  <h4 className="font-semibold text-gray-700 mb-2">Owner Responses</h4>
+                  <PrettyJSON data={n.owner_responses} />
+                </div>
+                {/* Show rationale if rejected */}
+                {n.state === 'rejected' && n.rationale && n.rationale.trim() && (
+                  <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-400 rounded">
+                    <h5 className="font-semibold text-blue-700 mb-1">Rationale for Rejection</h5>
+                    <div className="text-blue-800 whitespace-pre-line">{n.rationale}</div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
