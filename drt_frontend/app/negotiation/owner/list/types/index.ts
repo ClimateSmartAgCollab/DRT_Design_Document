@@ -10,6 +10,7 @@ export interface Negotiation {
   timestamps: string;
   archived: boolean;
   owner_link: string | null;
+  rationale?: string | null;
 }
 
 export const ALL_STATUSES = [

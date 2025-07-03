@@ -53,11 +53,11 @@ def generate_nlinks(request, link_id):
 
     nlink = NLink.objects.create(
         negotiation=negotiation,
-        owner_id=example_link['owner_id'],  
-        license_id=example_link['license_id'],  
-        # dataset_ID=example_link['data_label'],  
-        data_label=example_link['data_label'],  
-        tags=example_link['tags'],  
+        owner_id=example_link['owner_id'],
+        license_id=example_link['license_id'],
+        # dataset_ID=example_link['data_label'],
+        data_label=example_link['data_label'],
+        tags=example_link['tags'],
         requestor_link=requestor_link_id,
         owner_link=owner_link_id,
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
@@ -77,7 +77,6 @@ def request_access(request, link_id):
     # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
 
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
-
 
     return Response({'status': 'Link sent successfully!', 'link': questionnaire_url})
 
@@ -157,7 +156,6 @@ def fill_questionnaire(request, link_id):
                 )
                 msg.send(fail_silently=False)
 
-
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
 
         return JsonResponse({'error': 'Invalid action specified.'}, status=400)
@@ -195,10 +193,11 @@ def owner_review(request, link_id):
             'comments': negotiation.comments,
             'requestor_responses': negotiation.requestor_responses,
             'state': negotiation.state,
+            'rationale': negotiation.rationale,
         })
 
     if request.method == 'POST':
-        data = request.data  
+        data = request.data
 
         if 'save' in data:
             negotiation.owner_responses = data.get('owner_responses', '')
@@ -224,16 +223,19 @@ def owner_review(request, link_id):
             return Response({'message': 'Request accepted, license generated!'})
 
         elif 'reject' in data:
+            rationale = data.get('rationale', '')
+            negotiation.rationale = rationale
             negotiation.state = 'rejected'
             negotiation.save()
+            if rationale.strip():
+                send_rejection_email_with_rationale(
+                    nlink.requestor_email, nlink.requestor_link, rationale)
             return Response({'message': 'Request rejected!'})
 
         elif 'resend' in data:
             # simply re-send the attachments
             generate_license_and_notify_owner(nlink)
             return Response({'message': 'Email resent successfully!'})
-
-        return Response({'error': 'Invalid action.'}, status=400)
 
 
 def send_clarification_email(requestor_email, link_id):
@@ -253,6 +255,24 @@ def send_clarification_email(requestor_email, link_id):
             f"    {clarification_url}\n\n"
             "If you have any questions or need assistance, simply reach out to our support team at ssanavi@uoguelph.ca.\n\n"
             "Thank you for your prompt attention.\n\n"
+            "Best regards,\n"
+            "The DRT System"
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[requestor_email],
+        headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+    )
+    msg.send(fail_silently=False)
+
+
+def send_rejection_email_with_rationale(requestor_email, requestor_link, rationale):
+    msg = EmailMultiAlternatives(
+        subject="Your Data Request Was Rejected",
+        body=(
+            "Hello Dear Requestor,\n\n"
+            "We regret to inform you that your data request has been rejected by the owner.\n\n"
+            f"Rationale provided by the owner:\n\n{rationale}\n\n"
+            "If you have any questions or wish to revise your request, please contact our support team at ssanavi@uoguelph.ca.\n\n"
             "Best regards,\n"
             "The DRT System"
         ),

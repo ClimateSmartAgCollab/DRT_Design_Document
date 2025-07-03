@@ -69,11 +69,15 @@ export default function OwnerReviewPage() {
     []
   );
 
-  const mutationFn = async (action: string) => {
+  const mutationFn = async (
+    action: string,
+    extras: Record<string, string> = {}
+  ) => {
     const formData = new FormData();
     formData.append("owner_responses", JSON.stringify(fieldComments));
     formData.append("comments", globalComments);
     formData.append(action, "true");
+    Object.entries(extras).forEach(([k, v]) => formData.append(k, v));
 
     const res = await fetchApi(`/drt/owner_review/${link_id}/`, {
       method: "POST",
@@ -202,30 +206,37 @@ export default function OwnerReviewPage() {
 
           {/* Action Buttons */}
           <div className="flex space-x-3">
-            {["save", "request_clarification", "accept", "reject"].map(
-              (action) => (
-                <button
-                  key={action}
-                  onClick={() => actionMutation.mutate(action)}
-                  disabled={isActing}
-                  className={`px-4 py-2 rounded text-white font-medium transition ${
-                    isActing
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : action === "accept"
-                      ? "bg-green-600 hover:bg-green-700"
-                      : action === "reject"
-                      ? "bg-red-600 hover:bg-red-700"
-                      : action === "request_clarification"
-                      ? "bg-yellow-500 hover:bg-yellow-600"
-                      : "bg-blue-500 hover:bg-blue-600"
-                  }`}
-                >
-                  {isActing ? "Processing…" : action.replace("_", " ")}
-                </button>
-              )
-            )}
+            {["save", "request_clarification", "accept"].map((action) => (
+              <button
+                key={action}
+                onClick={() => actionMutation.mutate(action)}
+                disabled={isActing}
+                className={`px-4 py-2 rounded text-white font-medium transition ${
+                  isActing
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : action === "accept"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : action === "request_clarification"
+                    ? "bg-yellow-500 hover:bg-yellow-600"
+                    : "bg-blue-500 hover:bg-blue-600"
+                }`}
+              >
+                {isActing ? "Processing…" : action.replace("_", " ")}
+              </button>
+            ))}
+            {/* Reject button triggers rationale UI */}
+            <button
+              onClick={() => actionMutation.mutate("reject")}
+              disabled={isActing}
+              className={`px-4 py-2 rounded text-white font-medium transition ${
+                isActing
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              {isActing ? "Processing…" : "reject"}
+            </button>
           </div>
-
           {statusMessage && (
             <p className="mt-4 text-green-600">{statusMessage}</p>
           )}
