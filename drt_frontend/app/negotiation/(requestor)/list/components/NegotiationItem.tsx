@@ -95,23 +95,33 @@ export function NegotiationItem({
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <div className="mb-4">
-                  <h4 className="font-semibold text-gray-700 mb-2">Requestor Responses</h4>
+                <div className="mb-4 p-3 bg-red-50 rounded">
+                  <h4 className="font-semibold text-gray-700 mb-2">
+                    Requestor Responses
+                  </h4>
                   <PrettyJSON data={n.requestor_responses} />
                 </div>
               </div>
               <div>
-                <div className="mb-4">
-                  <h4 className="font-semibold text-gray-700 mb-2">Owner Responses</h4>
+                <div className="mb-4 p-3 bg-red-50 rounded">
+                  <h4 className="font-semibold text-gray-700 mb-2">
+                    Owner Responses
+                  </h4>
                   <PrettyJSON data={n.owner_responses} />
                 </div>
                 {/* Show rationale if rejected */}
-                {n.state === "rejected" && n.rationale && n.rationale.trim() && (
-                  <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-400 rounded">
-                    <h5 className="font-semibold text-blue-700 mb-1">Rationale for Rejection</h5>
-                    <div className="text-blue-800 whitespace-pre-line">{n.rationale}</div>
-                  </div>
-                )}
+                {n.state === "rejected" &&
+                  n.rationale &&
+                  n.rationale.trim() && (
+                    <div className="mb-4 p-3 bg-red-50 rounded">
+                      <h5 className="font-semibold text-gray-700 mb-2">
+                        Rationale for Rejection
+                      </h5>
+                      <pre className="bg-gray-100 p-3 rounded-lg overflow-auto text-sm text-gray-800 whitespace-pre-wrap break-words border border-gray-200">
+                        {n.rationale}
+                      </pre>
+                    </div>
+                  )}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
