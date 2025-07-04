@@ -113,10 +113,11 @@ export default function OwnerSummaryPage() {
     });
   }, [allData, dataLabel, tag, recordLabel, startDate, endDate]);
 
-  // Group filteredData by record_label, merging tags and summing numeric fields
+  // Group filteredData by both record_label and data_label, merging tags and summing numeric fields
   const groupedData = useMemo(() => {
     const map = new Map<string, {
       record_label: string;
+      data_label: string;
       tags: Set<string>;
       total_requests: number;
       accepted_requests: number;
@@ -124,13 +125,13 @@ export default function OwnerSummaryPage() {
       requestor_open: number;
       owner_open: number;
       generated_at: string; // Use latest
-      data_label: string;
     }>();
     filteredData.forEach(d => {
-      const key = d.record_label || "";
+      const key = `${d.record_label || ""}|${d.data_label}`;
       if (!map.has(key)) {
         map.set(key, {
           record_label: d.record_label || "",
+          data_label: d.data_label,
           tags: new Set(),
           total_requests: 0,
           accepted_requests: 0,
@@ -138,7 +139,6 @@ export default function OwnerSummaryPage() {
           requestor_open: 0,
           owner_open: 0,
           generated_at: d.generated_at,
-          data_label: d.data_label,
         });
       }
       const entry = map.get(key)!;
@@ -162,7 +162,7 @@ export default function OwnerSummaryPage() {
   // Use groupedData for table and chart
   const chartData = useMemo(
     () => ({
-      labels: groupedData.map((d) => `${d.record_label || "(all)"}`),
+      labels: groupedData.map((d) => `${d.data_label} - ${d.record_label || "All"}`),
       datasets: [
         {
           label: "Total",
@@ -274,7 +274,7 @@ export default function OwnerSummaryPage() {
               </thead>
               <tbody>
                 {groupedData.map((d) => (
-                  <tr key={`${d.record_label}-${d.generated_at}`}>
+                  <tr key={`${d.record_label}-${d.data_label}-${d.generated_at}`}>
                     <td className="border px-4 py-2">{d.record_label || "All"}</td>
                     <td className="border px-4 py-2">{d.data_label}</td>
                     <td className="border px-4 py-2">{d.tags || "All"}</td>

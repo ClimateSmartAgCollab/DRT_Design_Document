@@ -16,11 +16,11 @@ interface SidebarProps {
   onSortChange: (opt: SortOption) => void;
   onReset: () => void;
   tagOptions: string[];
-  selectedTag: string;
-  onTagChange: (tag: string) => void;
+  selectedTag: string[];
+  onTagChange: (tags: string[]) => void;
   recordLabelOptions: string[];
-  selectedRecordLabel: string;
-  onRecordLabelChange: (label: string) => void;
+  selectedRecordLabel: string[];
+  onRecordLabelChange: (labels: string[]) => void;
 }
 
 export function Sidebar({
@@ -43,8 +43,17 @@ export function Sidebar({
   selectedRecordLabel,
   onRecordLabelChange,
 }: SidebarProps) {
+  // Helper for All option
+  const handleAllChange = (type: 'tag' | 'recordLabel', checked: boolean) => {
+    if (type === 'tag') {
+      if (checked) onTagChange([]);
+    } else if (type === 'recordLabel') {
+      if (checked) onRecordLabelChange([]);
+    }
+  };
+
   return (
-    <aside className="w-72 bg-white border-r border-gray-200 p-6">
+    <aside className="w-80 bg-white border-r border-gray-200 p-6">
       <h2 className="mb-4 text-2xl font-semibold text-gray-800">Filters</h2>
 
       {/* Search */}
@@ -153,31 +162,69 @@ export function Sidebar({
       {/* Tag Filter */}
       <div className="mb-6">
         <label className="block text-sm font-medium mb-1">Tag</label>
-        <select
-          value={selectedTag}
-          onChange={e => onTagChange(e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm"
-        >
-          <option value="">All</option>
+        <div className="w-full border rounded px-3 py-2 text-sm bg-white max-h-40 overflow-y-auto">
+          <label className="flex items-center mb-1 truncate">
+            <input
+              type="checkbox"
+              checked={selectedTag.length === 0}
+              onChange={e => handleAllChange('tag', e.target.checked)}
+              className="mr-2"
+            />
+            <span className="truncate">All</span>
+          </label>
           {tagOptions.map(t => (
-            <option key={t} value={t}>{t}</option>
+            <label key={t} className="flex items-center mb-1 truncate">
+              <input
+                type="checkbox"
+                checked={selectedTag.includes(t)}
+                onChange={e => {
+                  if (e.target.checked) {
+                    onTagChange([...selectedTag, t]);
+                  } else {
+                    onTagChange(selectedTag.filter(tag => tag !== t));
+                  }
+                }}
+                className="mr-2"
+              />
+              <span className="truncate" title={t}>{t}</span>
+            </label>
           ))}
-        </select>
+          {tagOptions.length === 0 && <span className="text-gray-400">No tags</span>}
+        </div>
       </div>
 
       {/* Record Label Filter */}
       <div className="mb-6">
         <label className="block text-sm font-medium mb-1">Record Label</label>
-        <select
-          value={selectedRecordLabel}
-          onChange={e => onRecordLabelChange(e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm"
-        >
-          <option value="">All</option>
+        <div className="w-full border rounded px-3 py-2 text-sm bg-white max-h-40 overflow-y-auto">
+          <label className="flex items-center mb-1 truncate">
+            <input
+              type="checkbox"
+              checked={selectedRecordLabel.length === 0}
+              onChange={e => handleAllChange('recordLabel', e.target.checked)}
+              className="mr-2"
+            />
+            <span className="truncate">All</span>
+          </label>
           {recordLabelOptions.map(l => (
-            <option key={l} value={l}>{l}</option>
+            <label key={l} className="flex items-center mb-1 truncate">
+              <input
+                type="checkbox"
+                checked={selectedRecordLabel.includes(l)}
+                onChange={e => {
+                  if (e.target.checked) {
+                    onRecordLabelChange([...selectedRecordLabel, l]);
+                  } else {
+                    onRecordLabelChange(selectedRecordLabel.filter(label => label !== l));
+                  }
+                }}
+                className="mr-2"
+              />
+              <span className="truncate" title={l}>{l}</span>
+            </label>
           ))}
-        </select>
+          {recordLabelOptions.length === 0 && <span className="text-gray-400">No record labels</span>}
+        </div>
       </div>
 
       <button

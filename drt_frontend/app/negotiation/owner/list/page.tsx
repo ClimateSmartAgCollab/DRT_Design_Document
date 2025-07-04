@@ -21,8 +21,8 @@ export default function NegotiationListPage() {
   const qc = useQueryClient();
   const { data: negs, error, isLoading, reload } = useNegotiations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [selectedTag, setSelectedTag] = useState<string>("");
-  const [selectedRecordLabel, setSelectedRecordLabel] = useState<string>("");
+  const [selectedTag, setSelectedTag] = useState<string[]>([]);
+  const [selectedRecordLabel, setSelectedRecordLabel] = useState<string[]>([]);
 
   // Use the new filter state hook
   const {
@@ -92,8 +92,8 @@ export default function NegotiationListPage() {
         (filters.archivedFilter === "active" && !n.archived);
       const afterStart = !filters.startDate || created >= new Date(filters.startDate);
       const beforeEnd = !filters.endDate || created <= new Date(filters.endDate);
-      const matchesTag = !selectedTag || (Array.isArray(n.tags) ? n.tags.includes(selectedTag) : n.tags === selectedTag);
-      const matchesRecordLabel = !selectedRecordLabel || n.record_label === selectedRecordLabel;
+      const matchesTag = selectedTag.length === 0 || (Array.isArray(n.tags) ? n.tags.some(t => t && selectedTag.includes(t)) : (n.tags && selectedTag.includes(n.tags)));
+      const matchesRecordLabel = selectedRecordLabel.length === 0 || (n.record_label && selectedRecordLabel.includes(n.record_label));
       return (
         matchesSearch &&
         matchesStatus &&
