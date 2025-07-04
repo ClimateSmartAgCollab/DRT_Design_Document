@@ -100,18 +100,20 @@ export function NegotiationItem({
   };
 
   return (
-    <li className={`bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden${expanded ? ' ring-2 ring-blue-200' : ''}`}>
+    <li
+      className={`bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden${
+        expanded ? " ring-2 ring-blue-200" : ""
+      }`}
+    >
       <div className="flex items-center px-6 py-4 hover:bg-gray-100 transition">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => onToggleSelect(n.negotiation_id)}
           className="mr-4 h-4 w-4 text-blue-600"
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         />
-        <div
-          className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center"
-        >
+        <div className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center">
           <span className="font-semibold text-gray-800">
             ID: {n.negotiation_id}
           </span>
@@ -124,20 +126,20 @@ export function NegotiationItem({
           </span>
           {n.tags && n.tags.length > 0 && (
             <span className="flex items-center gap-1">
-              {Array.isArray(n.tags)
-                ? n.tags.map((tag, idx) => (
-                    <span
-                      key={tag + idx}
-                      className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200"
-                    >
-                      {tag}
-                    </span>
-                  ))
-                : (
-                    <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200">
-                      {n.tags}
-                    </span>
-                  )}
+              {Array.isArray(n.tags) ? (
+                n.tags.map((tag, idx) => (
+                  <span
+                    key={tag + idx}
+                    className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200"
+                  >
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200">
+                  {n.tags}
+                </span>
+              )}
             </span>
           )}
           {n.record_label && (
@@ -159,9 +161,14 @@ export function NegotiationItem({
           aria-label={expanded ? "Collapse details" : "Expand details"}
           aria-expanded={expanded}
           aria-controls={`negotiation-details-${n.negotiation_id}`}
-          onClick={e => { e.stopPropagation(); setExpanded(e => !e); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded((e) => !e);
+          }}
           title={expanded ? "Collapse details" : "Expand details"}
-          className={`ml-4 text-xl text-gray-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded transition-transform duration-200 ${expanded ? 'rotate-90' : 'rotate-0'}`}
+          className={`ml-4 text-xl text-gray-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded transition-transform duration-200 ${
+            expanded ? "rotate-90" : "rotate-0"
+          }`}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
