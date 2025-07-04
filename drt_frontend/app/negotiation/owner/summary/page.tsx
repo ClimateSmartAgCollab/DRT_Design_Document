@@ -53,6 +53,22 @@ async function fetchSummaryStats(): Promise<SummaryStat[]> {
 export default function OwnerSummaryPage() {
   const router = useRouter();
 
+  // Add authentication check (like owner list page)
+  const whoamiQuery = useQuery({
+    queryKey: ["owner", "whoami"],
+    queryFn: async () => {
+      const res = await fetchApi("/drt/owner/whoami/");
+      if (!res.ok) throw new Error("Not authenticated");
+      return res.json();
+    },
+    retry: false,
+  });
+  React.useEffect(() => {
+    if (whoamiQuery.isError) {
+      router.replace("/negotiation/owner/email-entry");
+    }
+  }, [whoamiQuery.isError, router]);
+
   // ——— React Query: load summary stats ———
   const summaryQuery = useQuery<SummaryStat[], Error>({
     queryKey: ["owner", "summary-statistics"],
