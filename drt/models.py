@@ -23,6 +23,7 @@ class NLink(models.Model):
     data_label = models.CharField(max_length=255, default='', db_index=True)
     tags = ArrayField(models.CharField(max_length=64),
                       default=list, db_index=True)
+    record_label = models.CharField(max_length=255, default='', db_index=True)
 
     requestor_email = models.EmailField(null=True, blank=True)
     requestor_link = models.UUIDField(default=uuid.uuid4, editable=False)
@@ -91,6 +92,7 @@ class SummaryStatistic(models.Model):
     data_label = models.CharField(max_length=255, default='')
     # blank==ALL for the aggregate row
     tag = models.CharField(max_length=64, blank=True)
+    record_label = models.CharField(max_length=255, default='', blank=True)
 
     def __str__(self):
         return f"Statistics for Owner: {self.owner_id} on {self.summary_date}"

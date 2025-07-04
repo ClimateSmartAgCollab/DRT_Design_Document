@@ -1,4 +1,3 @@
-// drt_frontend\app\negotiation\owner\links\page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -14,29 +13,20 @@ type LinkEntry = {
   expiry: string;
   label: string;
   tags: string;
+  recordLabel: string;
 };
 
 async function fetchOwnerLinks(): Promise<LinkEntry[]> {
   const res = await fetchApi("/drt/owner/links/");
-
-  // handle not authenticated
-  if (res.status === 401) {
-    throw new Error("Not authenticated");
-  }
-
-  // handle other errors
+  if (res.status === 401) throw new Error("Not authenticated");
   if (!res.ok) {
     let errMsg = `Unexpected status ${res.status}`;
     try {
       const errJson = await res.json();
       errMsg = errJson.error || errMsg;
-    } catch {
-      /* ignore JSON parse */
-    }
+    } catch {}
     throw new Error(errMsg);
   }
-
-  // parse and return links
   const data = (await res.json()) as { links: LinkEntry[] };
   return data.links;
 }
@@ -51,8 +41,8 @@ export default function OwnerLinks() {
   } = useQuery<LinkEntry[], Error>({
     queryKey: ["owner", "links"],
     queryFn: fetchOwnerLinks,
-    retry: 0, // no retries on GET
-    staleTime: Infinity, // cache until page unload
+    retry: 0,
+    staleTime: Infinity,
   });
 
   useEffect(() => {
@@ -68,6 +58,7 @@ export default function OwnerLinks() {
       </main>
     );
   }
+
   if (isError) {
     return (
       <main className="p-6 max-w-md mx-auto">
@@ -80,12 +71,11 @@ export default function OwnerLinks() {
     <Providers>
       <main className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-4xl mx-auto space-y-6">
-          {/* ← Back button */}
           <button
             onClick={() => router.push("/negotiation/owner/homepage")}
             className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
           >
-            Back to homepage
+            ← Back to homepage
           </button>
 
           <h1 className="text-3xl font-bold text-gray-800">
@@ -99,53 +89,55 @@ export default function OwnerLinks() {
               {links?.map((link) => (
                 <div
                   key={`${link.url}-${link.questionnaireId}`}
-                  className="
-                    bg-white rounded-2xl shadow-lg p-5 flex flex-col justify-between
-                    transform transition hover:shadow-2xl hover:-translate-y-1
-                  "
+                  className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 flex flex-col justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1"
                 >
-                  <h2 className="text-xl font-semibold mb-2 text-gray-800">
-                    {link.label}
-                    {link.tags ? ` (${link.tags})` : ""}
-                  </h2>
-
-                  <div className="text-sm text-gray-600 space-y-1 mb-4">
-                    <p>
-                      <span className="font-medium">Questionnaire:</span>{" "}
-                      <code>{link.questionnaireId}</code>
-                    </p>
-                    <p>
-                      <span className="font-medium">License ID:</span>{" "}
-                      <code>{link.licenseId}</code>
-                    </p>
-                    <p>
-                      <span className="font-medium">Expires:</span>{" "}
-                      <time>{link.expiry}</time>
-                    </p>
-                    <p>
-                      <span className="font-medium">URL:</span>{" "}
-                      <code className="break-all">{link.url}</code>
+                  <div className="mb-4">
+                    <h2 className="text-xl font-semibold text-red-800 break-words">
+                      {link.recordLabel}
+                    </h2>
+                    <p className="text-lg text-gray-700 break-words">
+                      {link.label}
+                      {link.tags ? ` (${link.tags})` : ""}
                     </p>
                   </div>
 
-                  <div className="flex space-x-2">
+                  <div className="text-sm text-gray-600 space-y-2 mb-6">
+                    <p>
+                      <span className="font-medium">Questionnaire:</span>{" "}
+                      <code className="break-all bg-gray-100 px-1 rounded">
+                        {link.questionnaireId}
+                      </code>
+                    </p>
+                    <p>
+                      <span className="font-medium">License ID:</span>{" "}
+                      <code className="break-all bg-gray-100 px-1 rounded">
+                        {link.licenseId}
+                      </code>
+                    </p>
+                    <p>
+                      <span className="font-medium">Expires:</span>{" "}
+                      <time className="whitespace-nowrap">{link.expiry}</time>
+                    </p>
+                    <p>
+                      <span className="font-medium">URL:</span>{" "}
+                      <code className="break-all bg-gray-100 px-1 rounded">
+                        {link.url}
+                      </code>
+                    </p>
+                  </div>
+
+                  <div className="flex space-x-3">
                     <a
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="
-                        flex-1 text-center py-2 bg-blue-600 text-white rounded-lg
-                        hover:bg-blue-700 transition
-                      "
+                      className="flex-1 text-center py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                     >
                       Visit
                     </a>
                     <button
                       onClick={() => navigator.clipboard.writeText(link.url)}
-                      className="
-                        flex-1 py-2 bg-gray-200 rounded-lg
-                        hover:bg-gray-300 transition
-                      "
+                      className="flex-1 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
                     >
                       Copy URL
                     </button>

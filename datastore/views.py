@@ -55,6 +55,7 @@ def load_github_data(request):
                 'expiry': row['expiry'],
                 'data_label': row['data_label'],
                 'tags': row['tags'].split(',') if row['tags'] else [],
+                'record_label': row['record_label'],
             }
         cache.set('link_table', link_table, timeout=60*60*24)
 

@@ -41,7 +41,7 @@ def export_summary_to_drt():
 
     per_group_stats = (
         NLink.objects
-        .values('owner_id', 'dataset_ID', 'data_label')
+        .values('owner_id', 'dataset_ID', 'data_label', 'record_label')
         .annotate(
             total_requests=Count('negotiation'),
             completed_requests=Count('negotiation', filter=Q(
@@ -54,29 +54,31 @@ def export_summary_to_drt():
                 negotiation__state='owner_open')),
         )
     )
-    logger.info(f"Found {per_group_stats.count()} owner/dataset groups")
+    logger.info(f"Found {per_group_stats.count()} owner/dataset/record_label groups")
 
     for grp in per_group_stats:
         owner_pk = grp['owner_id']
         ds_id = grp['dataset_ID']
         ds_label = grp['data_label']
+        record_label = grp['record_label']
 
         nlink = NLink.objects.filter(
             owner_id=owner_pk,
             dataset_ID=ds_id,
             data_label=ds_label,
+            record_label=record_label,
         ).first()
         if not nlink:
             logger.warning(
-                f"No NLink found for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}; skipping."
+                f"No NLink found for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}, record_label={record_label!r}; skipping."
             )
             continue
         logger.info(
-            f"Using NLink pk={nlink.pk} for {owner_pk!r}/{ds_id!r}/{ds_label!r}")
+            f"Using NLink pk={nlink.pk} for {owner_pk!r}/{ds_id!r}/{ds_label!r}/{record_label!r}")
 
         domain_qs = (
             NLink.objects
-            .filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label)
+            .filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label)
             .values(domain=F('requestor_email'))
             .annotate(request_count=Count('negotiation'))
         )
@@ -101,12 +103,13 @@ def export_summary_to_drt():
             datasets_requested=datasets_list,
             data_label=ds_label,
             tag='',  # empty string = "no tag"
-            defaults={'overall_stat': overall_stat},
+            record_label=record_label,
+            defaults={'overall_stat': overall_stat, 'record_label': record_label},
         )
         logger.info(f"Upserted no‐tag summary for NLink pk={nlink.pk}")
 
         tags = set()
-        for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label):
+        for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label):
             tags.update(link.tags)
         tags = sorted(tags)
 
@@ -115,6 +118,7 @@ def export_summary_to_drt():
                 owner_id=owner_pk,
                 dataset_ID=ds_id,
                 data_label=ds_label,
+                record_label=record_label,
                 tags__contains=[t],
             ).aggregate(
                 total_requests=Count('negotiation'),
@@ -143,7 +147,8 @@ def export_summary_to_drt():
                 datasets_requested=datasets_list,
                 data_label=ds_label,
                 tag=t,
-                defaults={'overall_stat': tag_stat_payload},
+                record_label=record_label,
+                defaults={'overall_stat': tag_stat_payload, 'record_label': record_label},
             )
             logger.info(f"Upserted tag={t!r} summary for NLink pk={nlink.pk}")
 
@@ -190,6 +195,7 @@ def owner_links_api(request):
                     "expiry": row.get("expiry") or "Never",
                     "label": row.get("data_label", ""),
                     "tags": row.get("tags", "(none)"),
+                    "recordLabel": row.get("record_label", ""),
                 }
             )
 
@@ -229,6 +235,7 @@ def summary_statistics_view(request):
             statistics_data.append({
                 'data_label':               stat.data_label,
                 'tag':                     stat.tag or '',
+                'record_label':            getattr(stat, 'record_label', ''),
                 'total_requests':           stats_block.get('total_requests', 0),
                 'accepted_requests':        stats_block.get('accepted_requests', 0),
                 'rejected_requests':        stats_block.get('rejected_requests', 0),
@@ -374,6 +381,8 @@ def negotiation_list_api(request):
             'archived':           n.archived,
             'owner_link':         str(link.owner_link) if link else None,
             'rationale':          n.rationale,
+            'tags': link.tags if link else [],
+            'record_label': link.record_label if link else "",
         })
 
     return JsonResponse(data, safe=False)

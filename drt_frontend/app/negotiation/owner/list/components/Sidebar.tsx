@@ -15,6 +15,12 @@ interface SidebarProps {
   sortOption: SortOption;
   onSortChange: (opt: SortOption) => void;
   onReset: () => void;
+  tagOptions: string[];
+  selectedTag: string;
+  onTagChange: (tag: string) => void;
+  recordLabelOptions: string[];
+  selectedRecordLabel: string;
+  onRecordLabelChange: (label: string) => void;
 }
 
 export function Sidebar({
@@ -30,6 +36,12 @@ export function Sidebar({
   sortOption,
   onSortChange,
   onReset,
+  tagOptions,
+  selectedTag,
+  onTagChange,
+  recordLabelOptions,
+  selectedRecordLabel,
+  onRecordLabelChange,
 }: SidebarProps) {
   return (
     <aside className="w-72 bg-white border-r border-gray-200 p-6">
@@ -135,6 +147,36 @@ export function Sidebar({
           <option className="font-sans text-sm" value="archived_last">
             Archived last
           </option>
+        </select>
+      </div>
+
+      {/* Tag Filter */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-1">Tag</label>
+        <select
+          value={selectedTag}
+          onChange={e => onTagChange(e.target.value)}
+          className="w-full border rounded px-3 py-2 text-sm"
+        >
+          <option value="">All</option>
+          {tagOptions.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Record Label Filter */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-1">Record Label</label>
+        <select
+          value={selectedRecordLabel}
+          onChange={e => onRecordLabelChange(e.target.value)}
+          className="w-full border rounded px-3 py-2 text-sm"
+        >
+          <option value="">All</option>
+          {recordLabelOptions.map(l => (
+            <option key={l} value={l}>{l}</option>
+          ))}
         </select>
       </div>
 

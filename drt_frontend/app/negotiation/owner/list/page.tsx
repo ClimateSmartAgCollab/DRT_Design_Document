@@ -21,6 +21,8 @@ export default function NegotiationListPage() {
   const qc = useQueryClient();
   const { data: negs, error, isLoading, reload } = useNegotiations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedTag, setSelectedTag] = useState<string>("");
+  const [selectedRecordLabel, setSelectedRecordLabel] = useState<string>("");
 
   // Use the new filter state hook
   const {
@@ -32,6 +34,22 @@ export default function NegotiationListPage() {
     setSortOption,
     resetFilters,
   } = useFilterState();
+
+  const tagOptions = useMemo(() => {
+    const tags = new Set<string>();
+    negs.forEach(n => {
+      if (Array.isArray(n.tags)) n.tags.forEach(t => t && tags.add(t));
+      else if (typeof n.tags === 'string' && n.tags) tags.add(n.tags);
+    });
+    return Array.from(tags);
+  }, [negs]);
+  const recordLabelOptions = useMemo(() => {
+    const labels = new Set<string>();
+    negs.forEach(n => {
+      if (n.record_label) labels.add(n.record_label);
+    });
+    return Array.from(labels);
+  }, [negs]);
 
   const deleteOne = useMutation({
     mutationFn: (id: string) => deleteNegotiation(id),
@@ -74,15 +92,19 @@ export default function NegotiationListPage() {
         (filters.archivedFilter === "active" && !n.archived);
       const afterStart = !filters.startDate || created >= new Date(filters.startDate);
       const beforeEnd = !filters.endDate || created <= new Date(filters.endDate);
+      const matchesTag = !selectedTag || (Array.isArray(n.tags) ? n.tags.includes(selectedTag) : n.tags === selectedTag);
+      const matchesRecordLabel = !selectedRecordLabel || n.record_label === selectedRecordLabel;
       return (
         matchesSearch &&
         matchesStatus &&
         matchesArchived &&
         afterStart &&
-        beforeEnd
+        beforeEnd &&
+        matchesTag &&
+        matchesRecordLabel
       );
     });
-  }, [negs, filters.searchTerm, filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate]);
+  }, [negs, filters.searchTerm, filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, selectedTag, selectedRecordLabel]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -147,6 +169,12 @@ export default function NegotiationListPage() {
         sortOption={filters.sortOption}
         onSortChange={setSortOption}
         onReset={resetFilters}
+        tagOptions={tagOptions}
+        selectedTag={selectedTag}
+        onTagChange={setSelectedTag}
+        recordLabelOptions={recordLabelOptions}
+        selectedRecordLabel={selectedRecordLabel}
+        onRecordLabelChange={setSelectedRecordLabel}
       />
 
       <main className="flex-1 p-8">

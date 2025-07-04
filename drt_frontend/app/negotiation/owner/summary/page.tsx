@@ -32,6 +32,7 @@ ChartJS.register(
 interface SummaryStat {
   data_label: string;
   tag: string; // still a plain string
+  record_label?: string;
   total_requests: number;
   accepted_requests: number;
   rejected_requests: number;
@@ -65,6 +66,7 @@ export default function OwnerSummaryPage() {
 
   const [dataLabel, setDataLabel] = useState<string>("");
   const [tag, setTag] = useState<string>("");
+  const [recordLabel, setRecordLabel] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
@@ -77,23 +79,28 @@ export default function OwnerSummaryPage() {
     () => Array.from(new Set(allData.map((d) => d.tag).filter((t) => t))),
     [allData]
   );
+  const recordLabelOptions = useMemo(
+    () => Array.from(new Set(allData.map((d) => typeof d.record_label === 'string' && d.record_label ? d.record_label : undefined).values()).values()).filter((l): l is string => Boolean(l)),
+    [allData]
+  );
 
   // ——— apply filters client-side ———
   const filteredData = useMemo(() => {
     return allData.filter((d) => {
       if (dataLabel && d.data_label !== dataLabel) return false;
       if (tag && d.tag !== tag) return false;
+      if (recordLabel && d.record_label !== recordLabel) return false;
       const genDate = new Date(d.generated_at);
       if (startDate && genDate < new Date(startDate)) return false;
       if (endDate && genDate > new Date(endDate)) return false;
       return true;
     });
-  }, [allData, dataLabel, tag, startDate, endDate]);
+  }, [allData, dataLabel, tag, recordLabel, startDate, endDate]);
 
   // ——— build chart data from filteredData ———
   const chartData = useMemo(
     () => ({
-      labels: filteredData.map((d) => `${d.data_label} / ${d.tag || "(all)"}`),
+      labels: filteredData.map((d) => `${d.data_label} / ${d.tag || "(all)"} / ${d.record_label || "(all)"}`),
       datasets: [
         {
           label: "Total",
@@ -143,6 +150,9 @@ export default function OwnerSummaryPage() {
           tagOptions={tagOptions}
           selectedTag={tag}
           onTagChange={setTag}
+          recordLabelOptions={recordLabelOptions}
+          selectedRecordLabel={recordLabel}
+          onRecordLabelChange={setRecordLabel}
           startDate={startDate}
           endDate={endDate}
           onDateChange={(field, v) =>
@@ -151,6 +161,7 @@ export default function OwnerSummaryPage() {
           onReset={() => {
             setDataLabel("");
             setTag("");
+            setRecordLabel("");
             setStartDate("");
             setEndDate("");
           }}
@@ -185,6 +196,7 @@ export default function OwnerSummaryPage() {
                   {[
                     "Data Label",
                     "Tag",
+                    "Record Label",
                     "Total",
                     "Accepted",
                     "Rejected",
@@ -200,9 +212,10 @@ export default function OwnerSummaryPage() {
               </thead>
               <tbody>
                 {filteredData.map((d) => (
-                  <tr key={`${d.data_label}-${d.tag}-${d.generated_at}`}>
+                  <tr key={`${d.data_label}-${d.tag}-${d.record_label}-${d.generated_at}`}>
                     <td className="border px-4 py-2">{d.data_label}</td>
                     <td className="border px-4 py-2">{d.tag || "(all)"}</td>
+                    <td className="border px-4 py-2">{d.record_label || "(all)"}</td>
                     <td className="border px-4 py-2">{d.total_requests}</td>
                     <td className="border px-4 py-2">{d.accepted_requests}</td>
                     <td className="border px-4 py-2">{d.rejected_requests}</td>

@@ -22,7 +22,7 @@ export default function MagicLinkVerificationPage() {
 
     const verifyMagicLink = async () => {
       try {
-        const response = await fetchApi(`/drt/verify/magic-link/${linkId}`, {
+        const response = await fetchApi(`/drt/verify/magic-link/${linkId}/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
