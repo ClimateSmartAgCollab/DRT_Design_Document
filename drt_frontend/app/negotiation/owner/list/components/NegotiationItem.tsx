@@ -100,17 +100,17 @@ export function NegotiationItem({
   };
 
   return (
-    <li className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div className="flex items-center px-6 py-4 cursor-pointer hover:bg-gray-100 transition">
+    <li className={`bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden${expanded ? ' ring-2 ring-blue-200' : ''}`}>
+      <div className="flex items-center px-6 py-4 hover:bg-gray-100 transition">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => onToggleSelect(n.negotiation_id)}
           className="mr-4 h-4 w-4 text-blue-600"
+          onClick={e => e.stopPropagation()}
         />
         <div
-          className="flex-1 flex flex-wrap gap-x-4 gap-y-1"
-          onClick={() => setExpanded((e) => !e)}
+          className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center"
         >
           <span className="font-semibold text-gray-800">
             ID: {n.negotiation_id}
@@ -122,6 +122,29 @@ export function NegotiationItem({
           <span className="text-gray-600">
             Archived: {n.archived ? "Yes" : "No"}
           </span>
+          {n.tags && n.tags.length > 0 && (
+            <span className="flex items-center gap-1">
+              {Array.isArray(n.tags)
+                ? n.tags.map((tag, idx) => (
+                    <span
+                      key={tag + idx}
+                      className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200"
+                    >
+                      {tag}
+                    </span>
+                  ))
+                : (
+                    <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200">
+                      {n.tags}
+                    </span>
+                  )}
+            </span>
+          )}
+          {n.record_label && (
+            <span className="ml-2 inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded border border-green-200">
+              Record Label: {n.record_label}
+            </span>
+          )}
           {n.state === "owner_open" && n.owner_link && (
             <Link
               href={`/negotiation/owner/${n.owner_link}/owner-review`}
@@ -131,15 +154,41 @@ export function NegotiationItem({
             </Link>
           )}
         </div>
-        <span className="text-xl text-gray-500">{expanded ? "▾" : "▸"}</span>
+        <button
+          type="button"
+          aria-label={expanded ? "Collapse details" : "Expand details"}
+          aria-expanded={expanded}
+          aria-controls={`negotiation-details-${n.negotiation_id}`}
+          onClick={e => { e.stopPropagation(); setExpanded(e => !e); }}
+          title={expanded ? "Collapse details" : "Expand details"}
+          className={`ml-4 text-xl text-gray-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded transition-transform duration-200 ${expanded ? 'rotate-90' : 'rotate-0'}`}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            fill="none"
+            viewBox="0 0 20 20"
+            className="inline-block align-middle"
+          >
+            <path
+              d="M6 8l4 4 4-4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </div>
       <AnimatePresence initial={false}>
         {expanded && (
           <motion.div
+            id={`negotiation-details-${n.negotiation_id}`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0 }}
+            transition={{ duration: 0.2 }}
             className="px-6 py-4 bg-gray-50 border-t border-gray-200 space-y-4"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
