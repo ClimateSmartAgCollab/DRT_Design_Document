@@ -11,6 +11,10 @@ interface SummarySidebarProps {
   selectedTag: string;
   onTagChange: (value: string) => void;
 
+  recordLabelOptions: string[];
+  selectedRecordLabel: string;
+  onRecordLabelChange: (value: string) => void;
+
   startDate: string;
   endDate: string;
   onDateChange: (field: "start" | "end", value: string) => void;
@@ -25,6 +29,9 @@ export function SummarySidebar({
   tagOptions,
   selectedTag,
   onTagChange,
+  recordLabelOptions,
+  selectedRecordLabel,
+  onRecordLabelChange,
   startDate,
   endDate,
   onDateChange,
@@ -62,6 +69,20 @@ export function SummarySidebar({
             <option key={t} value={t}>
               {t}
             </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-1">Record Label</label>
+        <select
+          value={selectedRecordLabel}
+          onChange={e => onRecordLabelChange(e.target.value)}
+          className="w-full border rounded px-3 py-2 text-sm"
+        >
+          <option value="">All</option>
+          {recordLabelOptions.map(l => (
+            <option key={l} value={l}>{l}</option>
           ))}
         </select>
       </div>

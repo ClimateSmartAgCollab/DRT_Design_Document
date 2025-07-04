@@ -58,6 +58,7 @@ def generate_nlinks(request, link_id):
         # dataset_ID=example_link['data_label'],
         data_label=example_link['data_label'],
         tags=example_link['tags'],
+        record_label=example_link['record_label'],
         requestor_link=requestor_link_id,
         owner_link=owner_link_id,
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)

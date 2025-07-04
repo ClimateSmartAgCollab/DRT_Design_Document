@@ -11,6 +11,8 @@ export interface Negotiation {
   archived: boolean;
   owner_link: string | null;
   rationale?: string | null;
+  tags?: string[];
+  record_label?: string;
 }
 
 export const ALL_STATUSES = [
