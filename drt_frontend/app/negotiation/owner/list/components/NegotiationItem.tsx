@@ -7,6 +7,7 @@ import {
   deleteNegotiation,
 } from "../services/negotiationApi";
 import Link from "next/link";
+import { parseJsonToFormStructure } from "@/app/components/parser";
 
 interface NegotiationItemProps {
   negotiation: Negotiation;
@@ -15,11 +16,58 @@ interface NegotiationItemProps {
   onReload: () => void;
 }
 
-function PrettyJSON({ data }: { data: any }) {
+function getFieldMeta() {
+  const steps = parseJsonToFormStructure();
+  const fieldMeta: Record<
+    string,
+    { label: string; options?: Record<string, string> }
+  > = {};
+  steps.forEach((step: any) => {
+    step.pages.forEach((page: any) => {
+      page.sections.forEach((section: any) => {
+        section.fields.forEach((field: any) => {
+          fieldMeta[field.id] = {
+            label: field.labels?.eng?.[field.id] || field.id,
+            options: field.options?.eng?.[field.id] || undefined,
+          };
+        });
+      });
+    });
+  });
+  return fieldMeta;
+}
+
+function ResponseTable({ data }: { data: Record<string, any> }) {
+  const fieldMeta = React.useMemo(getFieldMeta, []);
   return (
-    <pre className="bg-gray-100 p-3 rounded-lg overflow-auto text-sm text-gray-800 whitespace-pre-wrap break-words border border-gray-200">
-      {JSON.stringify(data, null, 2)}
-    </pre>
+    <table className="min-w-full text-sm border border-gray-200 rounded">
+      <tbody>
+        {Object.entries(data).map(([fieldId, value]) => {
+          if (fieldId === "save" || fieldId === "submit") return null;
+          const meta = fieldMeta[fieldId] || { label: fieldId };
+          let displayValue = value;
+          if (Array.isArray(value)) {
+            displayValue = value
+              .map((v) =>
+                meta.options && meta.options[v] ? meta.options[v] : v
+              )
+              .join(", ");
+          } else if (meta.options && meta.options[value]) {
+            displayValue = meta.options[value];
+          }
+          return (
+            <tr key={fieldId}>
+              <td className="font-medium py-1 pr-4 text-gray-700">
+                {meta.label}
+              </td>
+              <td className="py-1 text-gray-800">
+                {displayValue || <span className="text-gray-400">—</span>}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -96,31 +144,54 @@ export function NegotiationItem({
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <div className="mb-4 p-3 bg-red-50 rounded">
+                <div className="mb-4">
                   <h4 className="font-semibold text-gray-700 mb-2">
                     Requestor Responses
                   </h4>
-                  <PrettyJSON data={n.requestor_responses} />
+                  {/* Extract mainKey and render user-friendly table */}
+                  {(() => {
+                    const mainKey = Object.keys(
+                      n.requestor_responses || {}
+                    ).find((k) => k !== "save" && k !== "submit");
+                    const reqData =
+                      mainKey && n.requestor_responses
+                        ? n.requestor_responses[mainKey]
+                        : {};
+                    return <ResponseTable data={reqData} />;
+                  })()}
                 </div>
               </div>
               <div>
-                <div className="mb-4 p-3 bg-red-50 rounded">
+                <div className="mb-4">
                   <h4 className="font-semibold text-gray-700 mb-2">
                     Owner Responses
                   </h4>
-                  <PrettyJSON data={n.owner_responses} />
+                  {/* Parse owner responses if string */}
+                  {(() => {
+                    let ownerData = {};
+                    try {
+                      ownerData =
+                        n.owner_responses &&
+                        typeof n.owner_responses === "string"
+                          ? JSON.parse(n.owner_responses)
+                          : n.owner_responses || {};
+                    } catch {
+                      ownerData = {};
+                    }
+                    return <ResponseTable data={ownerData} />;
+                  })()}
                 </div>
                 {/* Show rationale if rejected */}
                 {n.state === "rejected" &&
                   n.rationale &&
                   n.rationale.trim() && (
-                    <div className="mb-4 p-3 bg-red-50 rounded">
+                    <div className="mb-4">
                       <h5 className="font-semibold text-gray-700 mb-2">
                         Rationale for Rejection
                       </h5>
-                      <pre className="bg-gray-100 p-3 rounded-lg overflow-auto text-sm text-gray-800 whitespace-pre-wrap break-words border border-gray-200">
+                      <div className="text-gray-800 whitespace-pre-line border border-gray-200">
                         {n.rationale}
-                      </pre>
+                      </div>
                     </div>
                   )}
               </div>
