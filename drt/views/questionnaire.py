@@ -16,6 +16,7 @@ import traceback
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from ..services.license import generate_license_and_notify_owner
+from .utils import owner_auth_required, requestor_auth_required
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,7 @@ def request_access(request, link_id):
 
 @csrf_exempt
 @api_view(['GET', 'POST'])
+@requestor_auth_required
 def fill_questionnaire(request, link_id):
     nlink = get_object_or_404(NLink, requestor_link=link_id)
     negotiation = nlink.negotiation
@@ -174,7 +176,7 @@ def fill_questionnaire(request, link_id):
             'comments':          global_comments,
         })
 
-
+@owner_auth_required
 @api_view(['GET', 'POST'])
 def owner_review(request, link_id):
     nlink = get_object_or_404(NLink, owner_link=link_id)

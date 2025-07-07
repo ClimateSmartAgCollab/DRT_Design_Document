@@ -1,7 +1,7 @@
 // app/negotiation/[link_id]/fill-questionnaire/page.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import fetchApi from "@/app/api/apiHelper";
 import Form from "../../../../components/Form/Form";
@@ -46,6 +46,7 @@ export default function FillQuestionnairePage() {
   const queryClient = useQueryClient();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   const {
     data,
@@ -98,20 +99,34 @@ export default function FillQuestionnairePage() {
   }, [data?.owner_responses]);
   const globalOwnerComments = data?.comments ?? "";
 
+  useEffect(() => {
+    if (
+      loadError &&
+      loadErrorObj &&
+      (loadErrorObj.message.includes("401") ||
+        loadErrorObj.message.includes("403") ||
+        loadErrorObj.message.toLowerCase().includes("authentication"))
+    ) {
+      setRedirecting(true);
+      router.replace("/negotiation/email-entry");
+    }
+  }, [loadError, loadErrorObj, router]);
+
+  if (
+    redirecting ||
+    (loadError &&
+      loadErrorObj &&
+      (loadErrorObj.message.includes("401") ||
+        loadErrorObj.message.includes("403") ||
+        loadErrorObj.message.toLowerCase().includes("authentication")))
+  ) {
+    return null;
+  }
+
   if (isLoadingData) {
     return (
       <div className="flex items-center justify-center h-screen">
         <p>Loading questionnaire…</p>
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-red-600">
-          Error: {loadErrorObj?.message || "Unknown error"}
-        </p>
       </div>
     );
   }

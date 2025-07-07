@@ -31,6 +31,9 @@ export default function OwnerReviewPage() {
   const qc = useQueryClient();
   const linkIdStr = Array.isArray(link_id) ? link_id[0] : link_id;
 
+  // Track if we are redirecting due to auth error
+  const [redirecting, setRedirecting] = useState(false);
+
   const {
     data: negotiation,
     error: fetchError,
@@ -41,6 +44,19 @@ export default function OwnerReviewPage() {
     queryFn: () => fetchNegotiation(linkIdStr!),
     retry: 1,
   });
+
+  useEffect(() => {
+    if (
+      errorNegotiation &&
+      fetchError &&
+      (fetchError.message.includes("401") ||
+        fetchError.message.includes("403") ||
+        fetchError.message.toLowerCase().includes("authentication"))
+    ) {
+      setRedirecting(true);
+      router.replace("/negotiation/owner/email-entry");
+    }
+  }, [errorNegotiation, fetchError, router]);
 
   const [fieldComments, setFieldComments] = useState<Record<string, string>>(
     {}
@@ -119,15 +135,19 @@ export default function OwnerReviewPage() {
     return parsedSteps.filter((s) => !childIds.has(s.id));
   }, [parsedSteps]);
 
+  if (
+    redirecting ||
+    (errorNegotiation &&
+      fetchError &&
+      (fetchError.message.includes("401") ||
+        fetchError.message.includes("403") ||
+        fetchError.message.toLowerCase().includes("authentication")))
+  ) {
+    return null;
+  }
+
   if (loadingNegotiation) {
     return <div className="p-6 text-center">Loading…</div>;
-  }
-  if (errorNegotiation) {
-    return (
-      <div className="p-6 text-red-500 text-center">
-        {fetchError?.message || "Failed to load data"}
-      </div>
-    );
   }
   if (!negotiation) return null;
 
