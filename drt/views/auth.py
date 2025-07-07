@@ -41,7 +41,14 @@ def owner_email_entry(request):
         token = secrets.token_urlsafe(32)
         expiry = timezone.now() + datetime.timedelta(minutes=10)
 
+        # Invalidate previous token for this email, if any
+        old_token = cache.get(f"magic_token_for:{email}")
+        if old_token:
+            cache.delete(f"magic_token:{old_token}")
+
+        # Store the new token and a reverse mapping for easy invalidation
         cache.set(f"magic_token:{token}", { 'email': email, 'expiry': expiry}, 600)
+        cache.set(f"magic_token_for:{email}", token, 600)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
 
@@ -86,12 +93,17 @@ def verify_owner_magic_link(request):
             return Response({"error": "Access link expired"}, status=400)
 
         email = entry["email"]
-        # Optionally, add extra checks here
+
+        # Ensure this token is the latest for this email
+        latest_token = cache.get(f"magic_token_for:{email}")
+        if latest_token != token:
+            return Response({"error": "This link has been expired by a newer request."}, status=400)
 
         # Store owner_email in the Django session (signed cookie)
         request.session["owner_email"] = email
         cache.set(f"owner_logged_in:{email}", True, 3600)
         cache.delete(f"magic_token:{token}")
+        cache.delete(f"magic_token_for:{email}")
         logger.info(f"Access link verified for {email} at {timezone.now()}")
         return Response({"message": "verified"}, status=200)
 
@@ -129,7 +141,14 @@ def req_email_entry(request):
         token = secrets.token_urlsafe(32)
         expiry = timezone.now() + datetime.timedelta(minutes=10)
 
+        # Invalidate previous token for this email, if any
+        old_token = cache.get(f"magic_token_for:{email}")
+        if old_token:
+            cache.delete(f"magic_token:{old_token}")
+
+        # Store the new token and a reverse mapping for easy invalidation
         cache.set(f"magic_token:{token}", {'email': email, 'expiry': expiry}, 600)
+        cache.set(f"magic_token_for:{email}", token, 600)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/verify-magic-link?token={token}"
 
@@ -176,12 +195,17 @@ def verify_req_magic_link(request):
         email = entry["email"]
         if not email:
             return Response({"error": "Invalid Access link"}, status=400)
-        
+
+        # Ensure this token is the latest for this email
+        latest_token = cache.get(f"magic_token_for:{email}")
+        if latest_token != token:
+            return Response({"error": "This link has been expired by a newer request."}, status=400)
         
         # Store requestor_email in the Django session (signed cookie)
         request.session["requestor_email"] = email
         cache.set(f"req_logged_in:{email}", True, 3600)
         cache.delete(f"magic_token:{token}")
+        cache.delete(f"magic_token_for:{email}")
         logger.info(f"Access link verified for {email} at {timezone.now()}")
         return Response({'message': 'verified'}, status=200)
 

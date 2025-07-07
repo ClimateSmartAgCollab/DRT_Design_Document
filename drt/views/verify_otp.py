@@ -31,11 +31,19 @@ def verify_magic_link_view(request, link_id):
         token = secrets.token_urlsafe(32)
         expiry = timezone.now() + timedelta(minutes=10)
 
+        # Invalidate previous token for this email and link_id, if any
+        email_link_key = f"magic_token_for:{requestor.requestor_email}:{link_id}"
+        old_token = cache.get(email_link_key)
+        if old_token:
+            cache.delete(f"magic_token:{old_token}")
+
+        # Store the new token and a reverse mapping for easy invalidation
         cache.set(f"magic_token:{token}", {
             'email': requestor.requestor_email,
             'expiry': expiry,
             'link_id': link_id
         }, 600)
+        cache.set(email_link_key, token, 600)
 
         # Update expiry/token in DB for reference
         requestor.otp_expiry = expiry
@@ -86,6 +94,12 @@ def verify_magic_link_view(request, link_id):
             return Response({'error': 'Access link expired. Please resend and try again.'},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        # Only accept the latest token for this email and link_id
+        email_link_key = f"magic_token_for:{entry['email']}:{link_id}"
+        latest_token = cache.get(email_link_key)
+        if latest_token != token:
+            return Response({'error': 'This link has been expired by a newer request.'}, status=status.HTTP_400_BAD_REQUEST)
+
         # Mark as verified
         requestor.is_verified = True
         requestor.otp_expiry = timezone.now()
@@ -93,6 +107,7 @@ def verify_magic_link_view(request, link_id):
 
         # Clear cache
         cache.delete(f"magic_token:{token}")
+        cache.delete(email_link_key)
 
         # Optionally, set session/cookie here if needed
 
