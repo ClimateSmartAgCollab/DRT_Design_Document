@@ -20,14 +20,19 @@ export default function GenerateLinkPage() {
   const { link_id: linkId } = useParams<{ link_id: string }>();
   const router = useRouter();
 
+  const [redirecting, setRedirecting] = useState(false);
+
   const { mutate, isPending, isError, error } = useMutation<string, Error, void>(
     {
       mutationFn: () => generateLinkApi(linkId!),
       onSuccess: (requestorLinkId: string) => {
+        setRedirecting(true);
         router.push(`/negotiation/${requestorLinkId}/email-entry`);
       },
     }
   );
+
+  const loading = isPending || redirecting;
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -39,7 +44,7 @@ export default function GenerateLinkPage() {
         </h1>
 
         {/* Body */}
-        {isPending ? (
+        {loading ? (
           <p className="text-gray-600">Generating link…</p>
         ) : isError ? (
           <p className="text-red-600">{error.message}</p>
