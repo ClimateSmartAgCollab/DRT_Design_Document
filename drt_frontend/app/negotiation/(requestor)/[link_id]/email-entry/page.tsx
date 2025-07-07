@@ -10,6 +10,10 @@ export default function EmailEntry() {
   const [email, setEmail] = useState("");
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [resendError, setResendError] = useState<string | null>(null);
   const router = useRouter();
   const { link_id } = useParams(); // Access `link_id` with `useParams`
 
@@ -74,17 +78,50 @@ export default function EmailEntry() {
             Access Link Sent!
           </h1>
           <p className="text-gray-600">
-            Check your email and click the Access link to access the dashboard.
+            Check your email and click the Access link to access the questionnaire.
           </p>
-          <button
-            onClick={() => {
-              setSuccess(false);
-              setEmail("");
-            }}
-            className="w-full rounded-lg px-4 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 transition"
-          >
-            Send Another Link
-          </button>
+          {/* Resend feedback */}
+          {resendStatus === "success" && (
+            <p className="text-green-600 text-sm">Link resent!</p>
+          )}
+          {resendStatus === "error" && (
+            <p className="text-red-600 text-sm">{resendError}</p>
+          )}
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={async () => {
+                setResendStatus("loading");
+                setResendError(null);
+                try {
+                  await sendMagicLink(email);
+                  setResendStatus("success");
+                  setTimeout(() => setResendStatus("idle"), 2000);
+                } catch (err: any) {
+                  setResendStatus("error");
+                  setResendError(err?.message || "Failed to resend link");
+                }
+              }}
+              disabled={resendStatus === "loading"}
+              className={`w-full rounded-lg px-4 py-2 font-medium text-white transition ${
+                resendStatus === "loading"
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              {resendStatus === "loading" ? "Resending…" : `Resend to Same Email`}
+            </button>
+            <button
+              onClick={() => {
+                setSuccess(false);
+                setEmail("");
+                setResendStatus("idle");
+                setResendError(null);
+              }}
+              className="w-full rounded-lg px-4 py-2 font-medium text-blue-700 border border-blue-600 bg-white hover:bg-blue-50 transition"
+            >
+              Send to a New Email
+            </button>
+          </div>
         </section>
       </main>
     );

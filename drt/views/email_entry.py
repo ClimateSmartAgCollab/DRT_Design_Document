@@ -37,9 +37,17 @@ def requestor_email_entry(request, link_id):
         token = secrets.token_urlsafe(32)
         expiry = timezone.now() + datetime.timedelta(minutes=10)
 
+        # Invalidate previous token for this email and link_id, if any
+        email_link_key = f"magic_token_for:{email}:{link_id}"
+        old_token = cache.get(email_link_key)
+        if old_token:
+            cache.delete(f"magic_token:{old_token}")
+
+        # Store the new token and a reverse mapping for easy invalidation
         cache.set(f"magic_token:{token}", {
             'email': email, 'expiry': expiry, 'link_id': link_id
         }, 600)
+        cache.set(email_link_key, token, 600)
 
         # Update the Requestor with the new token and expiry
         requestor.otp = token  # Reusing otp field for token
