@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
-export default function RequestorVerifyMagicLink() {
+function VerifyMagicLinkContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -28,7 +28,7 @@ export default function RequestorVerifyMagicLink() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ token}),
+          body: JSON.stringify({ token }),
         });
 
         if (response.ok) {
@@ -91,5 +91,13 @@ export default function RequestorVerifyMagicLink() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function RequestorVerifyMagicLink() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VerifyMagicLinkContent />
+    </Suspense>
   );
 } 

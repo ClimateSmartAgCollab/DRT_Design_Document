@@ -13,6 +13,9 @@ django-cors-headers = "4.6.0"
 drf-spectacular = "0.27.2"
 django-debug-toolbar = "4.4.6"
 requests = "2.32.3"
+jinja2 = "*"
+whitenoise = "*"
+
 
 [dev-packages]
 

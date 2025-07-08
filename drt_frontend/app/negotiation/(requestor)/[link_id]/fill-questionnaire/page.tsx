@@ -13,7 +13,7 @@ export interface FillQuestionnaireResponse {
   comments?: string;
 }
 
-export async function fetchFillQuestionnaire(
+async function fetchFillQuestionnaire(
   linkId: string
 ): Promise<FillQuestionnaireResponse> {
   const res = await fetchApi(`/drt/fill_questionnaire/${linkId}/`);
@@ -27,7 +27,7 @@ export interface SubmitQuestionnairePayload {
   isSubmit: boolean;
 }
 
-export async function submitQuestionnaire(
+async function submitQuestionnaire(
   linkId: string,
   { answers, isSubmit }: SubmitQuestionnairePayload
 ): Promise<void> {
