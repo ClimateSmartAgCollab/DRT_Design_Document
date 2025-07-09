@@ -26,8 +26,8 @@ services:
       - "3000:3000" 
     # environment:
     #   - NODE_ENV=production
-    env_file:
-      - ./drt_frontend/.env      
+    # env_file:
+    #   - ./drt_frontend/.env      
     volumes:
       - ./drt_frontend:/app
       - /app/node_modules # Prevents overwriting the node_modules in the container
