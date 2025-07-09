@@ -7,8 +7,6 @@ services:
       - drt_backend
     command: python manage.py runserver 0.0.0.0:8000
     env_file:
-      - path: local.env
-        required: false
       - path: .env
         required: false
     ports:
@@ -39,12 +37,17 @@ services:
   postgres:
     image: postgres:13
     env_file:
-      - path: local.env
-        required: false
       - path: .env
         required: false
-
+    volumes:
+      - db_data:/var/lib/postgresql/data
   redis:
     image: redis:7-alpine
     container_name: drt-redis
     restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  db_data:
+  redis_data:      
