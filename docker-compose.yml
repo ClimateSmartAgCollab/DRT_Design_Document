@@ -20,7 +20,7 @@ services:
   frontend:
     build:
       context: ./drt_frontend
-      dockerfile: drt_frontend/Dockerfile
+      dockerfile: frontend.Dockerfile
     command: npm run dev
     ports:
       - "3000:3000" 
