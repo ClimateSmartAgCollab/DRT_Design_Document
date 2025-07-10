@@ -1,6 +1,7 @@
 # drt_core\settings\local.py
 from .base import *  # noqa: F403, F401
 import os
+# import dj_database_url
 
 
 # We open everything on local mode
