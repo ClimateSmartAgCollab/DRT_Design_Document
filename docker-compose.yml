@@ -7,7 +7,6 @@ services:
       - drt_backend
     command: python manage.py runserver 0.0.0.0:8000
     env_file:
-      - local.env
       - .env
     ports:
       - 8000:8000
@@ -26,8 +25,8 @@ services:
       - "3000:3000" 
     # environment:
     #   - NODE_ENV=production
-    # env_file:
-    #   - ./drt_frontend/.env      
+    env_file:
+      - ./drt_frontend/.env      
     volumes:
       - ./drt_frontend:/app
       - /app/node_modules # Prevents overwriting the node_modules in the container
@@ -37,7 +36,6 @@ services:
   postgres:
     image: postgres:13
     env_file:
-      - local.env
       - .env
     volumes:
       - db_data:/var/lib/postgresql/data
