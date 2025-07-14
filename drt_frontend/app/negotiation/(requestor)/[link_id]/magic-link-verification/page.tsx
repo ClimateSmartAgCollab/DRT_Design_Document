@@ -32,9 +32,9 @@ export default function MagicLinkVerificationPage() {
 
         if (response.ok) {
           setStatus('success');
-          // Redirect to request access page after a short delay
+          // Redirect to questionnaire page after a short delay
           setTimeout(() => {
-            router.push(`/negotiation/${linkId}/request-access`);
+            router.push(`/negotiation/${linkId}/fill-questionnaire`);
           }, 2000);
         } else {
           const errorData = await response.json();
