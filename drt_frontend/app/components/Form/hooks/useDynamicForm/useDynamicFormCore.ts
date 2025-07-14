@@ -241,13 +241,23 @@ export function useDynamicForm(parsedSteps: Step[]) {
         if (!element) return;
 
         if (field.type === "select" || field.type === "dropdown") {
-          const selectEl = element as HTMLSelectElement;
-          const storedValues = Array.isArray(fieldValue)
-            ? (fieldValue as string[])
-            : [fieldValue];
-          Array.from(selectEl.options).forEach((opt) => {
-            opt.selected = storedValues.includes(opt.value);
-          });
+          if (element instanceof HTMLInputElement && element.type === "checkbox") {
+            const checkboxes = document.querySelectorAll<HTMLInputElement>(`input[type=checkbox][name='${element.name}']`);
+            const storedValues = Array.isArray(fieldValue)
+              ? (fieldValue as string[])
+              : [fieldValue];
+            checkboxes.forEach((cb) => {
+              cb.checked = storedValues.includes(cb.value);
+            });
+          } else if (element instanceof HTMLSelectElement) {
+            const selectEl = element as HTMLSelectElement;
+            const storedValues = Array.isArray(fieldValue)
+              ? (fieldValue as string[])
+              : [fieldValue];
+            Array.from(selectEl.options).forEach((opt) => {
+              opt.selected = storedValues.includes(opt.value);
+            });
+          }
         } else {
           const inputEl = element as HTMLInputElement | HTMLTextAreaElement;
           inputEl.value = fieldValue;
