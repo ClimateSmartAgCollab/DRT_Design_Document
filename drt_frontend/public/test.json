@@ -1,0 +1,153 @@
+{
+  "oca_bundle": {
+    "bundle": {
+      "v": "OCAS11JSON000868_",
+      "d": "EETUdVCy9TwqIzHhHGnvAtssK-ASYj2ffejCJgmYtG0z",
+      "capture_base": {
+        "d": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+        "type": "spec/capture_base/1.1",
+        "attributes": {
+          "q1": "Text",
+          "q2": "Text"
+        },
+        "classification": "",
+        "flagged_attributes": []
+      },
+      "overlays": {
+        "character_encoding": {
+          "d": "EJo7dh5V5j8grVPmEnCRjucIf45fR5NB8Rpv1-6JYoWU",
+          "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+          "type": "spec/overlays/character_encoding/1.1",
+          "attribute_character_encoding": {
+            "q1": "utf-8",
+            "q2": "utf-8"
+          }
+        },
+        "conformance": {
+          "d": "EGddh7l-ITZ_PBSo6UFTZt0D0Z_yqwaOOyASuknX-sZW",
+          "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+          "type": "spec/overlays/conformance/1.1",
+          "attribute_conformance": {
+            "q1": "M",
+            "q2": "M"
+          }
+        },
+        "entry": [
+          {
+            "d": "EOz4bYxMLHY9KERNqzB3mSoFRGOpSN8ZcYHaQLC_I1Uo",
+            "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+            "type": "spec/overlays/entry/1.1",
+            "language": "eng",
+            "attribute_entries": {
+              "q2": {
+                "option1": "Academic",
+                "option2": "Commercial",
+                "option3": "Educational"
+              }
+            }
+          }
+        ],
+        "entry_code": {
+          "d": "EKlCWJfI-QrsFYN-JMU5enlgUnkQ8oP-P_s07uWEam2n",
+          "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+          "type": "spec/overlays/entry_code/1.1",
+          "attribute_entry_codes": {
+            "q2": ["option1", "option2", "option3"]
+          }
+        },
+        "information": [
+          {
+            "d": "EAZX9ywGf9vV-0r8bMWG0LwWnXOO3zcp7GNYEiVuFvCX",
+            "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+            "type": "spec/overlays/information/1.1",
+            "language": "eng",
+            "attribute_information": {
+              "q1": "What is your name",
+              "q2": "Check all intended use classifications that apply to your work and outputs"
+            }
+          }
+        ],
+        "label": [
+          {
+            "d": "EK2cUqc6JwVfN7Zyl8FXbECUaEDNuSVgAo1I2-LYoTLQ",
+            "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+            "type": "spec/overlays/label/1.1",
+            "language": "eng",
+            "attribute_categories": [],
+            "attribute_labels": {
+              "q1": "What is your name?",
+              "q2": "Check all intended use classifications that apply to your work and outputs:"
+            },
+            "category_labels": {}
+          }
+        ],
+        "meta": [
+          {
+            "d": "ECLyMNMaTn_shO_yRkD0OzVzKAe9VKy2K3Prgv8jS3J8",
+            "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+            "type": "spec/overlays/meta/1.1",
+            "language": "eng",
+            "description": "Basic metadata about the person and license.",
+            "name": "Information"
+          }
+        ]
+      }
+    },
+    "dependencies": []
+  },
+  "extensions": {
+    "form": [
+      {
+        "d": "###presentationDigest###",
+        "type": "###presentationType###",
+        "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+        "language": ["eng"],
+        "pages": [
+          {
+            "named_section": "page-1",
+            "attribute_order": [
+              {
+                "named_section": "section-1",
+                "attribute_order": ["q1", "q2"]
+              }
+            ]
+          }
+        ],
+        "page_order": ["page-1"],
+        "page_labels": {
+          "eng": {
+            "page-1": "Page 1: Information"
+          }
+        },
+        "sidebar_label": {
+          "eng": {
+            "page-1": "sidebar: Information"
+          }
+        },
+        "subheading": {
+          "eng": {
+            "page-1": "subheading: Information"
+          }
+        },
+        "interaction": [
+          {
+            "arguments": {
+              "q1": {
+                "type": "textarea",
+                "placeholder": {
+                  "eng": "Enter ..."
+                }
+              },
+              "q2": {
+                "type": "select"
+              }
+            }
+          }
+        ],
+        "title": {
+          "eng": "Information"
+        }
+      }
+    ]
+  }
+}
