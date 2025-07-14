@@ -57,7 +57,7 @@ export default function FieldRenderer({
   setIsNewChild,
 }: FieldRendererProps) {
   const theme = useTheme();
-  
+
   // pull in your context helpers
   const {
     createNewChild: ctxCreate,
@@ -84,7 +84,7 @@ export default function FieldRenderer({
   const buttonStyles = {
     backgroundColor: theme.colors.primary,
     color: theme.colors.white,
-    border: 'none',
+    border: "none",
     fontFamily: theme.fonts.body,
   };
 
@@ -101,15 +101,15 @@ export default function FieldRenderer({
         className="w-full rounded p-2"
         style={fieldStyles}
         // register the DOM ref both with RHF & your own ref-tracker
-        ref={el => {
+        ref={(el) => {
           rhfRef(el);
           registerFieldRef(field.id, el);
         }}
-        onChange={e => {
+        onChange={(e) => {
           rhfOnChange(e);
           handleFieldChange(e.target.value);
         }}
-        onBlur={e => {
+        onBlur={(e) => {
           rhfOnBlur(e);
           saveCurrentPageData();
         }}
@@ -125,8 +125,13 @@ export default function FieldRenderer({
         field={field}
         format={field.validation?.format || "YYYY-MM-DD"}
         fieldValue={value}
-        register={{ onChange: rhfOnChange, onBlur: rhfOnBlur, name: rhfName, ref: rhfRef }}
-        handleFieldChange={v => {
+        register={{
+          onChange: rhfOnChange,
+          onBlur: rhfOnBlur,
+          name: rhfName,
+          ref: rhfRef,
+        }}
+        handleFieldChange={(v) => {
           rhfOnChange({ target: { value: v } } as any);
           handleFieldChange(v);
         }}
@@ -140,9 +145,7 @@ export default function FieldRenderer({
     return (
       <div
         className={`flex ${
-          field.orientation === "vertical"
-            ? "flex-col"
-            : "flex-row space-x-4"
+          field.orientation === "vertical" ? "flex-col" : "flex-row space-x-4"
         }`}
       >
         {Object.entries(field.options?.[language] || {}).map(
@@ -160,15 +163,15 @@ export default function FieldRenderer({
                 value={optKey}
                 checked={value === optKey}
                 style={{ accentColor: theme.colors.primary }}
-                ref={el => {
+                ref={(el) => {
                   rhfRef(el);
                   registerFieldRef(field.id, el);
                 }}
-                onChange={e => {
+                onChange={(e) => {
                   rhfOnChange(e);
                   handleFieldChange(optKey);
                 }}
-                onBlur={e => {
+                onBlur={(e) => {
                   rhfOnBlur(e);
                   saveCurrentPageData();
                 }}
@@ -187,77 +190,50 @@ export default function FieldRenderer({
       ? (formData[stepId][field.id] as string[])
       : [];
 
+    const options = field.options?.[language] || {};
+
     return (
       <div>
-        {/* Tags of selected */}
-        <div className="mb-2 flex flex-wrap gap-2">
-          {selectedValues.length ? (
-            selectedValues.map(k => (
-              <span
-                key={k}
-                className="flex items-center rounded px-3 py-1 text-sm"
-                style={{ 
-                  backgroundColor: theme.colors.blue[100],
-                  color: theme.colors.blue[900]
+        {/* Render checkboxes for each option */}
+        <div className="flex flex-col gap-2">
+          {Object.entries(options).map(([optKey, optLabel]) => (
+            <label
+              key={optKey}
+              htmlFor={`${id}-${optKey}`}
+              className="flex items-center space-x-2"
+              style={{ color: theme.colors.text, fontFamily: theme.fonts.body }}
+            >
+              <input
+                id={`${id}-${optKey}`}
+                type="checkbox"
+                name={rhfName}
+                value={optKey}
+                checked={selectedValues.includes(optKey)}
+                ref={(el) => {
+                  rhfRef(el);
+                  registerFieldRef(field.id, el);
                 }}
-              >
-                {field.options?.[language]?.[k] || k}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const updated = selectedValues.filter(x => x !== k);
-                    handleFieldChange(updated);
-                    saveCurrentPageData();
-                  }}
-                  className="ml-2 hover:opacity-70"
-                  style={{ color: theme.colors.secondary }}
-                  aria-label={`Remove ${k}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))
-          ) : (
-            <p className="text-sm" style={{ color: theme.colors.grey[600] }}>
-              No options selected.
-            </p>
-          )}
+                onChange={(e) => {
+                  let updated: string[];
+                  if (e.target.checked) {
+                    updated = [...selectedValues, optKey];
+                  } else {
+                    updated = selectedValues.filter((x) => x !== optKey);
+                  }
+                  handleFieldChange(updated);
+                  rhfOnChange({ target: { value: updated } } as any);
+                  saveCurrentPageData();
+                }}
+                onBlur={(e) => {
+                  rhfOnBlur(e);
+                  saveCurrentPageData();
+                }}
+                style={{ accentColor: theme.colors.primary }}
+              />
+              <span>{optLabel}</span>
+            </label>
+          ))}
         </div>
-
-        <select
-          id={id}
-          name={rhfName}
-          multiple
-          className="w-full rounded p-2"
-          style={fieldStyles}
-          value={selectedValues}
-          ref={el => {
-            rhfRef(el);
-            registerFieldRef(field.id, el);
-          }}
-          onChange={e => {
-            // standard multi‐select extraction
-            const sel = Array.from(
-              e.target.selectedOptions,
-              o => o.value
-            );
-            handleFieldChange(sel);
-            rhfOnChange(e);
-            saveCurrentPageData();
-          }}
-          onBlur={e => {
-            rhfOnBlur(e);
-            saveCurrentPageData();
-          }}
-        >
-          {Object.entries(field.options?.[language] || {}).map(
-            ([optKey, optLabel]) => (
-              <option key={optKey} value={optKey}>
-                {optLabel}
-              </option>
-            )
-          )}
-        </select>
 
         {selectedValues.length > 0 && (
           <button
@@ -288,7 +264,7 @@ export default function FieldRenderer({
           onClick={() => {
             const newChild = ctxCreate(field.id, field.ref!);
             setIsNewChild(true);
-            const idx = parsedSteps.findIndex(s => s.id === field.ref);
+            const idx = parsedSteps.findIndex((s) => s.id === field.ref);
             if (idx >= 0) onNavigate(idx);
             window.scrollTo(0, 0);
           }}
@@ -302,11 +278,11 @@ export default function FieldRenderer({
         </button>
 
         {children.length > 0 && (
-          <div 
+          <div
             className="mt-4 rounded border p-4"
-            style={{ 
+            style={{
               backgroundColor: theme.colors.grey[200],
-              borderColor: theme.colors.grey[300]
+              borderColor: theme.colors.grey[300],
             }}
           >
             {/* …render table of children… */}
@@ -325,15 +301,15 @@ export default function FieldRenderer({
       className="w-full rounded p-2"
       style={fieldStyles}
       value={value ?? ""}
-      ref={el => {
+      ref={(el) => {
         rhfRef(el);
         registerFieldRef(field.id, el);
       }}
-      onChange={e => {
+      onChange={(e) => {
         rhfOnChange(e);
         handleFieldChange(e.target.value);
       }}
-      onBlur={e => {
+      onBlur={(e) => {
         rhfOnBlur(e);
         saveCurrentPageData();
       }}

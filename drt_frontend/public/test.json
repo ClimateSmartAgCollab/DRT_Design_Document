@@ -1,94 +1,125 @@
 {
   "oca_bundle": {
     "bundle": {
-      "v": "OCAS11JSON000868_",
-      "d": "EETUdVCy9TwqIzHhHGnvAtssK-ASYj2ffejCJgmYtG0z",
+      "v": "OCAS11JSON000c43_",
+      "d": "EBp7ZkmFyjyP0mFlvM-9i_RaJLCH06vo3XbzPOb_KwKY",
       "capture_base": {
-        "d": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+        "d": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
         "type": "spec/capture_base/1.1",
         "attributes": {
           "q1": "Text",
-          "q2": "Text"
+          "q2": [
+            "Text"
+          ]
         },
         "classification": "",
         "flagged_attributes": []
       },
       "overlays": {
-        "character_encoding": {
-          "d": "EJo7dh5V5j8grVPmEnCRjucIf45fR5NB8Rpv1-6JYoWU",
-          "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
-          "type": "spec/overlays/character_encoding/1.1",
-          "attribute_character_encoding": {
-            "q1": "utf-8",
-            "q2": "utf-8"
-          }
-        },
-        "conformance": {
-          "d": "EGddh7l-ITZ_PBSo6UFTZt0D0Z_yqwaOOyASuknX-sZW",
-          "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
-          "type": "spec/overlays/conformance/1.1",
-          "attribute_conformance": {
-            "q1": "M",
-            "q2": "M"
-          }
-        },
         "entry": [
           {
-            "d": "EOz4bYxMLHY9KERNqzB3mSoFRGOpSN8ZcYHaQLC_I1Uo",
-            "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+            "d": "EBr_gfHUtGDZZGP8Qe2qkLdC3QwOqbPBLKX9oyp_NVPy",
+            "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
             "type": "spec/overlays/entry/1.1",
             "language": "eng",
             "attribute_entries": {
               "q2": {
-                "option1": "Academic",
-                "option2": "Commercial",
-                "option3": "Educational"
+                "academic": "Academic",
+                "commercial": "Commercial",
+                "educational": "Educational"
+              }
+            }
+          },
+          {
+            "d": "EDp0ylv9V10kwFcU980IHgIxQGYbRoJa_by1k3tWscTG",
+            "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
+            "type": "spec/overlays/entry/1.1",
+            "language": "fra",
+            "attribute_entries": {
+              "q2": {
+                "academic": "Académique",
+                "commercial": "Commerciale",
+                "educational": "Pédagogique"
               }
             }
           }
         ],
         "entry_code": {
-          "d": "EKlCWJfI-QrsFYN-JMU5enlgUnkQ8oP-P_s07uWEam2n",
-          "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+          "d": "EP-g_M75s8kbUX0JFr7bW8dJW9zEkSp_nXUGMABeKhXa",
+          "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
           "type": "spec/overlays/entry_code/1.1",
           "attribute_entry_codes": {
-            "q2": ["option1", "option2", "option3"]
+            "q2": [
+              "academic",
+              "commercial",
+              "educational"
+            ]
           }
         },
         "information": [
           {
-            "d": "EAZX9ywGf9vV-0r8bMWG0LwWnXOO3zcp7GNYEiVuFvCX",
-            "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+            "d": "EGedrqe7H7fFPaxv9dE8ZAdnQkF7TG_yBFx4DKcHcvVk",
+            "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
             "type": "spec/overlays/information/1.1",
             "language": "eng",
             "attribute_information": {
-              "q1": "What is your name",
+              "q1": "What is the full name of the data requestor?",
               "q2": "Check all intended use classifications that apply to your work and outputs"
+            }
+          },
+          {
+            "d": "EJiY6TA1LzkRZzw42V4hD6hhqvhp7JWCp6LZWDwormNh",
+            "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
+            "type": "spec/overlays/information/1.1",
+            "language": "fra",
+            "attribute_information": {
+              "q1": "Quel est le nom complet du demandeur de données ?",
+              "q2": "Cochez toutes les classifications d\\'utilisation prévues qui s\\'appliquent à votre travail et à vos résultats"
             }
           }
         ],
         "label": [
           {
-            "d": "EK2cUqc6JwVfN7Zyl8FXbECUaEDNuSVgAo1I2-LYoTLQ",
-            "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+            "d": "EHKmEG9IrzA1Vq1L0mZPHwpGAzbhakdIYpwSdWkGqtZy",
+            "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
             "type": "spec/overlays/label/1.1",
             "language": "eng",
             "attribute_categories": [],
             "attribute_labels": {
-              "q1": "What is your name?",
-              "q2": "Check all intended use classifications that apply to your work and outputs:"
+              "q1": "What is the full name of the data requestor?",
+              "q2": "Check all intended use classifications that apply to your work and outputs"
+            },
+            "category_labels": {}
+          },
+          {
+            "d": "EIpOxeMd3AhiJK6_s39XU_1dKZjJw-BGYHDlioGPMCl5",
+            "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
+            "type": "spec/overlays/label/1.1",
+            "language": "fra",
+            "attribute_categories": [],
+            "attribute_labels": {
+              "q1": "Quel est le nom complet du demandeur de données ?",
+              "q2": "Cochez toutes les classifications d'utilisation prévues qui s'appliquent à votre travail et à vos résultats"
             },
             "category_labels": {}
           }
         ],
         "meta": [
           {
-            "d": "ECLyMNMaTn_shO_yRkD0OzVzKAe9VKy2K3Prgv8jS3J8",
-            "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
+            "d": "EDDBPRoXToZXMfi78NjM5yXn0zGMzd6jeb7PWX_6XD9X",
+            "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
             "type": "spec/overlays/meta/1.1",
             "language": "eng",
-            "description": "Basic metadata about the person and license.",
-            "name": "Information"
+            "description": "Schéma pour les informations de demande de données",
+            "name": "Data Request Schema"
+          },
+          {
+            "d": "EKai70ASRuuLc0S6Ctu5EaFEus6-XlOE_cODxktrYMo-",
+            "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
+            "type": "spec/overlays/meta/1.1",
+            "language": "fra",
+            "description": "Schéma pour la demande de données et les informations de gouvernance",
+            "name": "Schéma de demande de données"
           }
         ]
       }
@@ -100,33 +131,50 @@
       {
         "d": "###presentationDigest###",
         "type": "###presentationType###",
-        "capture_base": "EJ4kt88AlxGnJdmB1UJZHIOgVFWldKoS3JlSmH9J09V7",
-        "language": ["eng"],
+        "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
+        "language": [
+          "eng",
+          "fra"
+        ],
         "pages": [
           {
             "named_section": "page-1",
             "attribute_order": [
               {
                 "named_section": "section-1",
-                "attribute_order": ["q1", "q2"]
+                "attribute_order": [
+                  "q1",
+                  "q2"
+                ]
               }
             ]
           }
         ],
-        "page_order": ["page-1"],
+        "page_order": [
+          "page-1"
+        ],
         "page_labels": {
           "eng": {
-            "page-1": "Page 1: Information"
+            "page-1": "Page 1: Data Request Schema"
+          },
+          "fra": {
+            "page-1": "Page 1: Schéma de demande de données"
           }
         },
         "sidebar_label": {
           "eng": {
-            "page-1": "sidebar: Information"
+            "page-1": "sidebar: Data Request Schema"
+          },
+          "fra": {
+            "page-1": "sidebar: Schéma de demande de données"
           }
         },
         "subheading": {
           "eng": {
-            "page-1": "subheading: Information"
+            "page-1": "subheading: Data Request Schema"
+          },
+          "fra": {
+            "page-1": "subheading: Schéma de demande de données"
           }
         },
         "interaction": [
@@ -135,7 +183,8 @@
               "q1": {
                 "type": "textarea",
                 "placeholder": {
-                  "eng": "Enter ..."
+                  "eng": "Enter ...",
+                  "fra": "Enter ..."
                 }
               },
               "q2": {
@@ -145,7 +194,8 @@
           }
         ],
         "title": {
-          "eng": "Information"
+          "eng": "Data Request Schema",
+          "fra": "Schéma de demande de données"
         }
       }
     ]

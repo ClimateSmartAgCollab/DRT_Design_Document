@@ -119,11 +119,20 @@ export function validateCurrentPageData(
       }
 
       if (field.type === "select" || field.type === "dropdown") {
-        // gather all selected options
-        const selectEl = refEl as HTMLSelectElement;
-        userInput = Array.from(selectEl.selectedOptions).map(
-          (opt) => opt.value
-        );
+        // Support checkboxes for multi-select
+        if (refEl instanceof HTMLInputElement && refEl.type === "checkbox") {
+          // Gather all checked checkboxes with the same name
+          const checkboxes = document.querySelectorAll<HTMLInputElement>(`input[type=checkbox][name='${refEl.name}']`);
+          userInput = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        } else if (refEl instanceof HTMLSelectElement) {
+          // gather all selected options (legacy)
+          const selectEl = refEl as HTMLSelectElement;
+          userInput = Array.from(selectEl.selectedOptions).map(
+            (opt) => opt.value
+          );
+        }
       } else if (field.type === "radio") {
         userInput = (refEl as HTMLInputElement).value || "";
       } else {
