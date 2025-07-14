@@ -3,8 +3,8 @@ import { Root, Bundle, Dependency, Presentation } from '../components/type'
 // import metadataJson from '../public/sampleQuestionnaire_V2.json'
 // import metadataJson from '../public/multi_level_package_presentation.json'
 // import metadataJson from '../public/OpenAIRE_OCA_package.json'
-// import metadataJson from '../public/test.json'
-import metadataJson from '../../public/veda_test.json'
+import metadataJson from '../../public/test.json'
+// import metadataJson from '../../public/veda_test.json'
 
 // Normalize entry codes in dependencies
 const normalizeEntryCodes = (dependencies: Dependency[]): void => {
