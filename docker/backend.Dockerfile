@@ -20,6 +20,8 @@ RUN pipenv install --system
 
 RUN pip install django-cors-headers
 RUN pip install django-cors-headers whitenoise
+RUN pip install dj-database-url
+
 
 COPY entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
