@@ -1,37 +1,131 @@
 // app/page.tsx
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
+
+const content = {
+  EN: {
+    testingBanner: "TESTING ENVIRONMENT",
+    attention: "Attention Testers",
+    instructions: "Instructions:",
+    attentionBody:
+      "Currently every email redirects to the testing sandbox. Log into the sandbox email first to test as both a data owner and requestor.",
+    sandboxEmail: "Sandbox Email:",
+    username: "Username:",
+    password: "Password:",
+    copy: "Copy",
+    copied: "Copied!",
+    csdccTitle: "CS-DCC helps you share data with custom agreements",
+    csdccBody1:
+      "Members of the CS-DCC data hub can, as data owners, streamline their information gathering processes for determining if, when, and how to share research data.",
+    csdccBody2:
+      "Develop the questionnaires and associated license templates together with the CS-DCC team and run them on CS-DCC infrastructure. Now potential data users can follow your custom links, answer questions and help you manage the flow of your data.",
+    forOwners: "For Data Owners",
+    ownersBody:
+      "A data owner can generate questions and license templates when they want to share research data. Members of the CS-DCC Data Hub can create a Data Owner account. ",
+    emailUs: "Email us",
+    ownersBody2:
+      " to begin set up your account or to have help creating questions and license templates.",
+    ownerDashboard: "View your owner dashboard",
+    forRequestors: "For Data Requestors",
+    requestorsBody:
+      "A data requestor is requesting access to data. A requestor answers of series of questions posed by a data owner when asking for access to research data.",
+    requestorDashboard: "View your requestor dashboard",
+    headerTitle: "Semantic Engine",
+    headerSubtitle: "Agreements",
+    headerHelp: "Helping share your work",
+    headerDesc: "Describe in custom terms how you want to make your work available",
+    poweredBy: "Powered by",
+    supportedBy: "Supported by",
+  },
+  FR: {
+    testingBanner: "ENVIRONNEMENT DE TEST",
+    attention: "Attention Testeurs",
+    instructions: "Instructions :",
+    attentionBody:
+      "Actuellement, chaque e-mail est redirigé vers la sandbox de test. Connectez-vous d'abord à l'e-mail sandbox pour tester en tant que propriétaire de données et demandeur.",
+    sandboxEmail: "E-mail Sandbox :",
+    username: "Nom d'utilisateur :",
+    password: "Mot de passe :",
+    copy: "Copier",
+    copied: "Copié !",
+    csdccTitle:
+      "Le CS-DCC vous aide à partager des données avec des accords personnalisés",
+    csdccBody1:
+      "Les membres du CS-DCC Data Hub peuvent, en tant que propriétaires de données, rationaliser leurs processus de collecte d'informations pour déterminer si, quand et comment partager des données de recherche.",
+    csdccBody2:
+      "Développez les questionnaires et les modèles de licence associés avec l'équipe CS-DCC et exécutez-les sur l'infrastructure CS-DCC. Désormais, les utilisateurs potentiels de données peuvent suivre vos liens personnalisés, répondre aux questions et vous aider à gérer le flux de vos données.",
+    forOwners: "Pour les propriétaires de données",
+    ownersBody:
+      "Un propriétaire de données peut générer des questions et des modèles de licence lorsqu'il souhaite partager des données de recherche. Les membres du CS-DCC Data Hub peuvent créer un compte propriétaire de données. ",
+    emailUs: "Envoyez-nous un courriel",
+    ownersBody2:
+      " pour commencer à configurer votre compte ou pour obtenir de l'aide pour créer des questions et des modèles de licence.",
+    ownerDashboard: "Voir votre tableau de bord propriétaire",
+    forRequestors: "Pour les demandeurs de données",
+    requestorsBody:
+      "Un demandeur de données demande l'accès à des données. Un demandeur répond à une série de questions posées par un propriétaire de données lors de la demande d'accès à des données de recherche.",
+    requestorDashboard: "Voir votre tableau de bord demandeur",
+    headerTitle: "Moteur Sémantique",
+    headerSubtitle: "Accords",
+    headerHelp: "Aider à partager votre travail",
+    headerDesc: "Décrivez selon des termes personnalisés comment vous souhaitez rendre votre travail disponible",
+    poweredBy: "Propulsé par",
+    supportedBy: "Soutenu par",
+  },
+};
 
 export default function HomePage() {
+  const [lang, setLang] = useState<"EN" | "FR">("EN");
+  const [copied, setCopied] = useState<{ field: string; status: boolean }>({
+    field: "",
+    status: false,
+  });
+  const t = content[lang];
+  const handleCopy = (value: string, field: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied({ field, status: true });
+    setTimeout(() => setCopied({ field: "", status: false }), 1200);
+  };
   return (
     <main className="min-h-screen bg-white flex flex-col">
+      {/* Testing Environment Banner */}
+      <div className="w-full bg-white text-red-700 text-center py-2 font-bold text-lg tracking-widest sticky top-0 z-50">
+        {t.testingBanner}
+      </div>
       {/* Header Bar */}
       <div className="bg-[#216b96] w-full px-6 pt-8 pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
         {/* Title Block */}
         <div>
           <div>
             <span className="block text-white font-sans font-bold text-3xl leading-tight">
-              Semantic Engine
+              {t.headerTitle}
             </span>
             <span className="block text-white font-sans font-light text-2xl mt-1 ml-1">
-              Agreements
+              {t.headerSubtitle}
             </span>
           </div>
           <div className="mt-10 pl-10">
             <h2 className="text-white font-bold text-2xl font-sans">
-              Helping share your work
+              {t.headerHelp}
             </h2>
             <p className="text-white font-sans text-base mt-2">
-              Describe in custom terms how you want to make your work available
+              {t.headerDesc}
             </p>
           </div>
         </div>
-
         <div className="absolute top-8 right-6 flex flex-row items-start gap-4 z-10">
           {/* Language Dropdown */}
           <div className="relative group">
-            <button className="flex items-center px-4 py-2 bg-[#216b96] text-white font-sans text-lg rounded hover:bg-[#50809cd7] focus:outline-none">
-              EN
+            <button
+              className="flex items-center px-4 py-2 bg-[#216b96] text-white font-sans text-lg rounded hover:bg-[#50809cd7] focus:outline-none"
+              aria-haspopup="listbox"
+              aria-expanded={false}
+              tabIndex={0}
+            >
+              {lang}
               <svg
                 className="ml-2 w-4 h-4"
                 fill="none"
@@ -49,12 +143,18 @@ export default function HomePage() {
             <div className="absolute left-0 mt-1 w-full bg-[#216b96] border-gray-200 rounded shadow-[0_4px_24px_rgba(0,0,0,0.35)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
               <ul className="py-1">
                 <li>
-                  <button className="block w-full text-left px-4 py-2 text-white rounded hover:bg-[#50809cd7] font-sans">
+                  <button
+                    className="block w-full text-left px-4 py-2 text-white rounded hover:bg-[#50809cd7] font-sans"
+                    onClick={() => setLang("EN")}
+                  >
                     EN
                   </button>
                 </li>
                 <li>
-                  <button className="block w-full text-left px-4 py-2 text-white rounded hover:bg-[#50809cd7] font-sans">
+                  <button
+                    className="block w-full text-left px-4 py-2 text-white rounded hover:bg-[#50809cd7] font-sans"
+                    onClick={() => setLang("FR")}
+                  >
                     FR
                   </button>
                 </li>
@@ -79,93 +179,165 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-
-      {/* Main Content */}
       <div className="flex flex-col items-center w-full px-4 py-10">
         <div className="max-w-3xl w-full">
+          {/* Attention Testers Card */}
+
           <h1 className="text-[#216b96] font-sans text-2xl mb-4">
-            CS-DCC helps you share data with custom agreements
+            {t.csdccTitle}
           </h1>
           <p className="text-gray-700 font-serif text-base mb-4">
-            Members of the CS-DCC data hub can, as data owners, streamline their
-            information gathering processes for determining if, when, and how to
-            share research data.
+            {t.csdccBody1}
           </p>
           <p className="text-gray-700 font-serif text-base mb-8">
-            Develop the questionnaires and associated license templates together
-            with the CS-DCC team and run them on CS-DCC infrastructure. Now
-            potential data users can follow your custom links, answer questions
-            and help you manage the flow of your data.
+            {t.csdccBody2}
           </p>
+
+          <div className="bg-red-200 rounded-md p-6 mb-8">
+            <h2 className="text-black font-bold text-xl mb-2">{t.attention}</h2>
+            <div className="pl-8">
+              <p className="text-black mb-2 font-semibold">{t.instructions}</p>
+              <p className="text-black mb-2">{t.attentionBody}</p>
+              <div className="bg-white border border-red-300 rounded p-4 mt-2">
+                <div className="mb-1 flex items-center flex-wrap gap-2">
+                  <span className="font-medium">{t.sandboxEmail}</span>
+                  <a
+                    href="https://ethereal.email/messages"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-blue-700"
+                  >
+                    https://ethereal.email/messages
+                  </a>
+                </div>
+                <div className="mb-1 flex items-center flex-wrap gap-2">
+                  <span className="font-medium">{t.username}</span>
+                  <span className="font-mono select-all">
+                    aditya.nienow@ethereal.email
+                  </span>
+                  <button
+                    onClick={() =>
+                      handleCopy("aditya.nienow@ethereal.email", "username")
+                    }
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                    title={t.copy}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect
+                        x="9"
+                        y="9"
+                        width="13"
+                        height="13"
+                        rx="2"
+                        ry="2"
+                        className="fill-white"
+                      />
+                      <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
+                    </svg>
+                    <span>
+                      {copied.field === "username" && copied.status
+                        ? t.copied
+                        : t.copy}
+                    </span>
+                  </button>
+                </div>
+                <div className="flex items-center flex-wrap gap-2">
+                  <span className="font-medium">{t.password}</span>
+                  <span className="font-mono select-all">
+                    AqFy19WdAnDghQQrdm
+                  </span>
+                  <button
+                    onClick={() => handleCopy("AqFy19WdAnDghQQrdm", "password")}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                    title={t.copy}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect
+                        x="9"
+                        y="9"
+                        width="13"
+                        height="13"
+                        rx="2"
+                        ry="2"
+                        className="fill-white"
+                      />
+                      <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
+                    </svg>
+                    <span>
+                      {copied.field === "password" && copied.status
+                        ? t.copied
+                        : t.copy}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Data Owners Card */}
           <div className="bg-[#C7E6F6] rounded-md p-6 mb-6">
             <h2 className="font-sans text-2xl text-black mb-4">
-              For Data Owners
+              {t.forOwners}
             </h2>
-            <p className="font-sans text-base text-gray-800 mb-2">
-              A data owner can generate questions and license templates when
-              they want to share research data.
-              <br />
-              Members of the CS-DCC Data Hub can create a Data Owner account.{" "}
-              <a
-                href="mailto:adc@uoguelph.ca"
-                className="underline text-[#2382A0]"
+            <div className="pl-8">
+              <p className="font-sans text-base text-gray-800 mb-2">
+                {t.ownersBody}
+                <a
+                  href="mailto:adc@uoguelph.ca"
+                  className="underline text-[#2382A0]"
+                >
+                  {t.emailUs}
+                </a>
+                {t.ownersBody2}
+              </p>
+              <Link
+                href="/negotiation/owner/homepage"
+                className="block text-center text-[#2382A0] underline text-2xl font-sans mt-8"
               >
-                Email us
-              </a>{" "}
-              to begin set up your account or to have help creating questions
-              and license templates.
-            </p>
-            <Link
-              href="/negotiation/owner/homepage"
-              className="block text-center text-[#2382A0] underline text-2xl font-sans mt-8"
-            >
-              View your owner dashboard
-            </Link>
+                {t.ownerDashboard}
+              </Link>
+            </div>
           </div>
-
           {/* Data Requestors Card */}
           <div className="bg-[#C7E6F6] rounded-md p-6 mb-6">
             <h2 className="font-sans text-2xl text-black mb-4">
-              For Data Requestors
+              {t.forRequestors}
             </h2>
-            <p className="font-sans text-base text-gray-800 mb-4">
-              A data requestor is requesting access to data. A requestor answers
-              of series of questions posed by a data owner when asking for
-              access to research data.
-            </p>
-            <Link
-              href="/negotiation/homepage"
-              className="block text-center text-[#2382A0] underline text-2xl font-sans mt-8"
-            >
-              View your requestor dashboard
-            </Link>
-          </div>
-
-          {/* About Section */}
-          <div className="mt-8">
-            <h3 className="text-[#E1B84C] font-sans text-2xl mb-2">
-              About machine-readable data agreements
-            </h3>
-            <p className="text-gray-700 font-serif text-base mb-4">
-              Machine-readable data agreements are written in Open Digital
-              Rights Language (ODRL)
-            </p>
-            <h3 className="text-[#E1B84C] font-sans text-2xl mb-2">
-              About the Semantic Engine
-            </h3>
+            <div className="pl-8">
+              <p className="font-sans text-base text-gray-800 mb-4">
+                {t.requestorsBody}
+              </p>
+              <Link
+                href="/negotiation/homepage"
+                className="block text-center text-[#2382A0] underline text-2xl font-sans mt-8"
+              >
+                {t.requestorDashboard}
+              </Link>
+            </div>
           </div>
         </div>
       </div>
-
       <hr className="w-full border-t border-gray-300 my-0" />
       {/* Footer Logos */}
       <div className="w-full flex flex-row items-end justify-start px-8 py-4 mt-auto gap-16">
         <div className="flex flex-col gap-10">
           <div className="flex flex-col items-center">
             <span className="text-base text-black font-sans mb-2">
-              Powered by
+              {t.poweredBy}
             </span>
             <a
               href="https://agrifooddatacanada.ca/"
@@ -175,15 +347,15 @@ export default function HomePage() {
               <Image
                 src="/agri-logo.png"
                 alt="Agri-Food Data Logo"
-                width={200}
-                height={72}
+                width={240}
+                height={86}
                 className="object-contain"
               />
             </a>
           </div>
           <div className="flex flex-col items-center">
             <span className="text-base text-black font-sans mb-2">
-              Supported by
+              {t.supportedBy}
             </span>
             <Image
               src="/research-excellent-fund.png"
@@ -194,8 +366,7 @@ export default function HomePage() {
             />
           </div>
         </div>
-        {/* Genome Canada logo on the right */}
-        <div className="flex flex-col items-center ml-16">
+        <div className="flex flex-col items-center ml-2">
           <a
             href="https://www.genomecanada.ca/"
             target="_blank"
@@ -203,6 +374,21 @@ export default function HomePage() {
           >
             <Image
               src="/R.jpg"
+              alt="Genome Canada Logo"
+              width={140}
+              height={48}
+              className="object-contain"
+            />
+          </a>
+        </div>
+        <div className="flex flex-col items-center ml-2">
+          <a
+            href="https://www.ontario.ca/page/government-ontario"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Image
+              src="/OMAFA.PNG"
               alt="Genome Canada Logo"
               width={140}
               height={48}
