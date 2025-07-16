@@ -19,14 +19,6 @@ import secrets
 logger = logging.getLogger(__name__)
 
 
-logger.info(
-    "OWNER_EMAIL_ENTRY: ENVIRONMENT=%r, EMAIL_BACKEND=%r, EMAIL_HOST=%r, EMAIL_HOST_USER=%r",
-    os.getenv("ENVIRONMENT"),
-    settings.EMAIL_BACKEND,
-    settings.EMAIL_HOST,
-    settings.EMAIL_HOST_USER,
-)
-
 
 @csrf_exempt
 @api_view(['GET'])
@@ -63,6 +55,15 @@ def owner_email_entry(request):
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
 
+        logger.info(
+            "OWNER_EMAIL_ENTRY (request): ENVIRONMENT=%r, EMAIL_BACKEND=%r, "
+            "EMAIL_HOST=%r, EMAIL_HOST_USER=%r",
+            os.getenv("ENVIRONMENT"),
+            settings.EMAIL_BACKEND,
+            settings.EMAIL_HOST,
+            settings.EMAIL_HOST_USER,
+        )
+
         try:
             msg = EmailMultiAlternatives(
                 subject="Access Link for Owner Verification",
@@ -90,6 +91,16 @@ def owner_email_entry(request):
                 <p>Best regards,<br>The DRT System</p>
             """
             msg.attach_alternative(html_content, "text/html")
+            
+            # just before calling msg.send(...)
+            logger.info(
+                "OWNER_EMAIL_ENTRY (request): ENVIRONMENT=%r, EMAIL_BACKEND=%r, EMAIL_HOST=%r, EMAIL_HOST_USER=%r",
+                os.getenv("ENVIRONMENT"),
+                settings.EMAIL_BACKEND,
+                settings.EMAIL_HOST,
+                settings.EMAIL_HOST_USER,
+            )
+
             msg.send(fail_silently=False)
         except Exception as email_error:
             logger.exception("Email sending failed")
@@ -175,7 +186,15 @@ def req_email_entry(request):
         cache.set(f"magic_token_for:{email}", token, 600)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/verify-magic-link?token={token}"
-
+        
+        logger.info(
+            "REQ_EMAIL_ENTRY (request): ENVIRONMENT=%r, EMAIL_BACKEND=%r, "
+            "EMAIL_HOST=%r, EMAIL_HOST_USER=%r",
+            os.getenv("ENVIRONMENT"),
+            settings.EMAIL_BACKEND,
+            settings.EMAIL_HOST,
+            settings.EMAIL_HOST_USER,
+        )
         try:
             msg = EmailMultiAlternatives(
                 subject="Access Link for Requestor Verification",
