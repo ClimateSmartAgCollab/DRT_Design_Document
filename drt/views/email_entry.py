@@ -66,7 +66,7 @@ def requestor_email_entry(request, link_id):
             body=(
                 "Hello Dear Requestor,\n\n"
                 "Click the link below to verify your email and access the questionnaire:\n\n"
-                f"    {magic_link}\n\n"
+                f"{magic_link}\n\n"
                 f"This link will expire at {expiry:%H:%M}.\n\n"
                 "For your security, please do not share this link with anyone. "
                 "If you did not request this link, simply ignore this message or "
@@ -78,6 +78,16 @@ def requestor_email_entry(request, link_id):
             to=[email],
             headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
         )
+        html_content = f"""
+            <p>Hello Dear Requestor,</p>
+            <p>Click the link below to verify your email and access the questionnaire:</p>
+            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+            <p>This link will expire at {expiry:%H:%M}.</p>
+            <p>For your security, please do not share this link with anyone.<br>
+            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=False)
 
         magic_link_path = f"/negotiation/{link_id}/magic-link-verification?token={token}"

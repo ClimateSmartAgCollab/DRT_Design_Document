@@ -74,9 +74,8 @@ def generate_nlinks(request, link_id):
 def request_access(request, link_id):
     """Send the requestor a direct link to access the questionnaire."""
 
-    frontend_base_url = getattr(
-        'drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
+    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
 
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
@@ -135,9 +134,9 @@ def fill_questionnaire(request, link_id):
             if owner_table and nlink.owner_id in owner_table:
                 # Generate the dynamic URL
                 owner_email = owner_table[nlink.owner_id]["owner_email"]
-                frontend_base_url = getattr(
-                    'drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-                # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
+                # frontend_base_url = getattr(
+                #     'drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
                 owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
                 msg = EmailMultiAlternatives(
@@ -157,6 +156,17 @@ def fill_questionnaire(request, link_id):
                     to=[owner_email],
                     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
                 )
+                html_content = f"""
+                    <p>Hello Dear Owner,</p>
+                    <p>A new data request has been submitted and is awaiting your review.</p>
+                    <p>You can review the request here:</p>
+                    <p><a href=\"{owner_review_url}\" target=\"_blank\">{owner_review_url}</a></p>
+                    <p>Please log in and provide your feedback at your earliest convenience.<br>
+                    If you have any questions, simply reach out to our support team at ssanavi@uoguelph.ca.</p>
+                    <p>Thank you for your prompt attention.</p>
+                    <p>Best regards,<br>The DRT System</p>
+                """
+                msg.attach_alternative(html_content, "text/html")
                 msg.send(fail_silently=False)
 
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
@@ -243,9 +253,9 @@ def owner_review(request, link_id):
 
 def send_clarification_email(requestor_email, link_id):
 
-    frontend_base_url = getattr(
-        'drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-design-document.onrender.com')
+    # frontend_base_url = getattr(
+        # 'drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
 
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
@@ -265,6 +275,15 @@ def send_clarification_email(requestor_email, link_id):
         to=[requestor_email],
         headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
     )
+    html_content = f"""
+        <p>Hello Dear Requestor,</p>
+        <p>We need a bit more information to proceed with your request. Please complete the necessary details by accessing your form at the link below:</p>
+        <p><a href=\"{clarification_url}\" target=\"_blank\">{clarification_url}</a></p>
+        <p>If you have any questions or need assistance, simply reach out to our support team at ssanavi@uoguelph.ca.</p>
+        <p>Thank you for your prompt attention.</p>
+        <p>Best regards,<br>The DRT System</p>
+    """
+    msg.attach_alternative(html_content, "text/html")
     msg.send(fail_silently=False)
 
 

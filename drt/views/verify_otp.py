@@ -69,6 +69,15 @@ def verify_magic_link_view(request, link_id):
                 to=[requestor.requestor_email],
                 headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
             )
+            html_content = f"""
+                <p>Hello,</p>
+                <p>Click the link below to verify your email:</p>
+                <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+                <p>For your security, please do not share this link with anyone.<br>
+                If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+                <p>Best regards,<br>The DRT System</p>
+            """
+            msg.attach_alternative(html_content, "text/html")
             msg.send(fail_silently=False)
         except Exception:
             return Response(
@@ -104,6 +113,10 @@ def verify_magic_link_view(request, link_id):
         requestor.is_verified = True
         requestor.otp_expiry = timezone.now()
         requestor.save()
+
+        # Set session variable for authentication
+        request.session['requestor_email'] = entry['email']
+        request.session['link_id'] = link_id
 
         # Clear cache
         cache.delete(f"magic_token:{token}")
