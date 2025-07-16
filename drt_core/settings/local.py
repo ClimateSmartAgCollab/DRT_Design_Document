@@ -5,6 +5,7 @@ import os
 
 print("▶︎ USING local.py; ENVIRONMENT =", os.getenv("ENVIRONMENT"))
 print("▶︎ SMTP USER =", os.getenv("ETHEREAL_USER"))
+print("▶︎ frontend base url =", os.getenv("FRONTEND_BASE_URL"))
 
 
 # We open everything on local mode
@@ -14,7 +15,7 @@ ALLOWED_HOSTS = ["*"]
 CSRF_TRUSTED_ORIGINS = ["http://*"]
 
 # during local dev over HTTP, cookies must NOT be "secure-only"
-# CSRF_COOKIE_SECURE = False  
+# CSRF_COOKIE_SECURE = False
 # SESSION_COOKIE_SECURE = False
 
 # CSRF_COOKIE_SAMESITE = "Lax"    # default, works on HTTP
@@ -28,11 +29,11 @@ CSRF_TRUSTED_ORIGINS = [
 
 # allow the sessionid cookie in cross-site requests
 SESSION_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE   = True
+SESSION_COOKIE_SECURE = True
 
 # also do the same for the CSRF token
 CSRF_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SECURE   = True
+CSRF_COOKIE_SECURE = True
 
 
 # INSTALLED_APPS  ["anymail"]
@@ -95,15 +96,16 @@ if ENVIRONMENT == "staging":
     DEFAULT_FROM_EMAIL = "no-reply@yourapp.test"
 
 
-
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
+    "http://drt-test.canadacentral.cloudapp.azure.com",
+    "http://drt-test.canadacentral.cloudapp.azure.com:3000",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-FRONTEND_BASE_URL = "http://drt-test.canadacentral.cloudapp.azure.com/" 
-# FRONTEND_BASE_URL = "http://127.0.0.1:3000" 
+FRONTEND_BASE_URL = "http://drt-test.canadacentral.cloudapp.azure.com/"
+# FRONTEND_BASE_URL = "http://127.0.0.1:3000"
 
 DATABASES = {
     "default": {
@@ -112,7 +114,7 @@ DATABASES = {
         "USER": os.environ.get("POSTGRES_USER"),
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT", "5432"), 
+        "PORT": os.environ.get("DB_PORT", "5432"),
     },
 }
 
@@ -128,7 +130,7 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
-        "TIMEOUT": 60 * 60 * 24, # cache entries expire after 1 day
+        "TIMEOUT": 60 * 60 * 24,  # cache entries expire after 1 day
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
@@ -142,8 +144,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = "/usr/src/media/"
 
 
-
-# from .base import * 
+# from .base import *
 
 # DEBUG = "True"
 # # We open everything on local mode
@@ -161,13 +162,13 @@ MEDIA_ROOT = "/usr/src/media/"
 # CORS_ALLOWED_ORIGINS = [
 #     'http://localhost:3000',  # Frontend origin
 # ]
-# FRONTEND_BASE_URL = "http://localhost:3000" 
+# FRONTEND_BASE_URL = "http://localhost:3000"
 
 
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.db.backends.postgresql_psycopg2",
-#         "NAME": "postgres", 
+#         "NAME": "postgres",
 #         "USER": "postgres",
 #         "PASSWORD": "Ss12345678",
 #         "HOST": "localhost",
@@ -179,7 +180,7 @@ MEDIA_ROOT = "/usr/src/media/"
 # CACHES = {
 #     'default': {
 #         'BACKEND': 'django_redis.cache.RedisCache',
-#         'LOCATION': 'redis://127.0.0.1:6379/1',  
+#         'LOCATION': 'redis://127.0.0.1:6379/1',
 #         'OPTIONS': {
 #             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
 #         }

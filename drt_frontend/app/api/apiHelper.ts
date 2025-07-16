@@ -1,5 +1,5 @@
 // app/api/apiHelper.ts
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://drt-test.canadacentral.cloudapp.azure.com/';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://drt-test.canadacentral.cloudapp.azure.com:8000';
 // const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
