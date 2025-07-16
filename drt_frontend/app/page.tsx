@@ -224,95 +224,130 @@ export default function HomePage() {
           <div className="bg-red-200 rounded-md p-6 mb-8">
             <h2 className="text-black font-bold text-xl mb-2">{t.attention}</h2>
             <div className="pl-8">
-              <p className="text-black mb-2 font-semibold">{t.instructions}</p>
-              <p className="text-black mb-2">{t.attentionBody}</p>
-              <div className="bg-white border border-red-300 rounded p-4 mt-2">
-                <div className="mb-1 flex items-center flex-wrap gap-2">
-                  <span className="font-medium">{t.sandboxEmail}</span>
-                  <a
-                    href="https://ethereal.email/messages"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-blue-700"
-                  >
-                    https://ethereal.email/messages
-                  </a>
-                </div>
-                <div className="mb-1 flex items-center flex-wrap gap-2">
-                  <span className="font-medium">{t.username}</span>
-                  <span className="font-mono select-all">
-                    aditya.nienow@ethereal.email
-                  </span>
-                  <button
-                    onClick={() =>
-                      handleCopy("aditya.nienow@ethereal.email", "username")
-                    }
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
-                    title={t.copy}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <rect
-                        x="9"
-                        y="9"
-                        width="13"
-                        height="13"
-                        rx="2"
-                        ry="2"
-                        className="fill-white"
-                      />
-                      <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
-                    </svg>
-                    <span>
-                      {copied.field === "username" && copied.status
-                        ? t.copied
-                        : t.copy}
-                    </span>
-                  </button>
-                </div>
-                <div className="flex items-center flex-wrap gap-2">
-                  <span className="font-medium">{t.password}</span>
-                  <span className="font-mono select-all">
-                    AqFy19WdAnDghQQrdm
-                  </span>
-                  <button
-                    onClick={() => handleCopy("AqFy19WdAnDghQQrdm", "password")}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
-                    title={t.copy}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <rect
-                        x="9"
-                        y="9"
-                        width="13"
-                        height="13"
-                        rx="2"
-                        ry="2"
-                        className="fill-white"
-                      />
-                      <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
-                    </svg>
-                    <span>
-                      {copied.field === "password" && copied.status
-                        ? t.copied
-                        : t.copy}
-                    </span>
-                  </button>
-                </div>
-              </div>
+              <ol className="list-decimal list-inside text-black mb-4 space-y-2">
+                <li>
+                  Log in to the sandbox email system using the following information (open in a new tab or window). In the test environment <b>ALL emails for ALL testers are routed to this sandbox</b>.
+                  <div className="bg-white border border-red-300 rounded p-4 mt-2 mb-2">
+                    <div className="mb-1 flex items-center flex-wrap gap-2">
+                      <span className="font-medium">{t.sandboxEmail}</span>
+                      <a
+                        href="https://ethereal.email/messages"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline text-blue-700"
+                      >
+                        https://ethereal.email/messages
+                      </a>
+                    </div>
+                    <div className="mb-1 flex items-center flex-wrap gap-2">
+                      <span className="font-medium">{t.username}</span>
+                      <span className="font-mono select-all">
+                        aditya.nienow@ethereal.email
+                      </span>
+                      <button
+                        onClick={() => handleCopy("aditya.nienow@ethereal.email", "username")}
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                        title={t.copy}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <rect
+                            x="9"
+                            y="9"
+                            width="13"
+                            height="13"
+                            rx="2"
+                            ry="2"
+                            className="fill-white"
+                          />
+                          <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
+                        </svg>
+                        <span>
+                          {copied.field === "username" && copied.status
+                            ? t.copied
+                            : t.copy}
+                        </span>
+                      </button>
+                    </div>
+                    <div className="flex items-center flex-wrap gap-2">
+                      <span className="font-medium">{t.password}</span>
+                      <span className="font-mono select-all">
+                        AqFy19WdAnDghQQrdm
+                      </span>
+                      <button
+                        onClick={() => handleCopy("AqFy19WdAnDghQQrdm", "password")}
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                        title={t.copy}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <rect
+                            x="9"
+                            y="9"
+                            width="13"
+                            height="13"
+                            rx="2"
+                            ry="2"
+                            className="fill-white"
+                          />
+                          <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
+                        </svg>
+                        <span>
+                          {copied.field === "password" && copied.status
+                            ? t.copied
+                            : t.copy}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  Once logged in to the email sandbox, be sure you select <b>'messages'</b> at the top to see all emails associated with testing.
+                </li>
+                <li>
+                  On the DRT test page (this page), click on <b>"View your owner dashboard"</b> and provide the email: <span className="font-mono">aditya.nienow@ethereal.email</span> to start.
+                </li>
+                <li>
+                  Go to the sandbox email system and look for the most recent email, click on the link in the email.
+                </li>
+                <li>
+                  Start answering questions of the questionnaire directly using the following test links:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>
+                      <a
+                        href="http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline text-blue-700"
+                      >
+                        Start Questionnaire 1
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline text-blue-700"
+                      >
+                        Start Questionnaire 2
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+              </ol>
             </div>
           </div>
 
