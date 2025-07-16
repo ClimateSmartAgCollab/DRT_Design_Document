@@ -3,6 +3,9 @@ from .base import *  # noqa: F403, F401
 import os
 # import dj_database_url
 
+print("▶︎ USING local.py; ENVIRONMENT =", os.getenv("ENVIRONMENT"))
+print("▶︎ SMTP USER =", os.getenv("ETHEREAL_USER"))
+
 
 # We open everything on local mode
 ALLOWED_HOSTS = ["*"]

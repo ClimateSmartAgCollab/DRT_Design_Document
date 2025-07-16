@@ -1,5 +1,6 @@
 # drt/views/auth.py
 
+import os
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.utils import timezone
@@ -16,6 +17,15 @@ import logging
 import secrets
 
 logger = logging.getLogger(__name__)
+
+
+logger.info(
+    "OWNER_EMAIL_ENTRY: ENVIRONMENT=%r, EMAIL_BACKEND=%r, EMAIL_HOST=%r, EMAIL_HOST_USER=%r",
+    os.getenv("ENVIRONMENT"),
+    settings.EMAIL_BACKEND,
+    settings.EMAIL_HOST,
+    settings.EMAIL_HOST_USER,
+)
 
 
 @csrf_exempt
@@ -47,7 +57,8 @@ def owner_email_entry(request):
             cache.delete(f"magic_token:{old_token}")
 
         # Store the new token and a reverse mapping for easy invalidation
-        cache.set(f"magic_token:{token}", { 'email': email, 'expiry': expiry}, 600)
+        cache.set(f"magic_token:{token}", {
+                  'email': email, 'expiry': expiry}, 600)
         cache.set(f"magic_token_for:{email}", token, 600)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
@@ -81,11 +92,12 @@ def owner_email_entry(request):
             msg.attach_alternative(html_content, "text/html")
             msg.send(fail_silently=False)
         except Exception as email_error:
-            logger.error(f"Email sending failed: {str(email_error)}")
-            return Response({'error': 'Failed to send email. Please try again later.'}, status=500)
+            logger.exception("Email sending failed")
+            # Return the real SMTP exception to the client for now
+            return Response({'error': str(email_error)}, status=500)
 
         return Response({'message': 'Access link sent to your email'}, status=200)
-        
+
     except Exception as e:
         logger.error(f"Error in owner_email_entry: {str(e)}")
         return Response({'error': f'Internal server error: {str(e)}'}, status=500)
@@ -158,7 +170,8 @@ def req_email_entry(request):
             cache.delete(f"magic_token:{old_token}")
 
         # Store the new token and a reverse mapping for easy invalidation
-        cache.set(f"magic_token:{token}", {'email': email, 'expiry': expiry}, 600)
+        cache.set(f"magic_token:{token}", {
+                  'email': email, 'expiry': expiry}, 600)
         cache.set(f"magic_token_for:{email}", token, 600)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/verify-magic-link?token={token}"
@@ -192,9 +205,10 @@ def req_email_entry(request):
             msg.attach_alternative(html_content, "text/html")
             msg.send(fail_silently=False)
         except Exception as email_error:
-            logger.error(f"Email sending failed: {str(email_error)}")
-            return Response({'error': 'Failed to send email. Please try again later.'}, status=500)
-
+            logger.exception("Email sending failed")
+            # Return the real SMTP exception to the client for now
+            return Response({'error': str(email_error)}, status=500)
+        
         return Response({'message': 'Access link sent'}, status=200)
 
     except Exception as e:
@@ -222,7 +236,7 @@ def verify_req_magic_link(request):
         latest_token = cache.get(f"magic_token_for:{email}")
         if latest_token != token:
             return Response({"error": "This link has been expired by a newer request."}, status=400)
-        
+
         # Store requestor_email in the Django session (signed cookie)
         request.session["requestor_email"] = email
         cache.set(f"req_logged_in:{email}", True, 3600)
