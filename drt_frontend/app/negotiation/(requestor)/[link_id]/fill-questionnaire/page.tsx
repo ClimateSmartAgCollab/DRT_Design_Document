@@ -108,7 +108,7 @@ export default function FillQuestionnairePage() {
         loadErrorObj.message.toLowerCase().includes("authentication"))
     ) {
       setRedirecting(true);
-      router.replace("/negotiation/email-entry");
+      router.replace(`/negotiation/${linkId}/email-entry`);
     }
   }, [loadError, loadErrorObj, router]);
 

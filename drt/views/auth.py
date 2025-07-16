@@ -53,7 +53,7 @@ def owner_email_entry(request):
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
 
         try:
-            EmailMultiAlternatives(
+            msg = EmailMultiAlternatives(
                 subject="Access Link for Owner Verification",
                 body=(
                     "Hello,\n\n"
@@ -68,7 +68,18 @@ def owner_email_entry(request):
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[email],
-            ).send(fail_silently=False)
+            )
+            html_content = f"""
+                <p>Hello,</p>
+                <p>Click the link below to verify your email and access the owner dashboard:</p>
+                <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+                <p>This link will expire at {expiry:%H:%M}.</p>
+                <p>For your security, please do not share this link with anyone.<br>
+                If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+                <p>Best regards,<br>The DRT System</p>
+            """
+            msg.attach_alternative(html_content, "text/html")
+            msg.send(fail_silently=False)
         except Exception as email_error:
             logger.error(f"Email sending failed: {str(email_error)}")
             return Response({'error': 'Failed to send email. Please try again later.'}, status=500)
@@ -153,7 +164,7 @@ def req_email_entry(request):
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/verify-magic-link?token={token}"
 
         try:
-            EmailMultiAlternatives(
+            msg = EmailMultiAlternatives(
                 subject="Access Link for Requestor Verification",
                 body=(
                     "Hello Dear Requestor,\n\n"
@@ -168,7 +179,18 @@ def req_email_entry(request):
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[email],
-            ).send(fail_silently=False)
+            )
+            html_content = f"""
+                <p>Hello Dear Requestor,</p>
+                <p>Click the link below to verify your email and access the dashboard:</p>
+                <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+                <p>This link will expire at {expiry:%H:%M}.</p>
+                <p>For your security, please do not share this link with anyone.<br>
+                If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+                <p>Best regards,<br>The DRT System</p>
+            """
+            msg.attach_alternative(html_content, "text/html")
+            msg.send(fail_silently=False)
         except Exception as email_error:
             logger.error(f"Email sending failed: {str(email_error)}")
             return Response({'error': 'Failed to send email. Please try again later.'}, status=500)
