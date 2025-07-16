@@ -100,7 +100,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 FRONTEND_BASE_URL = "http://drt-test.canadacentral.cloudapp.azure.com/" 
-
+# FRONTEND_BASE_URL = "http://127.0.0.1:3000" 
 
 DATABASES = {
     "default": {
