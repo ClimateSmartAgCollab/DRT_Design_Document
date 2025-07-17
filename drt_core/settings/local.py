@@ -15,11 +15,10 @@ ALLOWED_HOSTS = ["*"]
 CSRF_TRUSTED_ORIGINS = ["http://*"]
 
 # during local dev over HTTP, cookies must NOT be "secure-only"
-# CSRF_COOKIE_SECURE = False
-# SESSION_COOKIE_SECURE = False
-
-# CSRF_COOKIE_SAMESITE = "Lax"    # default, works on HTTP
-# CSRF_COOKIE_SECURE = False     # allow cookie over HTTP
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # explicitly trust your Next.js origin(s)
 CSRF_TRUSTED_ORIGINS = [
@@ -100,11 +99,11 @@ CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://drt-test.canadacentral.cloudapp.azure.com",
-    "http://drt-test.canadacentral.cloudapp.azure.com:3000",
+    "http://drt-test.canadacentral.cloudapp.azure.com:80",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-FRONTEND_BASE_URL = "http://drt-test.canadacentral.cloudapp.azure.com/"
+FRONTEND_BASE_URL = "http://drt-test.canadacentral.cloudapp.azure.com:80"
 # FRONTEND_BASE_URL = "http://127.0.0.1:3000"
 
 DATABASES = {
