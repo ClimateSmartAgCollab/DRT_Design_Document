@@ -1,11 +1,31 @@
 // app/negotiation/generate-link/[link_id]/page.tsx
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
-import fetchApi from '@/app/api/apiHelper';
+import React, { useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import fetchApi from "@/app/api/apiHelper";
 
+type LoadResponse = {
+  status: string;
+  data?: any;
+};
+
+async function fetchLoadData(): Promise<LoadResponse> {
+  const res = await fetchApi("/datastore/load-data/");
+  if (!res.ok) {
+    // try to extract a JSON error if available
+    let msg = res.statusText;
+    try {
+      const errBody = await res.json();
+      msg = errBody.error ?? msg;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
 
 async function generateLinkApi(linkId: string): Promise<string> {
   const res = await fetchApi(`/drt/generate_nlinks/${linkId}/`);
@@ -22,22 +42,46 @@ export default function GenerateLinkPage() {
 
   const [redirecting, setRedirecting] = useState(false);
 
-  const { mutate, isPending, isError, error } = useMutation<string, Error, void>(
-    {
-      mutationFn: () => generateLinkApi(linkId!),
-      onSuccess: (requestorLinkId: string) => {
-        setRedirecting(true);
-        router.push(`/negotiation/${requestorLinkId}/email-entry`);
-      },
-    }
-  );
+  const loadDataQuery = useQuery<LoadResponse, Error>({
+    queryKey: ["datastore", "load-data"],
+    queryFn: fetchLoadData,
+    retry: 1,
+    staleTime: Infinity,
+  });
 
+  const { mutate, isPending, isError, error } = useMutation<
+    string,
+    Error,
+    void
+  >({
+    mutationFn: () => generateLinkApi(linkId!),
+    onSuccess: (requestorLinkId: string) => {
+      setRedirecting(true);
+      router.push(`/negotiation/${requestorLinkId}/email-entry`);
+    },
+  });
+
+    if (loadDataQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-600">
+        Loading cache…
+      </div>
+    );
+  }
+
+  if (loadDataQuery.isError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-red-600">
+        Error: {loadDataQuery.error.message}
+      </div>
+    );
+  }
+  
   const loading = isPending || redirecting;
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
-
         {/* Title */}
         <h1 className="text-2xl font-semibold text-gray-800">
           Start a New Data Request
@@ -61,4 +105,3 @@ export default function GenerateLinkPage() {
     </main>
   );
 }
-

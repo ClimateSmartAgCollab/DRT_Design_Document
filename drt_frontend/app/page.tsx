@@ -226,7 +226,7 @@ export default function HomePage() {
             <div className="pl-8">
               <ol className="list-decimal list-inside text-black mb-4 space-y-2">
                 <li>
-                  Log in to the sandbox email system using the following information (open in a new tab or window). In the test environment <b>ALL emails for ALL testers are routed to this sandbox</b>.
+                  Log in to the sandbox email system using the following information. In the test environment <b>ALL emails for ALL testers are routed to this sandbox</b>.
                   <div className="bg-white border border-red-300 rounded p-4 mt-2 mb-2">
                     <div className="mb-1 flex items-center flex-wrap gap-2">
                       <span className="font-medium">{t.sandboxEmail}</span>
