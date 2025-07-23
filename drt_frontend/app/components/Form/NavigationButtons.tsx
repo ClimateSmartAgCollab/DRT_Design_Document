@@ -98,12 +98,12 @@ export default function NavigationButtons({
           style={isFirstParentPage ? disabledButtonStyle : secondaryButtonStyle}
           onMouseEnter={(e) => {
             if (!isFirstParentPage) {
-              e.currentTarget.style.backgroundColor = theme.colors.grey[600];
+              e.currentTarget.style.opacity = "0.8";
             }
           }}
           onMouseLeave={(e) => {
             if (!isFirstParentPage) {
-              e.currentTarget.style.backgroundColor = theme.colors.grey[300];
+              e.currentTarget.style.opacity = "1";
             }
           }}
         >
@@ -148,80 +148,81 @@ export default function NavigationButtons({
     );
   }
 
-  // If on a child step and it's not the last page: Back + Next
-  if (!isLastPageOfThisStep) {
-    return (
-      <div className="mt-8 flex items-center space-x-4">
-        <button
-          type="button"
-          onClick={() => {
-            handlePreviousPage();
-            window.scrollTo(0, 0);
-          }}
-          style={secondaryButtonStyle}
-          disabled={isFirstPageOfThisStep}
-          onMouseEnter={(e) => {
-            if (!isFirstPageOfThisStep) {
-              e.currentTarget.style.backgroundColor = theme.colors.grey[600];
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isFirstPageOfThisStep) {
-              e.currentTarget.style.backgroundColor = theme.colors.grey[300];
-            }
-          }}
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            handleNextPage();
-            window.scrollTo(0, 0);
-          }}
-          style={primaryButtonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = "0.9";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = "1";
-          }}
-        >
-          Next
-        </button>
-      </div>
-    );
-  }
-
-  // If on a child step's last page: Cancel + Finish
+  // If this is a child step, show different navigation
   return (
-    <div className="mt-8 flex items-center space-x-4">
-      <button
-        type="button"
-        onClick={cancelHandler}
-        style={dangerButtonStyle}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = "0.9";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = "1";
-        }}
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        onClick={finishHandler}
-        style={successButtonStyle}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = "0.9";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = "1";
-        }}
-      >
-        Finish
-      </button>
-    </div>
+    <>
+      {!isLastPageOfThisStep ? (
+        <div className="mt-8 flex items-center space-x-4">
+          {/* Back only if not first page */}
+          <button
+            type="button"
+            onClick={() => {
+              handlePreviousPage();
+              window.scrollTo(0, 0);
+            }}
+            disabled={isFirstPageOfThisStep}
+            style={isFirstPageOfThisStep ? disabledButtonStyle : secondaryButtonStyle}
+            onMouseEnter={(e) => {
+              if (!isFirstPageOfThisStep) {
+                e.currentTarget.style.opacity = "0.8";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isFirstPageOfThisStep) {
+                e.currentTarget.style.opacity = "1";
+              }
+            }}
+          >
+            Back
+          </button>
+          {/* Next */}
+          <button
+            type="button"
+            onClick={() => {
+              handleNextPage();
+              window.scrollTo(0, 0);
+            }}
+            style={primaryButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "0.9";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "1";
+            }}
+          >
+            Next
+          </button>
+        </div>
+      ) : (
+        <div className="mt-8 flex items-center space-x-4">
+          <button
+            type="button"
+            onClick={cancelHandler}
+            style={dangerButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "0.9";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "1";
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={finishHandler}
+            style={successButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "0.9";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "1";
+            }}
+          >
+            Finish
+          </button>
+        </div>
+      )}
+    </>
   );
 }

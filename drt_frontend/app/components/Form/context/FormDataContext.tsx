@@ -52,6 +52,12 @@ interface FormDataContextType {
   ) => void;
 
   deleteChild: (childId: string, parentId: string, childStepId: string) => void;
+  
+  // Additional utility functions
+  getChildrenByParentId: (parentId: string) => ChildRecord[];
+  getChildrenByParentAndStep: (parentId: string, stepId: string) => ChildRecord[];
+  clearParentData: (parentId: string) => void;
+  clearAllData: () => void;
 }
 
 const FormDataContext = createContext<FormDataContextType | undefined>(
@@ -67,10 +73,22 @@ export function FormDataProvider({
   initialParentData?: ParentFormData;
   initialChildrenData?: ChildrenData;
 }) {
-  const [parentFormData, setParentFormData] =
-    useState<ParentFormData>(initialParentData);
+  // Load initial state from sessionStorage (or {} on server-side)
+  const [parentFormData, setParentFormData] = useState<ParentFormData>(() => {
+    if (typeof window === "undefined") return initialParentData;
+    const saved = sessionStorage.getItem("parentFormData");
+    return saved ? JSON.parse(saved) : initialParentData;
+  });
+  
   const [childrenData, setChildrenData] =
     useState<ChildrenData>(initialChildrenData);
+
+  // Write parentFormData back to sessionStorage on every change
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("parentFormData", JSON.stringify(parentFormData));
+    }
+  }, [parentFormData]);
 
   const createNewChild = useCallback((parentId: string, stepId: string) => {
     const newChild: ChildRecord = {
@@ -81,7 +99,9 @@ export function FormDataProvider({
     };
 
     setParentFormData((prev) => {
+      // Get the current parent's record (or start with an empty object)
       const parentRecord = prev[parentId] || {};
+      // Get the current children array for the childStepId (or start with an empty array)
       const currentChildren = parentRecord.childrenData?.[stepId] || [];
       const updatedChildren = [...currentChildren, newChild];
 
@@ -90,6 +110,7 @@ export function FormDataProvider({
         [parentId]: {
           ...parentRecord,
           childrenData: {
+            // Preserve any other child groups already stored on this parent
             ...(parentRecord.childrenData || {}),
             [stepId]: updatedChildren,
           },
@@ -105,9 +126,10 @@ export function FormDataProvider({
       const parentRecord = parentFormData[parentId];
       if (!parentRecord || !parentRecord.childrenData) return null;
 
+      // Search through each child group
       for (const childStep in parentRecord.childrenData) {
         const child = parentRecord.childrenData[childStep].find(
-          (c) => c.id === childId
+          (child) => child.id === childId
         );
         if (child) return child;
       }
@@ -122,15 +144,17 @@ export function FormDataProvider({
         const parentRecord = prev[parentId];
         if (!parentRecord || !parentRecord.childrenData) return prev;
 
+        // Create a shallow copy of the parent's childrenData to update immutably
         const updatedChildrenData = { ...parentRecord.childrenData };
 
+        // Loop through each child group to find the child
         for (const childStep in updatedChildrenData) {
           const childrenArray = updatedChildrenData[childStep];
-          const idx = childrenArray.findIndex((c) => c.id === childId);
-          if (idx !== -1) {
-            childrenArray[idx] = {
-              ...childrenArray[idx],
-              data: { ...childrenArray[idx].data, ...newData },
+          const index = childrenArray.findIndex((child) => child.id === childId);
+          if (index !== -1) {
+            childrenArray[index] = {
+              ...childrenArray[index],
+              data: { ...childrenArray[index].data, ...newData },
             };
             break;
           }
@@ -154,7 +178,7 @@ export function FormDataProvider({
 
       for (const childStep in parentRecord.childrenData) {
         const child = parentRecord.childrenData[childStep].find(
-          (c) => c.id === childId
+          (child) => child.id === childId
         );
         if (child) return child;
       }
@@ -173,11 +197,11 @@ export function FormDataProvider({
 
         for (const childStep in updatedChildrenData) {
           const childrenArray = updatedChildrenData[childStep];
-          const idx = childrenArray.findIndex((c) => c.id === childId);
-          if (idx !== -1) {
-            childrenArray[idx] = {
-              ...childrenArray[idx],
-              data: { ...childrenArray[idx].data, ...newData },
+          const index = childrenArray.findIndex((child) => child.id === childId);
+          if (index !== -1) {
+            childrenArray[index] = {
+              ...childrenArray[index],
+              data: { ...childrenArray[index].data, ...newData },
             };
             break;
           }
@@ -206,8 +230,9 @@ export function FormDataProvider({
           return prev;
         }
 
+        // Filter out the child with the matching ID
         const updatedChildren = parentRecord.childrenData[childStepId].filter(
-          (c) => c.id !== childId
+          (child) => child.id !== childId
         );
 
         return {
@@ -225,6 +250,46 @@ export function FormDataProvider({
     []
   );
 
+  // Additional utility functions
+  const getChildrenByParentId = useCallback(
+    (parentId: string) => {
+      const parentRecord = parentFormData[parentId];
+      if (!parentRecord || !parentRecord.childrenData) return [];
+
+      const allChildren: ChildRecord[] = [];
+      for (const childStep in parentRecord.childrenData) {
+        allChildren.push(...parentRecord.childrenData[childStep]);
+      }
+      return allChildren;
+    },
+    [parentFormData]
+  );
+
+  const getChildrenByParentAndStep = useCallback(
+    (parentId: string, stepId: string) => {
+      const parentRecord = parentFormData[parentId];
+      if (!parentRecord || !parentRecord.childrenData) return [];
+
+      return parentRecord.childrenData[stepId] || [];
+    },
+    [parentFormData]
+  );
+
+  const clearParentData = useCallback(
+    (parentId: string) => {
+      setParentFormData((prev) => {
+        const { [parentId]: removed, ...rest } = prev;
+        return rest;
+      });
+    },
+    []
+  );
+
+  const clearAllData = useCallback(() => {
+    setParentFormData({});
+    setChildrenData([]);
+  }, []);
+
   const value: FormDataContextType = {
     parentFormData,
     setParentFormData,
@@ -236,6 +301,10 @@ export function FormDataProvider({
     getChildById,
     updateChildById,
     deleteChild,
+    getChildrenByParentId,
+    getChildrenByParentAndStep,
+    clearParentData,
+    clearAllData,
   };
 
   return (

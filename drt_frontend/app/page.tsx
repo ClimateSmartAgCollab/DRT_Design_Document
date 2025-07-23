@@ -53,8 +53,10 @@ const content = {
           title: "Begin Questionnaire",
           desc: "Click a link below to start your questionnaire:",
           links: [
-            { label: "Start Questionnaire 1", url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb" },
-            { label: "Start Questionnaire 2", url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e" },
+            // { label: "Start Questionnaire_prototype1-23-A-cow", url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb" },
+            // { label: "Start Questionnaire_prototype1-23-B-pig", url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e" },
+            { label: "Start Questionnaire_prototype1-23-A-cow", url: "http://127.0.0.1:3000/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb" },
+            { label: "Start Questionnaire_prototype1-23-B-pig", url: "http://127.0.0.1:3000/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e" },
           ],
         },
         {
