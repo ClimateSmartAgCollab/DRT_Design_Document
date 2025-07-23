@@ -370,22 +370,22 @@
                     "q1": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q10": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q10.5": {
                       "type": "reference",
                       "reference_button_text": {
-                        "eng": "default",
-                        "fra": "default"
+                        "eng": "Add Collaborator",
+                        "fra": "Ajouter un Collaborateur"
                       },
                       "showing_attribute": [
                         "q1",
@@ -395,8 +395,8 @@
                     "q11": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q12": {
@@ -405,85 +405,85 @@
                     "q13": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q14": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q15": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q16": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q2": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q3": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q4": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q5": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q6": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q7": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q8": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q9": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     }
                   }
@@ -558,29 +558,29 @@
                     "q1": {
                       "type": "textarea",
                       "placeholder": {
-                        "fra": "Enter ...(customize the example as the place holder)",
-                        "eng": "Enter ...(customize the example as the place holder)"
+                        "fra": "Enter ...",
+                        "eng": "Enter ..."
                       }
                     },
                     "q2": {
                       "type": "textarea",
                       "placeholder": {
-                        "fra": "Enter ...(customize the example as the place holder)",
-                        "eng": "Enter ...(customize the example as the place holder)"
+                        "fra": "Enter ...",
+                        "eng": "Enter ..."
                       }
                     },
                     "q3": {
                       "type": "textarea",
                       "placeholder": {
-                        "fra": "Enter ...(customize the example as the place holder)",
-                        "eng": "Enter ...(customize the example as the place holder)"
+                        "fra": "Enter ...",
+                        "eng": "Enter ..."
                       }
                     },
                     "q4": {
                       "type": "textarea",
                       "placeholder": {
-                        "fra": "Enter ...(customize the example as the place holder)",
-                        "eng": "Enter ...(customize the example as the place holder)"
+                        "fra": "Enter ...",
+                        "eng": "Enter ..."
                       }
                     }
                   }

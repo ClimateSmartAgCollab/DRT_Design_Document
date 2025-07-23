@@ -124,6 +124,33 @@ export interface Dependency {
 export interface Extensions {
   example?: ExampleOverlay[];
   form?: Presentation[];
+  adc?: AdcExtensions;
+}
+
+export interface AdcExtensions {
+  [captureBaseId: string]: AdcExtension;
+}
+
+export interface AdcExtension {
+  d: string;
+  type: string;
+  overlays: {
+    form: AdcForm[];
+  };
+}
+
+export interface AdcForm {
+  d: string;
+  type: string;
+  capture_base: string;
+  language: string[];
+  pages: Page[];
+  page_order: string[];
+  page_labels: LangMap<LangMap<string>>;
+  sidebar_label: LangMap<LangMap<string>>;
+  subheading: LangMap<LangMap<string>>;
+  title?: LangMap<string>;
+  interaction: Interaction[];
 }
 
 export interface ExampleOverlay {
@@ -178,6 +205,8 @@ export interface ArgumentType {
   value?: string;
   ref?: string;
   placeholder?: LangMap<string>;
+  reference_button_text?: LangMap<string>;
+  showing_attribute?: string[];
 }
 
 export interface Reference {
@@ -189,6 +218,7 @@ export interface Field {
   id: string;
   labels: LangMap<LangMap<string>>;
   options: LangMap<LangMap<string[]>>;
+  optionLabels?: LangMap<LangMap<Record<string, string>>>;
   type: string;
   orientation?: 'vertical' | 'horizontal';
   value?: string;

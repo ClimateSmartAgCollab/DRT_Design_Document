@@ -116,7 +116,7 @@ export default function NavigationButtons({
             onClick={() => {
               handleSubmit_openAIRE();
             }}
-            style={successButtonStyle}
+            style={primaryButtonStyle}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = "0.9";
             }}

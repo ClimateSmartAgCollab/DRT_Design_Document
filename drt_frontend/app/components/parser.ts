@@ -2,7 +2,7 @@ import {
   Root,
   Bundle,
   Dependency,
-  Presentation,
+  AdcForm,
   AttributeGroup,
   LangMap,
   Field,
@@ -12,7 +12,7 @@ import {
   Section,
 } from '../components/type';
 
-import metadataJson from '../../public/test.json';
+import metadataJson from '../../public/test2.json';
 
 // Utility functions
 const asRoot = (json: unknown): Root => json as Root;
@@ -58,7 +58,7 @@ const findBundleByCaptureBase = (
 // Get interaction arguments for a capture base
 const getInteractionArgs = (
   captureBase: string,
-  presentations: Presentation[] | undefined,
+  presentations: AdcForm[] | undefined,
 ): Record<string, ArgumentType> => {
   if (!presentations) return {};
   return (
@@ -83,7 +83,7 @@ type RelationshipMap = Record<
 const parseRelationships = (
   bundle: Bundle,
   dependencies: Dependency[],
-  presentation: Presentation,
+  presentation: AdcForm,
 ): RelationshipMap => {
   const relationships: RelationshipMap = {};
   const visited = new Set<string>();
@@ -125,6 +125,7 @@ const parseRelationships = (
 interface OverlayData {
   labels: LangMap<Record<string, string>>;
   options: LangMap<Record<string, string[]>>;
+  optionLabels: LangMap<Record<string, Record<string, string>>>;
   types: Record<string, ArgumentType>;
   cardinalityRules: Record<string, { min: number; max: number }>;
   conformance: Record<string, any>;
@@ -137,13 +138,14 @@ const getOverlayData = (
   captureBase: string,
   bundle: Bundle,
   dependencies: Dependency[],
-  presentations: Presentation[] | undefined,
+  presentations: AdcForm[] | undefined,
 ): OverlayData => {
   const entity = findBundleByCaptureBase(captureBase, bundle, dependencies);
   if (!entity)
     return {
       labels: {},
       options: {},
+      optionLabels: {},
       types: {},
       cardinalityRules: {},
       conformance: {},
@@ -153,6 +155,7 @@ const getOverlayData = (
     };
   const labels: LangMap<Record<string, string>> = {};
   const options: LangMap<Record<string, string[]>> = {};
+  const optionLabels: LangMap<Record<string, Record<string, string>>> = {};
   const types: Record<string, ArgumentType> = {};
   const cardinalityRules: Record<string, { min: number; max: number }> = {};
   const conformance: Record<string, any> = {};
@@ -167,10 +170,11 @@ const getOverlayData = (
       ? Object.fromEntries(
           Object.entries(overlay.attribute_entries).map(([k, v]) => [
             k,
-            Array.isArray(v) ? v : Object.values(v),
+            Array.isArray(v) ? v : Object.keys(v),
           ]),
         )
       : {};
+    optionLabels[overlay.language] = overlay.attribute_entries ?? {};
   });
   if (entity.overlays?.cardinality) {
     const card = entity.overlays.cardinality.attribute_cardinality ?? {};
@@ -204,6 +208,7 @@ const getOverlayData = (
   return {
     labels,
     options,
+    optionLabels,
     types,
     cardinalityRules,
     conformance,
@@ -233,7 +238,7 @@ const getStepMeta = (
 
 // Parse a presentation into Page_parsed[]
 const parsePresentation = (
-  presentation: Presentation,
+  presentation: AdcForm,
   labels: LangMap<Record<string, string>>,
   fields: Field[],
 ): Page_parsed[] => {
@@ -277,17 +282,42 @@ export const parseJsonToFormStructure = (): Step[] => {
   const metadata = asRoot(metadataJson);
   normalizeEntryCodes(metadata.oca_bundle.dependencies);
   const { bundle, dependencies } = metadata.oca_bundle;
-  const presentations = metadata.extensions?.form ?? [];
+  
+  // Handle both old and new extension structures
+  let presentations: AdcForm[] = [];
+  
+  // Check for new ADC extension structure first
+  if (metadata.extensions?.adc) {
+    const adcExtensions = metadata.extensions.adc;
+    // Flatten all forms from all ADC extensions
+    Object.entries(adcExtensions).forEach(([captureBaseId, adcExt]) => {
+      if (adcExt.overlays?.form) {
+        // Set the capture_base property for each form based on the key
+        adcExt.overlays.form.forEach((form) => {
+          form.capture_base = captureBaseId;
+        });
+        presentations.push(...adcExt.overlays.form);
+      }
+    });
+  }
+  
+  // Fallback to old form structure if no ADC extensions found
+  if (presentations.length === 0 && metadata.extensions?.form) {
+    presentations = metadata.extensions.form as AdcForm[];
+  }
+  
   if (!presentations.length) {
     console.warn('No presentations found in the OCA package.');
     return [];
   }
+  
   const mainCaptureBase = bundle.capture_base.d;
   const sortedPresentations = [...presentations].sort((a, b) => {
     if (a.capture_base === mainCaptureBase && b.capture_base !== mainCaptureBase) return -1;
     if (b.capture_base === mainCaptureBase && a.capture_base !== mainCaptureBase) return 1;
     return 0;
   });
+  
   let mainTitle: Record<string, string> = { eng: '', fra: '' };
   const mainPres = sortedPresentations.find((p) => p.capture_base === mainCaptureBase);
   if (mainPres?.title) {
@@ -296,6 +326,7 @@ export const parseJsonToFormStructure = (): Step[] => {
       fra: typeof mainPres.title.fra === 'string' ? mainPres.title.fra : '',
     };
   }
+  
   const allSteps: Record<string, Step> = {};
   sortedPresentations.forEach((presentation) => {
     const relationships = parseRelationships(bundle, dependencies, presentation);
@@ -303,6 +334,7 @@ export const parseJsonToFormStructure = (): Step[] => {
       const {
         labels,
         options,
+        optionLabels,
         types,
         cardinalityRules,
         conformance,
@@ -331,6 +363,15 @@ export const parseJsonToFormStructure = (): Step[] => {
             }
           }
         }
+        let fieldOptionLabels: LangMap<LangMap<Record<string, string>>> = { eng: { [fieldId]: {} } };
+        if (Object.keys(optionLabels).length > 0) {
+          for (const lang in optionLabels) {
+            const langOptionLabels = optionLabels[lang];
+            if (langOptionLabels && typeof langOptionLabels === 'object' && langOptionLabels[fieldId]) {
+              fieldOptionLabels[lang] = { [fieldId]: langOptionLabels[fieldId] };
+            }
+          }
+        }
         const t = types[fieldId];
         const fType =
           t?.type ??
@@ -339,6 +380,7 @@ export const parseJsonToFormStructure = (): Step[] => {
           id: fieldId,
           labels: fieldLabels,
           options: fieldOptions,
+          optionLabels: fieldOptionLabels,
           type: typeof fType === 'string' ? fType : 'textarea',
           orientation: (t?.orientation as 'vertical' | 'horizontal') ?? undefined,
           value: t?.value,
