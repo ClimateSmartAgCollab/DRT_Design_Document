@@ -41,7 +41,7 @@ export const extractRefs = (step: Step): string[] => {
 /**
  * Topologically sort steps so that any step whose `id` is referenced by another
  * appears after its parent. Kahn's algorithm (cycle‐aware).
- * If there’s a cycle or missing node, returns the original array unmodified.
+ * If there's a cycle or missing node, returns the original array unmodified.
  */
 export function sortStepsByReferences(steps: Step[]): Step[] {
   const stepsMap = new Map<string, Step>(steps.map((s) => [s.id, s]))
@@ -69,7 +69,7 @@ export function sortStepsByReferences(steps: Step[]): Step[] {
     })
   })
 
-  // Kahn’s algorithm
+  // Kahn's algorithm
   const queue: string[] = []
   const rootId = steps[0]?.id
   if (rootId && inDegree[rootId] === 0) {

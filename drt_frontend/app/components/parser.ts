@@ -1,142 +1,146 @@
-import { Root, Bundle, Dependency, Presentation } from '../components/type'
-// import metadataJson from '../public/getting_to_know_single_level_presentation.json'
-// import metadataJson from '../public/sampleQuestionnaire_V2.json'
-// import metadataJson from '../public/multi_level_package_presentation.json'
-// import metadataJson from '../public/OpenAIRE_OCA_package.json'
-import metadataJson from '../../public/test.json'
-// import metadataJson from '../../public/veda_test.json'
+import {
+  Root,
+  Bundle,
+  Dependency,
+  Presentation,
+  AttributeGroup,
+  LangMap,
+  Field,
+  Page_parsed,
+  Step,
+  ArgumentType,
+  Section,
+} from '../components/type';
+
+import metadataJson from '../../public/test.json';
+
+// Utility functions
+const asRoot = (json: unknown): Root => json as Root;
+const safeArray = <T>(val: T[] | undefined | null): T[] => (Array.isArray(val) ? val : []);
+const langPick = (obj: Record<string, Record<string, string>> | undefined, key: string): Record<string, string> => {
+  const res: Record<string, string> = {};
+  if (!obj) return res;
+  Object.keys(obj).forEach((lang) => {
+    res[lang] = obj[lang]?.[key] ?? '';
+  });
+  return res;
+};
+const numberOr = (v: string | undefined, fallback: number) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
 
 // Normalize entry codes in dependencies
 const normalizeEntryCodes = (dependencies: Dependency[]): void => {
-  dependencies.forEach(dependency => {
-    if (dependency.overlays?.entry_code?.attribute_entry_codes) {
-      dependency.overlays.entry_code.attribute_entry_codes = Object.fromEntries(
-        Object.entries(
-          dependency.overlays.entry_code.attribute_entry_codes
-        ).map(([key, value]) => [key, value || []])
-      )
+  dependencies.forEach((dep) => {
+    const codes = dep.overlays?.entry_code?.attribute_entry_codes;
+    if (codes) {
+      dep.overlays!.entry_code!.attribute_entry_codes = Object.fromEntries(
+        Object.entries(codes).map(([k, v]) => [k, v ?? []]),
+      );
     }
-  })
-}
+  });
+};
 
-normalizeEntryCodes(metadataJson.oca_bundle.dependencies)
-
-// const metadata: Root = metadataJson as Root
-const metadata = metadataJson as unknown as Root
-
-export const findBundleByCaptureBase = (
+// Find bundle or dependency by capture base
+const findBundleByCaptureBase = (
   captureBase: string,
   bundle: Bundle,
-  dependencies: Dependency[]
+  dependencies: Dependency[],
 ): Bundle | Dependency | null => {
-  if (bundle.capture_base.d === captureBase) {
-    return bundle
-  }
-  const dependency = dependencies.find(
-    dep => dep.capture_base.d === captureBase
-  )
-  if (dependency) {
-    return dependency
-  }
+  if (bundle.capture_base.d === captureBase) return bundle;
+  const depByCap = dependencies.find((dep) => dep.capture_base.d === captureBase);
+  if (depByCap) return depByCap;
+  const depByD = dependencies.find((dep) => dep.d === captureBase);
+  return depByD ?? null;
+};
 
-  const referenceDependency = dependencies.find(dep => dep.d === captureBase)
-  if (referenceDependency) {
-    return referenceDependency
-  }
-
-  return null
-}
-
-const getInteractionTypes = (
+// Get interaction arguments for a capture base
+const getInteractionArgs = (
   captureBase: string,
-  bundle: Bundle,
-  dependencies: Dependency[]
-): Record<string, any> => {
-  const entity = findBundleByCaptureBase(captureBase, bundle, dependencies)
+  presentations: Presentation[] | undefined,
+): Record<string, ArgumentType> => {
+  if (!presentations) return {};
+  return (
+    presentations.find((p) => p.capture_base === captureBase)?.interaction?.[0]?.arguments ?? {}
+  );
+};
 
-  if (!entity || !metadata.extensions?.form) {
-    return {}
+// Relationship map type
+type RelationshipMap = Record<
+  string,
+  {
+    id: string;
+    isParent: boolean;
+    parent: string | null;
+    children: string[];
+    fields: string[];
+    refsMap: Record<string, string>;
   }
+>;
 
-  const interactions =
-    metadata.extensions?.form.find(form => form.capture_base === captureBase)
-      ?.interaction?.[0]?.arguments || {}
-
-  return interactions
-}
-
+// Parse relationships for a presentation
 const parseRelationships = (
   bundle: Bundle,
   dependencies: Dependency[],
-  presentation: Presentation
-): Record<string, any> => {
-  const relationships: Record<string, any> = {}
-  const refsSeen: Set<string> = new Set()
-
-  const addRelationships = (captureBase: string, parentRef: string | null) => {
-    // Avoid re-processing the same capture base
-    if (refsSeen.has(captureBase)) return
-    refsSeen.add(captureBase)
-
-    const entity = findBundleByCaptureBase(captureBase, bundle, dependencies)
+  presentation: Presentation,
+): RelationshipMap => {
+  const relationships: RelationshipMap = {};
+  const visited = new Set<string>();
+  const traverse = (capBase: string, parent: string | null) => {
+    if (visited.has(capBase)) return;
+    visited.add(capBase);
+    const entity = findBundleByCaptureBase(capBase, bundle, dependencies);
     if (!entity) {
-      console.warn(`Entity not found for capture_base: ${captureBase}`)
-      return
+      console.warn(`Entity not found for capture_base: ${capBase}`);
+      return;
     }
-
-    const childRefs: string[] = []
-    const refMap: Record<string, string> = {}
-
-    Object.entries(entity.capture_base.attributes || {}).forEach(
-      ([attrKey, attrValue]) => {
-        if (typeof attrValue === 'string' && attrValue.startsWith('refs:')) {
-          const refId = attrValue.replace('refs:', '')
-
-          const refEntity = dependencies.find(dep => dep.d === refId)
-          if (refEntity) {
-            childRefs.push(refEntity.capture_base.d)
-            refMap[attrKey] = refEntity.capture_base.d
-          }
+    const childRefs: string[] = [];
+    const refsMap: Record<string, string> = {};
+    Object.entries(entity.capture_base.attributes ?? {}).forEach(([attrKey, attrVal]) => {
+      if (typeof attrVal === 'string' && attrVal.startsWith('refs:')) {
+        const refId = attrVal.replace('refs:', '');
+        const refEntity = dependencies.find((dep) => dep.d === refId);
+        if (refEntity) {
+          childRefs.push(refEntity.capture_base.d);
+          refsMap[attrKey] = refEntity.capture_base.d;
         }
       }
-    )
-
-    relationships[captureBase] = {
-      id: captureBase,
+    });
+    relationships[capBase] = {
+      id: capBase,
       isParent: childRefs.length > 0,
-      parent: parentRef,
+      parent,
       children: childRefs,
-      fields: Object.keys(entity.capture_base.attributes || {}),
-      refsMap: refMap
-    }
+      fields: Object.keys(entity.capture_base.attributes ?? {}),
+      refsMap,
+    };
+    childRefs.forEach((child) => traverse(child, capBase));
+  };
+  traverse(presentation.capture_base, null);
+  return relationships;
+};
 
-    childRefs.forEach(childRef => {
-      addRelationships(childRef, captureBase)
-    })
-  }
-
-  addRelationships(presentation.capture_base, null)
-
-  return relationships
+// Overlay data extraction
+interface OverlayData {
+  labels: LangMap<Record<string, string>>;
+  options: LangMap<Record<string, string[]>>;
+  types: Record<string, ArgumentType>;
+  cardinalityRules: Record<string, { min: number; max: number }>;
+  conformance: Record<string, any>;
+  entryCodes: Record<string, string[] | undefined>;
+  characterEncoding: Record<string, any>;
+  format: Record<string, any>;
 }
 
-const getLabelsOptionsAndTypes = (
+const getOverlayData = (
   captureBase: string,
   bundle: Bundle,
-  dependencies: Dependency[]
-): {
-  labels: Record<string, Record<string, string>>
-  options: Record<string, Record<string, string[]>>
-  types: Record<string, any>
-  cardinalityRules: Record<string, any>
-  conformance: Record<string, any>
-  entryCodes: Record<string, any>
-  characterEncoding: Record<string, any>
-  format: Record<string, any>
-} => {
-  const entity = findBundleByCaptureBase(captureBase, bundle, dependencies)
-
-  if (!entity) {
+  dependencies: Dependency[],
+  presentations: Presentation[] | undefined,
+): OverlayData => {
+  const entity = findBundleByCaptureBase(captureBase, bundle, dependencies);
+  if (!entity)
     return {
       labels: {},
       options: {},
@@ -145,85 +149,58 @@ const getLabelsOptionsAndTypes = (
       conformance: {},
       entryCodes: {},
       characterEncoding: {},
-      format: {}
-    }
-  }
-
-  const labels: Record<string, Record<string, string>> = {}
-  const options: Record<string, Record<string, string[]>> = {}
-  const types: Record<string, any> = {}
-  const cardinalityRules: Record<string, any> = {}
-  const conformance: Record<string, any> = {}
-  const entryCodes: Record<string, string[] | undefined> = {}
-  const characterEncoding: Record<string, any> = {}
-  const format: Record<string, any> = {}
-
-  ;(entity.overlays?.label || []).forEach((labelOverlay: any) => {
-    const lang = labelOverlay.language
-    labels[lang] = labelOverlay.attribute_labels || {}
-  })
-  ;(entity.overlays?.entry || []).forEach((entryOverlay: any) => {
-    const lang = entryOverlay.language
-    options[lang] = entryOverlay.attribute_entries || {}
-  })
-
+      format: {},
+    };
+  const labels: LangMap<Record<string, string>> = {};
+  const options: LangMap<Record<string, string[]>> = {};
+  const types: Record<string, ArgumentType> = {};
+  const cardinalityRules: Record<string, { min: number; max: number }> = {};
+  const conformance: Record<string, any> = {};
+  const entryCodes: Record<string, string[] | undefined> = {};
+  const characterEncoding: Record<string, any> = {};
+  const format: Record<string, any> = {};
+  safeArray(entity.overlays?.label).forEach((overlay) => {
+    labels[overlay.language] = overlay.attribute_labels ?? {};
+  });
+  safeArray(entity.overlays?.entry).forEach((overlay) => {
+    options[overlay.language] = overlay.attribute_entries
+      ? Object.fromEntries(
+          Object.entries(overlay.attribute_entries).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v : Object.values(v),
+          ]),
+        )
+      : {};
+  });
   if (entity.overlays?.cardinality) {
-    const cardinalityOverlay = entity.overlays.cardinality
-    Object.entries(cardinalityOverlay.attribute_cardinality).forEach(
-      ([key, range]) => {
-        const parts = range.split('-')
-        const min = parts[0] && !isNaN(Number(parts[0])) ? Number(parts[0]) : 0
-        const max =
-          parts[1] && !isNaN(Number(parts[1]))
-            ? Number(parts[1])
-            : 999999999999999999
-        cardinalityRules[key] = { min, max }
-      }
-    )
+    const card = entity.overlays.cardinality.attribute_cardinality ?? {};
+    Object.entries(card).forEach(([field, range]) => {
+      const [minS, maxS] = String(range).split('-');
+      cardinalityRules[field] = {
+        min: numberOr(minS, 0),
+        max: numberOr(maxS, Number.MAX_SAFE_INTEGER),
+      };
+    });
   }
-
-  const interaction =
-    metadata.extensions?.form.find(form => form.capture_base === captureBase)
-      ?.interaction?.[0]?.arguments || {}
-  Object.keys(interaction).forEach(key => {
-    types[key] = interaction[key]
-  })
-
-  // Collect conformance
+  const interaction = getInteractionArgs(captureBase, presentations);
+  Object.keys(interaction).forEach((k) => {
+    types[k] = interaction[k];
+  });
   if (entity.overlays?.conformance?.attribute_conformance) {
-    const conformanceOverlay = entity.overlays.conformance.attribute_conformance
-    Object.entries(conformanceOverlay).forEach(([fieldId, confValue]) => {
-      conformance[fieldId] = confValue
-    })
+    Object.assign(conformance, entity.overlays.conformance.attribute_conformance);
   }
-
-  // Collect entry codes
-  if (entity.overlays?.entry_code) {
-    const entryCodeOverlay = entity.overlays.entry_code
-    Object.entries(entryCodeOverlay.attribute_entry_codes).forEach(
-      ([fieldId, codes]) => {
-        entryCodes[fieldId] = codes
-      }
-    )
+  if (entity.overlays?.entry_code?.attribute_entry_codes) {
+    Object.assign(entryCodes, entity.overlays.entry_code.attribute_entry_codes);
   }
-
-  // Collect character encoding
   if (entity.overlays?.character_encoding?.attribute_character_encoding) {
-    const encodingOverlay =
-      entity.overlays.character_encoding.attribute_character_encoding
-    Object.entries(encodingOverlay).forEach(([fieldId, encValue]) => {
-      characterEncoding[fieldId] = encValue
-    })
+    Object.assign(
+      characterEncoding,
+      entity.overlays.character_encoding.attribute_character_encoding,
+    );
   }
-
-  // Collect format
   if (entity.overlays?.format?.attribute_formats) {
-    const formatOverlay = entity.overlays.format.attribute_formats
-    Object.entries(formatOverlay).forEach(([fieldId, fmtValue]) => {
-      format[fieldId] = fmtValue
-    })
+    Object.assign(format, entity.overlays.format.attribute_formats);
   }
-
   return {
     labels,
     options,
@@ -232,133 +209,97 @@ const getLabelsOptionsAndTypes = (
     conformance,
     entryCodes,
     characterEncoding,
-    format
-  }
-}
+    format,
+  };
+};
 
+// Step meta extraction
 const getStepMeta = (
   captureBase: string,
   bundle: Bundle,
-  dependencies: Dependency[]
+  dependencies: Dependency[],
 ): { names: Record<string, string>; descriptions: Record<string, string> } => {
-  const entity = findBundleByCaptureBase(captureBase, bundle, dependencies)
+  const entity = findBundleByCaptureBase(captureBase, bundle, dependencies);
+  if (!entity) return { names: {}, descriptions: {} };
+  const meta = safeArray(entity.overlays?.meta);
+  const names: Record<string, string> = {};
+  const descriptions: Record<string, string> = {};
+  meta.forEach((m) => {
+    names[m.language] = m.name ?? 'Unnamed Step';
+    descriptions[m.language] = m.description ?? '';
+  });
+  return { names, descriptions };
+};
 
-  if (!entity) {
-    return { names: {}, descriptions: {} }
-  }
-
-  const meta = entity.overlays?.meta || []
-  const names: Record<string, string> = {}
-  const descriptions: Record<string, string> = {}
-
-  meta.forEach((metaOverlay: any) => {
-    names[metaOverlay.language] = metaOverlay.name || 'Unnamed Step'
-    descriptions[metaOverlay.language] = metaOverlay.description || ''
-  })
-
-  return { names, descriptions }
-}
-
-// Helper: gets all labels from an overlay by page/section key
-const getAllLabels = (
-  labelsObj: Record<string, Record<string, string>> | undefined,
-  key: string
-) => {
-  const result: Record<string, string> = {}
-  if (!labelsObj) return result
-  Object.keys(labelsObj).forEach(lang => {
-    result[lang] = labelsObj[lang]?.[key] || ''
-  })
-  return result
-}
-
+// Parse a presentation into Page_parsed[]
 const parsePresentation = (
   presentation: Presentation,
-  labels: Record<string, Record<string, string>>,
-  fields: any[]
-) => {
-  const pages = presentation.page_order.map(pageKey => {
-    const page = presentation.pages.find(p => p.named_section === pageKey)
-    if (!page) return null
-
-    const sections = (page.attribute_order || []).map(sectionOrField => {
-      if (typeof sectionOrField === 'string') {
-        return {
-          sectionKey: sectionOrField,
-          sectionLabel: {}, // no overlay for a simple string
-          fields: fields.filter(f => f.id === sectionOrField)
-        }
-      } else if (typeof sectionOrField === 'object') {
-        return {
-          sectionKey: sectionOrField.named_section,
-          sectionLabel: getAllLabels(
-            presentation.page_labels,
-            sectionOrField.named_section
-          ),
-          fields: sectionOrField.attribute_order
-            .map(fId => fields.find(f => f.id === fId))
-            .filter(Boolean)
-        }
-      }
+  labels: LangMap<Record<string, string>>,
+  fields: Field[],
+): Page_parsed[] => {
+  return presentation.page_order
+    .map((pageKey) => {
+      const page = presentation.pages.find((p) => p.named_section === pageKey);
+      if (!page) return null;
+      const sections = page.attribute_order
+        .map((sectionOrField) => {
+          if (typeof sectionOrField === 'string') {
+            return {
+              sectionKey: sectionOrField,
+              sectionLabel: {},
+              fields: fields.filter((f) => f.id === sectionOrField),
+            };
+          }
+          const grp = sectionOrField as AttributeGroup;
+          return {
+            sectionKey: grp.named_section,
+            sectionLabel: langPick(presentation.page_labels, grp.named_section),
+            fields: grp.attribute_order
+              .map((fId) => fields.find((f) => f.id === fId))
+              .filter(Boolean) as Field[],
+          };
+        })
+        .filter(Boolean) as Section[];
+      return {
+        pageKey,
+        pageLabel: langPick(presentation.page_labels, pageKey),
+        sidebar_label: langPick(presentation.sidebar_label, pageKey),
+        subheading: langPick(presentation.subheading, pageKey),
+        sections,
+        captureBase: presentation.capture_base,
+      } as Page_parsed;
     })
+    .filter(Boolean) as Page_parsed[];
+};
 
-    return {
-      pageKey,
-      pageLabel: getAllLabels(presentation.page_labels, pageKey),
-      sidebar_label: getAllLabels(presentation.sidebar_label, pageKey),
-      subheading: getAllLabels(presentation.subheading, pageKey),
-      sections: sections.filter(Boolean),
-      captureBase: presentation.capture_base
-    }
-  })
-
-  return pages.filter(Boolean)
-}
-
-export const parseJsonToFormStructure = (): any[] => {
-  const { bundle, dependencies } = metadata.oca_bundle
-  const presentations = metadata.extensions?.form
-
-  const mainCaptureBase = bundle.capture_base.d
-
-  const presentationsSorted = (metadata.extensions?.form || []).sort((a, b) => {
-    if (
-      a.capture_base === mainCaptureBase &&
-      b.capture_base !== mainCaptureBase
-    ) {
-      return -1
-    }
-    if (
-      b.capture_base === mainCaptureBase &&
-      a.capture_base !== mainCaptureBase
-    ) {
-      return 1
-    }
-    return 0
-  })
-
-  if (!presentationsSorted || presentationsSorted.length === 0) {
-    console.warn('No presentations found in the OCA package.')
-    return []
+// Main public function
+export const parseJsonToFormStructure = (): Step[] => {
+  const metadata = asRoot(metadataJson);
+  normalizeEntryCodes(metadata.oca_bundle.dependencies);
+  const { bundle, dependencies } = metadata.oca_bundle;
+  const presentations = metadata.extensions?.form ?? [];
+  if (!presentations.length) {
+    console.warn('No presentations found in the OCA package.');
+    return [];
   }
-
-
-  let mainTitle: Record<string, string> = { eng: '', fra: '' }
-  const mainPresentation = presentationsSorted.find(
-    pres => pres.capture_base === mainCaptureBase
-  )
-  if (mainPresentation && mainPresentation.title) {
+  const mainCaptureBase = bundle.capture_base.d;
+  const sortedPresentations = [...presentations].sort((a, b) => {
+    if (a.capture_base === mainCaptureBase && b.capture_base !== mainCaptureBase) return -1;
+    if (b.capture_base === mainCaptureBase && a.capture_base !== mainCaptureBase) return 1;
+    return 0;
+  });
+  let mainTitle: Record<string, string> = { eng: '', fra: '' };
+  const mainPres = sortedPresentations.find((p) => p.capture_base === mainCaptureBase);
+  if (mainPres?.title) {
     mainTitle = {
-      eng: typeof mainPresentation.title.eng === 'string' ? mainPresentation.title.eng : '',
-      fra: typeof mainPresentation.title.fra === 'string' ? mainPresentation.title.fra : ''
-    }
+      eng: typeof mainPres.title.eng === 'string' ? mainPres.title.eng : '',
+      fra: typeof mainPres.title.fra === 'string' ? mainPres.title.fra : '',
+    };
   }
-  
-  const allSteps: Record<string, any> = {}
-  presentationsSorted.forEach(presentation => {
-    const relationships = parseRelationships(bundle, dependencies, presentation)
-
-    Object.entries(relationships).forEach(([captureBase, relationship]) => {
+  const allSteps: Record<string, Step> = {};
+  sortedPresentations.forEach((presentation) => {
+    const relationships = parseRelationships(bundle, dependencies, presentation);
+    Object.entries(relationships).forEach(([capBase, rel]) => {
       const {
         labels,
         options,
@@ -367,124 +308,92 @@ export const parseJsonToFormStructure = (): any[] => {
         conformance,
         entryCodes,
         characterEncoding,
-        format
-      } = getLabelsOptionsAndTypes(captureBase, bundle, dependencies)
-      const { names, descriptions } = getStepMeta(
-        captureBase,
-        bundle,
-        dependencies
-      )
-
-      const fields = Object.keys(labels['eng'] || {}).map(fieldId => {
-        // Build labels per language for this field
-        const fieldLabels = Object.fromEntries(
-          Object.entries(labels).map(([lang, langLabels]) => [
-            lang,
-            { [fieldId]: langLabels[fieldId] }
-          ])
-        )
-
-        const fieldOptions = Object.fromEntries(
-          Object.entries(options).map(([lang, langOptions]) => [
-            lang,
-            langOptions[fieldId] || {}
-          ])
-        )
-
-        let field: any = {
+        format,
+      } = getOverlayData(capBase, bundle, dependencies, presentations);
+      const { names, descriptions } = getStepMeta(capBase, bundle, dependencies);
+      const fieldIds = Object.keys(labels.eng ?? {});
+      const fields: Field[] = fieldIds.map((fieldId) => {
+        let fieldLabels: LangMap<LangMap<string>> = { eng: { [fieldId]: '' } };
+        if (Object.keys(labels).length > 0) {
+          for (const lang in labels) {
+            const langLabels = labels[lang];
+            if (langLabels && typeof langLabels === 'object' && typeof langLabels[fieldId] === 'string') {
+              fieldLabels[lang] = { [fieldId]: langLabels[fieldId] };
+            }
+          }
+        }
+        let fieldOptions: LangMap<LangMap<string[]>> = { eng: { [fieldId]: [] } };
+        if (Object.keys(options).length > 0) {
+          for (const lang in options) {
+            const langOptions = options[lang];
+            if (langOptions && typeof langOptions === 'object' && Array.isArray(langOptions[fieldId])) {
+              fieldOptions[lang] = { [fieldId]: langOptions[fieldId] };
+            }
+          }
+        }
+        const t = types[fieldId];
+        const fType =
+          t?.type ??
+          (options.eng?.[fieldId] ? 'enum' : 'textarea');
+        const fld: Field = {
           id: fieldId,
           labels: fieldLabels,
           options: fieldOptions,
-          type:
-            types[fieldId]?.type ||
-            (options['eng'][fieldId] ? 'enum' : 'textarea'),
-          orientation: types[fieldId]?.orientation || null,
-          value: types[fieldId]?.value || null,
-          ref: null,
+          type: typeof fType === 'string' ? fType : 'textarea',
+          orientation: (t?.orientation as 'vertical' | 'horizontal') ?? undefined,
+          value: t?.value,
+          ref: undefined,
+          placeholder: t?.placeholder,
           validation: {
             conformance: conformance[fieldId],
             entryCodes: entryCodes[fieldId],
             characterEncoding: characterEncoding[fieldId],
             format: format[fieldId],
-            cardinality: cardinalityRules[fieldId]
-          }
+            cardinality: cardinalityRules[fieldId],
+          },
+        };
+        // Safely assign optional properties if they exist
+        if (
+          t &&
+          typeof t === 'object' &&
+          'reference_button_text' in t &&
+          typeof t.reference_button_text === 'object' &&
+          t.reference_button_text !== null
+        ) {
+          fld.reference_button_text = t.reference_button_text as Record<string, string>;
         }
-
-        if (types[fieldId]?.reference_button_text) {
-          field.reference_button_text = types[fieldId].reference_button_text
+        if (
+          t &&
+          typeof t === 'object' &&
+          'showing_attribute' in t &&
+          Array.isArray(t.showing_attribute)
+        ) {
+          fld.showing_attribute = t.showing_attribute as string[];
         }
-        if (types[fieldId]?.showing_attribute) {
-          field.showing_attribute = types[fieldId].showing_attribute
-        }
-        if (types[fieldId]?.placeholder) {
-          field.placeholder = types[fieldId].placeholder
-        }
-
-        if (field.type === 'reference') {
-          const refMap = relationships[captureBase].refsMap
+        if (fld.type === 'reference') {
+          const refMap = relationships[capBase].refsMap;
           if (refMap && refMap[fieldId]) {
-            field.ref = refMap[fieldId]
+            fld.ref = refMap[fieldId];
           }
         }
-
-        return field
-      })
-
-      const uniquePresentations: Record<string, any>[] = []
-
-      // console.log('parsePresentation presentation:\n', presentation)
-
-      const pages = parsePresentation(presentation, labels, fields)
-
-      const uniqueCaptureBases = new Set()
-
-      pages.forEach(page => {
-        const capBase = page?.captureBase || ''
-        if (!uniqueCaptureBases.has(capBase)) {
-          uniqueCaptureBases.add(capBase)
-          uniquePresentations.push({
-            captureBase: capBase,
-            names,
-            descriptions,
-            parent: relationship.parent,
-            pages: [page]
-          })
-        } else {
-          const existingPresentation = uniquePresentations.find(
-            pres => pres.captureBase === capBase
-          )
-          if (existingPresentation) {
-            existingPresentation.pages.push(page)
-          }
-        }
-      })
-
-      uniquePresentations.forEach(pres => {
-        const { captureBase, names, descriptions, parent, pages } = pres
-        if (!allSteps[captureBase]) {
-          allSteps[captureBase] = {
-            id: captureBase,
-            title: captureBase === mainCaptureBase ? mainTitle : '',
-            names,
-            descriptions,
-            parent: relationship.parent || null,
-            pages
-          }
-        } else {
-          const existingPages = allSteps[captureBase].pages.map(
-            (page: any) => page.id
-          )
-          const newPages = pages.filter(
-            (page: any) => !existingPages.includes(page.id)
-          )
-          allSteps[captureBase].pages = [
-            ...allSteps[captureBase].pages,
-            ...newPages
-          ]
-        }
-      })
-    })
-  })
-
-  return Object.values(allSteps)
-}
+        return fld;
+      });
+      const pages = parsePresentation(presentation, labels, fields);
+      if (!allSteps[capBase]) {
+        allSteps[capBase] = {
+          id: capBase,
+          title: capBase === mainCaptureBase ? mainTitle : undefined,
+          names,
+          descriptions,
+          parent: rel.parent,
+          pages,
+        };
+      } else {
+        const existingPages = new Set(allSteps[capBase].pages.map((p) => p.pageKey));
+        const newOnes = pages.filter((p) => !existingPages.has(p.pageKey));
+        allSteps[capBase].pages.push(...newOnes);
+      }
+    });
+  });
+  return Object.values(allSteps);
+};

@@ -21,9 +21,28 @@ export function usePageNavigation(
     React.SetStateAction<Record<string, number>>
   >,
   setCurrentStep: (s: number) => void,
-  onNavigate: (idx: number) => void
+  onNavigate: (idx: number) => void,
+  // Additional parameters for enhanced functionality
+  setVisitedSteps?: React.Dispatch<React.SetStateAction<Set<string>>>,
+  setCurrentChildId?: (id: string | null) => void,
+  setCurrentChildParentId?: (id: string | null) => void,
+  currentChildId?: string | null,
+  currentChildParentId?: string | null
 ) {
   const goToNextParent = useCallback(() => {
+    if (!validateCurrentPageData(
+      parsedSteps,
+      currentStep,
+      pageIndexByStep,
+      language,
+      formFieldRefs,
+      setFieldErrors
+    )) {
+      console.warn("Please fix errors before continuing.");
+      // return
+    }
+
+    saveCurrentPageData();
     const stepId = parsedSteps[currentStep]?.id;
     const currentParentIndex = parentSteps.findIndex((p) => p.id === stepId);
     if (
@@ -36,9 +55,22 @@ export function usePageNavigation(
         onNavigate(nextIndex);
       }
     }
-  }, [parsedSteps, currentStep, parentSteps, onNavigate]);
+  }, [parsedSteps, currentStep, parentSteps, onNavigate, pageIndexByStep, language, formFieldRefs, setFieldErrors, saveCurrentPageData]);
 
   const goToPreviousParent = useCallback(() => {
+    if (!validateCurrentPageData(
+      parsedSteps,
+      currentStep,
+      pageIndexByStep,
+      language,
+      formFieldRefs,
+      setFieldErrors
+    )) {
+      console.warn("Please fix errors before continuing.");
+      // return
+    }
+    
+    saveCurrentPageData();
     const stepId = parsedSteps[currentStep]?.id;
     const currentParentIndex = parentSteps.findIndex((p) => p.id === stepId);
     if (currentParentIndex > 0) {
@@ -46,7 +78,7 @@ export function usePageNavigation(
       const prevIndex = parsedSteps.findIndex((s) => s.id === prevParentId);
       if (prevIndex >= 0) onNavigate(prevIndex);
     }
-  }, [parsedSteps, currentStep, parentSteps, onNavigate]);
+  }, [parsedSteps, currentStep, parentSteps, onNavigate, pageIndexByStep, language, formFieldRefs, setFieldErrors, saveCurrentPageData]);
 
   const isParentStep = useCallback(
     (step: Step) => parentSteps.some((p) => p.id === step.id),
@@ -89,6 +121,8 @@ export function usePageNavigation(
           }));
         }
       }
+      // If it's a child step on the last page, do nothing here
+      // (the user sees Finish/Cancel).
     }
   }, [
     parsedSteps,
@@ -125,6 +159,8 @@ export function usePageNavigation(
           }));
         }
       }
+      // If child step is on first page, do nothing
+      // (the user does not have a "Back" on the first child page).
     }
   }, [
     parsedSteps,
@@ -149,6 +185,7 @@ export function usePageNavigation(
       console.warn("Please fix errors before continuing.");
       // return
     }
+
     saveCurrentPageData();
 
     const stepObj = parsedSteps[currentStep];
@@ -156,7 +193,21 @@ export function usePageNavigation(
 
     if (!isParentStep(stepObj)) {
       // If finishing a child step, remove from visited set so sidebar collapses it
-      // (note: parent code should handle that via context or props)
+      if (setVisitedSteps) {
+        setVisitedSteps(prev => {
+          const updated = new Set(prev);
+          updated.delete(stepObj.id);
+          return updated;
+        });
+      }
+    }
+
+    // Reset child state when finishing
+    if (setCurrentChildId) {
+      setCurrentChildId(null);
+    }
+    if (setCurrentChildParentId) {
+      setCurrentChildParentId(null);
     }
 
     const referencingStep = getReferencingStep(stepObj.id, parsedSteps);
@@ -175,12 +226,53 @@ export function usePageNavigation(
     setFieldErrors,
     saveCurrentPageData,
     isParentStep,
+    setVisitedSteps,
+    setCurrentChildId,
+    setCurrentChildParentId,
   ]);
 
   const cancelHandler = useCallback(() => {
     saveCurrentPageData();
+    
+    // Reset child state when canceling
+    if (setCurrentChildId) {
+      setCurrentChildId(null);
+    }
+    if (setCurrentChildParentId) {
+      setCurrentChildParentId(null);
+    }
+    
     setCurrentStep(0);
-  }, [saveCurrentPageData, setCurrentStep]);
+  }, [saveCurrentPageData, setCurrentStep, setCurrentChildId, setCurrentChildParentId]);
+
+  // Enhanced navigation function for direct step/page navigation
+  const handleNavigate = useCallback(
+    (stepIndex: number, pageIndex: number = 0) => {
+      if (stepIndex < 0 || stepIndex >= parsedSteps.length) return;
+
+      if (!validateCurrentPageData(
+        parsedSteps,
+        currentStep,
+        pageIndexByStep,
+        language,
+        formFieldRefs,
+        setFieldErrors
+      )) {
+        console.warn("Please fix errors before continuing.");
+        // return
+      }
+
+      saveCurrentPageData();
+
+      setPageIndexByStep(prev => ({
+        ...prev,
+        [parsedSteps[stepIndex].id]: pageIndex
+      }));
+
+      onNavigate(stepIndex);
+    },
+    [parsedSteps, currentStep, pageIndexByStep, language, formFieldRefs, setFieldErrors, saveCurrentPageData, onNavigate]
+  );
 
   return {
     handleNextPage,
@@ -188,5 +280,8 @@ export function usePageNavigation(
     finishHandler,
     cancelHandler,
     isParentStep,
+    handleNavigate,
+    goToNextParent,
+    goToPreviousParent,
   };
 } 

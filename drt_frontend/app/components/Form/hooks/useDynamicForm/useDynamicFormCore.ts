@@ -194,6 +194,9 @@ export function useDynamicForm(parsedSteps: Step[]) {
     finishHandler,
     cancelHandler,
     isParentStep,
+    handleNavigate,
+    goToNextParent,
+    goToPreviousParent,
   } = usePageNavigation(
     parsedSteps,
     currentStep,
@@ -205,7 +208,12 @@ export function useDynamicForm(parsedSteps: Step[]) {
     (errs: any) => setFieldErrors(errs),
     (newMap: any) => setPageIndexByStep(newMap),
     (idx: any) => setCurrentStep(idx),
-    onNavigate
+    onNavigate,
+    setVisitedSteps,
+    setCurrentChildId,
+    setCurrentChildParentId,
+    currentChildId,
+    currentChildParentId
   );
 
   const {
@@ -303,9 +311,11 @@ export function useDynamicForm(parsedSteps: Step[]) {
     pageIndexByStep,
     expandedStep,
     setExpandedStep,
-    handleNavigate: onNavigate,
+    handleNavigate,
     handleNextPage,
     handlePreviousPage,
+    goToNextParent,
+    goToPreviousParent,
     isVeryLastPageOfLastStep:
       isParentStep(parsedSteps[currentStep]) &&
       pageIndexByStep[parsedSteps[currentStep].id] ===

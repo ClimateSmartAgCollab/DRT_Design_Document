@@ -1,7 +1,7 @@
 # drt_core\settings\local.py
 from .base import *  # noqa: F403, F401
 import os
-# import dj_database_url
+import dj_database_url
 
 print("▶︎ USING local.py; ENVIRONMENT =", os.getenv("ENVIRONMENT"))
 print("▶︎ SMTP USER =", os.getenv("ETHEREAL_USER"))
@@ -103,8 +103,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-FRONTEND_BASE_URL = "http://drt-test.canadacentral.cloudapp.azure.com:80"
-# FRONTEND_BASE_URL = "http://127.0.0.1:3000"
+# FRONTEND_BASE_URL = "http://drt-test.canadacentral.cloudapp.azure.com:80"
+FRONTEND_BASE_URL = "http://127.0.0.1:3000"
 
 DATABASES = {
     "default": {
@@ -118,8 +118,8 @@ DATABASES = {
 }
 
 
-# database_url = os.environ.get("DATABASE_URL")
-# DATABASES["default"] = dj_database_url.parse(database_url)
+database_url = os.environ.get("DATABASE_URL")
+DATABASES["default"] = dj_database_url.parse(database_url)
 
 REDIS_URL = os.environ.get("REDIS_URL")
 if REDIS_URL is None:

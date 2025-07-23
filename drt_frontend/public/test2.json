@@ -295,287 +295,301 @@
     ]
   },
   "extensions": {
-    "form": [
-      {
-        "d": "###presentationDigest###",
-        "type": "###presentationType###",
-        "capture_base": "EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3",
-        "language": [
-          "eng",
-          "fra"
-        ],
-        "pages": [
-          {
-            "named_section": "page-1",
-            "attribute_order": [
-              {
-                "named_section": "section-1",
-                "attribute_order": [
-                  "q1",
-                  "q10",
-                  "q10.5",
-                  "q11",
-                  "q12",
-                  "q13",
-                  "q14",
-                  "q15",
-                  "q16",
-                  "q2",
-                  "q3",
-                  "q4",
-                  "q5",
-                  "q6",
-                  "q7",
-                  "q8",
-                  "q9"
-                ]
-              }
-            ]
-          }
-        ],
-        "page_order": [
-          "page-1"
-        ],
-        "page_labels": {
-          "eng": {
-            "page-1": "Page 1: Data Request Schema"
-          },
-          "fra": {
-            "page-1": "Page 1: Schéma de demande de données"
-          }
-        },
-        "sidebar_label": {
-          "eng": {
-            "page-1": "sidebar: Data Request Schema"
-          },
-          "fra": {
-            "page-1": "sidebar: Schéma de demande de données"
-          }
-        },
-        "subheading": {
-          "eng": {
-            "page-1": "subheading: Data Request Schema"
-          },
-          "fra": {
-            "page-1": "subheading: Schéma de demande de données"
-          }
-        },
-        "interaction": [
-          {
-            "arguments": {
-              "q1": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
+    "adc": {
+      "EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3": {
+        "d": "######## SAID OF THE CONTENT ########",
+        "type": "community/adc/extension/1.0",
+        "overlays": {
+          "form": [
+            {
+              "d": "###presentationDigest###",
+              "type": "###presentationType###",
+              "language": [
+                "eng",
+                "fra"
+              ],
+              "pages": [
+                {
+                  "named_section": "page-1",
+                  "attribute_order": [
+                    {
+                      "named_section": "section-1",
+                      "attribute_order": [
+                        "q1",
+                        "q10",
+                        "q10.5",
+                        "q11",
+                        "q12",
+                        "q13",
+                        "q14",
+                        "q15",
+                        "q16",
+                        "q2",
+                        "q3",
+                        "q4",
+                        "q5",
+                        "q6",
+                        "q7",
+                        "q8",
+                        "q9"
+                      ]
+                    }
+                  ]
                 }
-              },
-              "q10": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q10.5": {
-                "type": "reference",
-                "reference_button_text": {
-                  "eng": "default",
-                  "fra": "default"
+              ],
+              "page_order": [
+                "page-1"
+              ],
+              "page_labels": {
+                "eng": {
+                  "page-1": "Page 1: Data Request Schema"
                 },
-                "showing_attribute": [
-                  "q1",
-                  "q2"
-                ]
-              },
-              "q11": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
+                "fra": {
+                  "page-1": "Page 1: Schéma de demande de données"
                 }
               },
-              "q12": {
-                "type": "select"
-              },
-              "q13": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
+              "sidebar_label": {
+                "eng": {
+                  "page-1": "sidebar: Data Request Schema"
+                },
+                "fra": {
+                  "page-1": "sidebar: Schéma de demande de données"
                 }
               },
-              "q14": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
+              "subheading": {
+                "eng": {
+                  "page-1": "subheading: Data Request Schema"
+                },
+                "fra": {
+                  "page-1": "subheading: Schéma de demande de données"
                 }
               },
-              "q15": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
+              "interaction": [
+                {
+                  "arguments": {
+                    "q1": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q10": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q10.5": {
+                      "type": "reference",
+                      "reference_button_text": {
+                        "eng": "default",
+                        "fra": "default"
+                      },
+                      "showing_attribute": [
+                        "q1",
+                        "q2"
+                      ]
+                    },
+                    "q11": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q12": {
+                      "type": "select"
+                    },
+                    "q13": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q14": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q15": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q16": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q2": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q3": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q4": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q5": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q6": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q7": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q8": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q9": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    }
+                  }
                 }
-              },
-              "q16": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q2": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q3": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q4": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q5": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q6": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q7": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q8": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
-              },
-              "q9": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...(customize the example as the place holder)",
-                  "fra": "Enter ...(customize the example as the place holder)"
-                }
+              ],
+              "title": {
+                "eng": "Data Request Schema",
+                "fra": "Schéma de demande de données"
               }
             }
-          }
-        ],
-        "title": {
-          "eng": "Data Request Schema",
-          "fra": "Schéma de demande de données"
+          ]
         }
       },
-      {
-        "d": "###presentationDigest###",
-        "type": "###presentationType###",
-        "capture_base": "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
-        "language": [
-          "fra",
-          "eng"
-        ],
-        "pages": [
-          {
-            "named_section": "page-1",
-            "attribute_order": [
-              {
-                "named_section": "section-1",
-                "attribute_order": [
-                  "q1",
-                  "q2",
-                  "q3",
-                  "q4"
-                ]
-              }
-            ]
-          }
-        ],
-        "page_order": [
-          "page-1"
-        ],
-        "page_labels": {
-          "fra": {
-            "page-1": "Page 1: Informations sur le collaborateur"
-          },
-          "eng": {
-            "page-1": "Page 1: Collaborator Information"
-          }
-        },
-        "sidebar_label": {
-          "fra": {
-            "page-1": "sidebar: Informations sur le collaborateur"
-          },
-          "eng": {
-            "page-1": "sidebar: Collaborator Information"
-          }
-        },
-        "subheading": {
-          "fra": {
-            "page-1": "subheading: Informations sur le collaborateur"
-          },
-          "eng": {
-            "page-1": "subheading: Collaborator Information"
-          }
-        },
-        "interaction": [
-          {
-            "arguments": {
-              "q1": {
-                "type": "textarea",
-                "placeholder": {
-                  "fra": "Enter ...(customize the example as the place holder)",
-                  "eng": "Enter ...(customize the example as the place holder)"
+      "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al": {
+        "d": "######## SAID OF THE CONTENT ########",
+        "type": "community/adc/extension/1.0",
+        "overlays": {
+          "form": [
+            {
+              "d": "###presentationDigest###",
+              "type": "###presentationType###",
+              "language": [
+                "fra",
+                "eng"
+              ],
+              "pages": [
+                {
+                  "named_section": "page-1",
+                  "attribute_order": [
+                    {
+                      "named_section": "section-1",
+                      "attribute_order": [
+                        "q1",
+                        "q2",
+                        "q3",
+                        "q4"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "page_order": [
+                "page-1"
+              ],
+              "page_labels": {
+                "fra": {
+                  "page-1": "Page 1: Informations sur le collaborateur"
+                },
+                "eng": {
+                  "page-1": "Page 1: Collaborator Information"
                 }
               },
-              "q2": {
-                "type": "textarea",
-                "placeholder": {
-                  "fra": "Enter ...(customize the example as the place holder)",
-                  "eng": "Enter ...(customize the example as the place holder)"
+              "sidebar_label": {
+                "fra": {
+                  "page-1": "sidebar: Informations sur le collaborateur"
+                },
+                "eng": {
+                  "page-1": "sidebar: Collaborator Information"
                 }
               },
-              "q3": {
-                "type": "textarea",
-                "placeholder": {
-                  "fra": "Enter ...(customize the example as the place holder)",
-                  "eng": "Enter ...(customize the example as the place holder)"
+              "subheading": {
+                "fra": {
+                  "page-1": "subheading: Informations sur le collaborateur"
+                },
+                "eng": {
+                  "page-1": "subheading: Collaborator Information"
                 }
               },
-              "q4": {
-                "type": "textarea",
-                "placeholder": {
-                  "fra": "Enter ...(customize the example as the place holder)",
-                  "eng": "Enter ...(customize the example as the place holder)"
+              "interaction": [
+                {
+                  "arguments": {
+                    "q1": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "fra": "Enter ...(customize the example as the place holder)",
+                        "eng": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q2": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "fra": "Enter ...(customize the example as the place holder)",
+                        "eng": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q3": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "fra": "Enter ...(customize the example as the place holder)",
+                        "eng": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q4": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "fra": "Enter ...(customize the example as the place holder)",
+                        "eng": "Enter ...(customize the example as the place holder)"
+                      }
+                    }
+                  }
                 }
-              }
+              ]
             }
-          }
-        ]
+          ]
+        }
       }
-    ]
+    }
   }
 }

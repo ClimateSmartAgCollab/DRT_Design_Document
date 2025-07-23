@@ -38,6 +38,10 @@ interface FieldRendererProps {
   currentChildParentId: string | null;
   isNewChild: boolean;
   setIsNewChild: (v: boolean) => void;
+  setCurrentChildId: (id: string | null) => void;
+  setCurrentChildParentId: (id: string | null) => void;
+  fieldErrors: Record<string, string>;
+  isValid__UTF8: (text: string) => boolean;
 }
 
 export default function FieldRenderer({
@@ -55,6 +59,10 @@ export default function FieldRenderer({
   parsedSteps,
   parentFormData,
   setIsNewChild,
+  setCurrentChildId,
+  setCurrentChildParentId,
+  fieldErrors,
+  isValid__UTF8,
 }: FieldRendererProps) {
   const theme = useTheme();
 
@@ -94,7 +102,7 @@ export default function FieldRenderer({
       <textarea
         id={id}
         name={rhfName}
-        defaultValue={value ?? ""}
+        value={value ?? ""}
         placeholder={
           field.placeholder?.[language] || field.placeholder?.eng || ""
         }
@@ -113,11 +121,20 @@ export default function FieldRenderer({
           rhfOnBlur(e);
           saveCurrentPageData();
         }}
+        onPaste={e => {
+          const pastedText = e.clipboardData.getData('text')
+          if (!isValid__UTF8(pastedText)) {
+            e.preventDefault()
+            alert(
+              'Pasted text contains invalid characters. Please use UTF-8 text only.'
+            )
+          }
+        }}
       />
     );
   }
 
-  // 2) DATE/TIME (you'll need to wire register inside DateTimeField similarly)
+  // 2) DATE/TIME
   if (field.type === "DateTime") {
     return (
       <DateTimeField
@@ -125,16 +142,8 @@ export default function FieldRenderer({
         field={field}
         format={field.validation?.format || "YYYY-MM-DD"}
         fieldValue={value}
-        register={{
-          onChange: rhfOnChange,
-          onBlur: rhfOnBlur,
-          name: rhfName,
-          ref: rhfRef,
-        }}
-        handleFieldChange={(v) => {
-          rhfOnChange({ target: { value: v } } as any);
-          handleFieldChange(v);
-        }}
+        register={register}
+        handleFieldChange={handleFieldChange}
         saveCurrentPageData={saveCurrentPageData}
       />
     );
@@ -184,19 +193,28 @@ export default function FieldRenderer({
     );
   }
 
-  // 4) MULTI‐SELECT DROPDOWN
+  // 4) SELECT/DROPDOWN
   if (field.type === "select" || field.type === "dropdown") {
     const selectedValues: string[] = Array.isArray(formData[stepId]?.[field.id])
       ? (formData[stepId][field.id] as string[])
       : [];
 
-    const options = field.options?.[language] || {};
+    // Get the options for this specific field and language
+    const fieldOptions = field.options?.[language]?.[field.id] || [];
+    
+    // Create key-value pairs where both key and value are the option string
+    const optionsMap: Record<string, string> = {};
+    if (Array.isArray(fieldOptions)) {
+      fieldOptions.forEach((option) => {
+        optionsMap[option] = option;
+      });
+    }
 
     return (
       <div>
         {/* Render checkboxes for each option */}
         <div className="flex flex-col gap-2">
-          {Object.entries(options).map(([optKey, optLabel]) => (
+          {Object.entries(optionsMap).map(([optKey, optLabel]) => (
             <label
               key={optKey}
               htmlFor={`${id}-${optKey}`}
@@ -252,47 +270,129 @@ export default function FieldRenderer({
     );
   }
 
-  // 5) REFERENCE (child‐step) — no change to RHF here
+  // 5) REFERENCE FIELD → navigate to child
   if (field.type === "reference" && field.ref) {
-    const children: any[] =
-      parentFormData[field.id]?.childrenData?.[field.ref] || [];
-
     return (
       <div>
         <button
-          type="button"
+          type='button'
           onClick={() => {
-            const newChild = ctxCreate(field.id, field.ref!);
-            setIsNewChild(true);
-            const idx = parsedSteps.findIndex((s) => s.id === field.ref);
-            if (idx >= 0) onNavigate(idx);
-            window.scrollTo(0, 0);
+            const newChild = ctxCreate(field.id, field.ref!)
+
+            setCurrentChildId(newChild.id)
+            setCurrentChildParentId(field.id)
+
+            setIsNewChild(false)
+
+            // Navigate to the child step
+            const targetIndex = parsedSteps.findIndex(
+              s => s.id === field.ref
+            )
+
+            if (targetIndex >= 0) {
+              onNavigate(targetIndex)
+            } else {
+              console.warn(
+                `Reference step not found for field: ${field.id}`
+              )
+            }
+            scrollTo(0, 0)
           }}
-          className="mt-2 rounded px-4 py-2 text-white hover:opacity-90"
-          style={buttonStyles}
+          className='mt-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600'
         >
-          +
+          +{' '}
           {field.reference_button_text?.[language] ||
             field.reference_button_text?.eng ||
-            " Child Step"}
+            '+ Child Step'}
         </button>
-
-        {children.length > 0 && (
-          <div
-            className="mt-4 rounded border p-4"
-            style={{
-              backgroundColor: theme.colors.grey[200],
-              borderColor: theme.colors.grey[300],
-            }}
-          >
-            {/* …render table of children… */}
-          </div>
-        )}
+        
+        {/* Only display the table if there is at least one child */}
+        {parentFormData[field.id] &&
+          parentFormData[field.id].childrenData &&
+          (
+            parentFormData[field.id]?.childrenData?.[
+              field.ref
+            ] ?? []
+          ).length > 0 && (
+            <div className='mt-4 rounded border bg-gray-100 p-4'>
+              <h4 className='mb-2 text-lg font-semibold'>
+                {
+                  parsedSteps.find(s => s.id === field.ref)
+                    ?.names[language]
+                }
+              </h4>
+              <table className='w-full table-fixed border border-gray-300'>
+                <thead className='bg-gray-200'>
+                  <tr>
+                    {/* Fixed-width Name column */}
+                    <th className='w-64 border border-gray-300 px-4 py-2 text-left'>
+                      Attributes
+                    </th>
+                    {/* Fixed-width actions column without a header title */}
+                    <th className='w-32 border border-gray-300 px-4 py-2'></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(parentFormData[field.id]?.childrenData ??
+                    {})[field.ref].map((child: any) => (
+                    <tr key={child.id}>
+                      <td className='break-words border border-gray-300 px-4 py-2'>
+                        {/* Render each attribute value specified in field.showing_attribute */}
+                        {field.showing_attribute?.map(
+                          attr => (
+                            <div
+                              key={attr}
+                              className='mt-2 text-sm text-gray-700'
+                            >
+                              <strong>{attr}: </strong>
+                              <span>
+                                {child.data[attr] || '(No Data)'}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </td>
+                      <td className='border border-gray-300 px-4 py-2 text-center'>
+                        <div className='flex justify-center space-x-2'>
+                          <button
+                            type='button'
+                            onClick={() => {
+                              // Enter "edit mode"
+                              setCurrentChildId(child.id)
+                              setCurrentChildParentId(field.id)
+                              const idx = parsedSteps.findIndex(
+                                s => s.id === child.stepId
+                              )
+                              if (idx >= 0) {
+                                onNavigate(idx)
+                              }
+                            }}
+                            className='rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600'
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type='button'
+                            onClick={() => {
+                              ctxDelete(child.id, field.id, field.ref!)
+                            }}
+                            className='rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600'
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
       </div>
     );
   }
 
-  // 6) FALLBACK: simple text input
+  // 6) DEFAULT TEXT INPUT
   return (
     <input
       id={id}

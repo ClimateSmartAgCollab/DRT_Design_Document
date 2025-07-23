@@ -127,77 +127,84 @@
     "dependencies": []
   },
   "extensions": {
-    "form": [
-      {
-        "d": "###presentationDigest###",
-        "type": "###presentationType###",
-        "capture_base": "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi",
-        "language": [
-          "eng",
-          "fra"
-        ],
-        "pages": [
-          {
-            "named_section": "page-1",
-            "attribute_order": [
-              {
-                "named_section": "section-1",
-                "attribute_order": [
-                  "q1",
-                  "q2"
-                ]
-              }
-            ]
-          }
-        ],
-        "page_order": [
-          "page-1"
-        ],
-        "page_labels": {
-          "eng": {
-            "page-1": "Page 1: Data Request Schema"
-          },
-          "fra": {
-            "page-1": "Page 1: Schéma de demande de données"
-          }
-        },
-        "sidebar_label": {
-          "eng": {
-            "page-1": "sidebar: Data Request Schema"
-          },
-          "fra": {
-            "page-1": "sidebar: Schéma de demande de données"
-          }
-        },
-        "subheading": {
-          "eng": {
-            "page-1": "subheading: Data Request Schema"
-          },
-          "fra": {
-            "page-1": "subheading: Schéma de demande de données"
-          }
-        },
-        "interaction": [
-          {
-            "arguments": {
-              "q1": {
-                "type": "textarea",
-                "placeholder": {
-                  "eng": "Enter ...",
-                  "fra": "Enter ..."
+    "adc": {
+      "EAmNuC6bcpDmVl1WhtyrtajXUYQAgvz6oda6P2uLitmi": {
+        "d": "######## SAID OF THE CONTENT ########",
+        "type": "community/adc/extension/1.0",
+        "overlays": {
+          "form": [
+            {
+              "d": "###presentationDigest###",
+              "type": "###presentationType###",
+              "language": [
+                "eng",
+                "fra"
+              ],
+              "pages": [
+                {
+                  "named_section": "page-1",
+                  "attribute_order": [
+                    {
+                      "named_section": "section-1",
+                      "attribute_order": [
+                        "q1",
+                        "q2"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "page_order": [
+                "page-1"
+              ],
+              "page_labels": {
+                "eng": {
+                  "page-1": "Page 1: Data Request Schema"
+                },
+                "fra": {
+                  "page-1": "Page 1: Schéma de demande de données"
                 }
               },
-              "q2": {
-                "type": "select"
+              "sidebar_label": {
+                "eng": {
+                  "page-1": "sidebar: Data Request Schema"
+                },
+                "fra": {
+                  "page-1": "sidebar: Schéma de demande de données"
+                }
+              },
+              "subheading": {
+                "eng": {
+                  "page-1": "subheading: Data Request Schema"
+                },
+                "fra": {
+                  "page-1": "subheading: Schéma de demande de données"
+                }
+              },
+              "interaction": [
+                {
+                  "arguments": {
+                    "q1": {
+                      "type": "textarea",
+                      "placeholder": {
+                        "eng": "Enter ...(customize the example as the place holder)",
+                        "fra": "Enter ...(customize the example as the place holder)"
+                      }
+                    },
+                    "q2": {
+                      "type": "select"
+                    }
+                  }
+                }
+              ],
+              "title": {
+                "eng": "Data Request Schema",
+                "fra": "Schéma de demande de données"
               }
             }
-          }
-        ],
-        "title": {
-          "eng": "Data Request Schema",
-          "fra": "Schéma de demande de données"
+          ]
         }
       }
-    ]
+    }
   }
 }

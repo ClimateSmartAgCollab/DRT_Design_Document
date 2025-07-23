@@ -1,7 +1,7 @@
 // drt_frontend/app/components/Form/FormWrapper.tsx
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -16,12 +16,14 @@ import {
 import { useFormData } from "../Form/context/FormDataContext";
 import { buildValidationSchema } from "./hooks/useDynamicForm/validationSchema";
 import { useTheme } from "./hooks/useTheme";
+import { isValid__UTF8 } from "./hooks/useDynamicForm/utils";
 
 import FormHeader from "./FormHeader";
 import FieldRenderer from "./FieldRenderer";
 import NavigationButtons from "./NavigationButtons";
 import Sidebar from "./Sidebar";
 import ReviewSection from "./ReviewSection";
+import ChildReview from "./ChildReview";
 
 import styles from "./Form.module.css";
 import Footer from "../Footer/footer";
@@ -91,7 +93,12 @@ export default function FormWrapper({
     isNewChild,
     setIsNewChild,
     prefillCurrentPageData,
+    fieldErrors,
+    setCurrentChildId,
+    setCurrentChildParentId,
   }: UseDynamicFormReturn = useDynamicForm(parsedSteps);
+
+  const { parentFormData } = useFormData();
 
   useEffect(() => {
     reset(formData as any);
@@ -121,7 +128,6 @@ export default function FormWrapper({
 
   // REVIEW MODE
   if (reviewOutput) {
-    const { parentFormData } = useFormData();
     return (
       <ReviewSection
         parsedSteps={parsedSteps}
@@ -254,11 +260,15 @@ export default function FormWrapper({
                           deleteChild={deleteChild}
                           onNavigate={onNavigate}
                           parsedSteps={parsedSteps}
-                          parentFormData={useFormData().parentFormData}
+                          parentFormData={parentFormData}
                           currentChildId={currentChildId}
                           currentChildParentId={currentChildParentId}
                           isNewChild={isNewChild}
                           setIsNewChild={setIsNewChild}
+                          setCurrentChildId={setCurrentChildId}
+                          setCurrentChildParentId={setCurrentChildParentId}
+                          fieldErrors={fieldErrors}
+                          isValid__UTF8={isValid__UTF8}
                         />
 
                         {/* only show error if blurred */}
@@ -269,6 +279,13 @@ export default function FormWrapper({
                           >
                             {errorMsg}
                           </p>
+                        )}
+
+                        {/* Show Validation Errors */}
+                        {fieldErrors[field.id] && (
+                          <div className='mt-1 text-sm text-red-600'>
+                            {fieldErrors[field.id]}
+                          </div>
                         )}
 
                         {/* Owner Comment */}
@@ -307,7 +324,7 @@ export default function FormWrapper({
                   window.scrollTo(0, 0);
                 }}
                 cancelHandler={cancelHandler}
-                finishHandler={handleSubmit(onSubmit)}
+                finishHandler={finishHandler}
                 handleSubmit_openAIRE={() => {
                   handleSubmit_openAIRE();
                   onSave(formData);
