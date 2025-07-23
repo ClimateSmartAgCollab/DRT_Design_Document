@@ -187,8 +187,8 @@
                     "q1": {
                       "type": "textarea",
                       "placeholder": {
-                        "eng": "Enter ...(customize the example as the place holder)",
-                        "fra": "Enter ...(customize the example as the place holder)"
+                        "eng": "Enter ...",
+                        "fra": "Enter ..."
                       }
                     },
                     "q2": {

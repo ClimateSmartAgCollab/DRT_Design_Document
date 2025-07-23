@@ -121,13 +121,13 @@ export default function FieldRenderer({
           rhfOnBlur(e);
           saveCurrentPageData();
         }}
-        onPaste={e => {
-          const pastedText = e.clipboardData.getData('text')
+        onPaste={(e) => {
+          const pastedText = e.clipboardData.getData("text");
           if (!isValid__UTF8(pastedText)) {
-            e.preventDefault()
+            e.preventDefault();
             alert(
-              'Pasted text contains invalid characters. Please use UTF-8 text only.'
-            )
+              "Pasted text contains invalid characters. Please use UTF-8 text only."
+            );
           }
         }}
       />
@@ -201,7 +201,7 @@ export default function FieldRenderer({
 
     // Get the options for this specific field and language
     const fieldOptions = field.options?.[language]?.[field.id] || [];
-    
+
     // Create key-value pairs where both key and value are the option string
     const optionsMap: Record<string, string> = {};
     if (Array.isArray(fieldOptions)) {
@@ -256,7 +256,7 @@ export default function FieldRenderer({
         {selectedValues.length > 0 && (
           <button
             className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
-            style={{ backgroundColor: theme.colors.secondary }}
+            style={{ backgroundColor: theme.colors.primary }}
             type="button"
             onClick={() => {
               handleFieldChange([]);
@@ -275,108 +275,106 @@ export default function FieldRenderer({
     return (
       <div>
         <button
-          type='button'
+          type="button"
           onClick={() => {
-            const newChild = ctxCreate(field.id, field.ref!)
+            const newChild = ctxCreate(field.id, field.ref!);
 
-            setCurrentChildId(newChild.id)
-            setCurrentChildParentId(field.id)
+            setCurrentChildId(newChild.id);
+            setCurrentChildParentId(field.id);
 
-            setIsNewChild(false)
+            setIsNewChild(false);
 
             // Navigate to the child step
             const targetIndex = parsedSteps.findIndex(
-              s => s.id === field.ref
-            )
+              (s) => s.id === field.ref
+            );
 
             if (targetIndex >= 0) {
-              onNavigate(targetIndex)
+              onNavigate(targetIndex);
             } else {
-              console.warn(
-                `Reference step not found for field: ${field.id}`
-              )
+              console.warn(`Reference step not found for field: ${field.id}`);
             }
-            scrollTo(0, 0)
+            scrollTo(0, 0);
           }}
-          className='mt-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600'
+          className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
+          style={{ backgroundColor: theme.colors.primary }}
         >
-          +{' '}
+          +{" "}
           {field.reference_button_text?.[language] ||
             field.reference_button_text?.eng ||
-            '+ Child Step'}
+            "+ Child Step"}
         </button>
-        
+
         {/* Only display the table if there is at least one child */}
         {parentFormData[field.id] &&
           parentFormData[field.id].childrenData &&
-          (
-            parentFormData[field.id]?.childrenData?.[
-              field.ref
-            ] ?? []
-          ).length > 0 && (
-            <div className='mt-4 rounded border bg-gray-100 p-4'>
-              <h4 className='mb-2 text-lg font-semibold'>
-                {
-                  parsedSteps.find(s => s.id === field.ref)
-                    ?.names[language]
-                }
+          (parentFormData[field.id]?.childrenData?.[field.ref] ?? []).length >
+            0 && (
+            <div className="mt-4 rounded border bg-gray-100 p-4">
+              <h4 className="mb-2 text-lg font-semibold">
+                {parsedSteps.find((s) => s.id === field.ref)?.names[language]}
               </h4>
-              <table className='w-full table-fixed border border-gray-300'>
-                <thead className='bg-gray-200'>
+              <table className="w-full table-fixed border border-gray-300">
+                <thead className="bg-gray-200">
                   <tr>
                     {/* Fixed-width Name column */}
-                    <th className='w-64 border border-gray-300 px-4 py-2 text-left'>
+                    <th className="w-64 border border-gray-300 px-4 py-2 text-left">
                       Attributes
                     </th>
                     {/* Fixed-width actions column without a header title */}
-                    <th className='w-32 border border-gray-300 px-4 py-2'></th>
+                    <th className="w-32 border border-gray-300 px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(parentFormData[field.id]?.childrenData ??
-                    {})[field.ref].map((child: any) => (
+                  {(parentFormData[field.id]?.childrenData ?? {})[
+                    field.ref
+                  ].map((child: any) => (
                     <tr key={child.id}>
-                      <td className='break-words border border-gray-300 px-4 py-2'>
+                      <td className="break-words border border-gray-300 px-4 py-2">
                         {/* Render each attribute value specified in field.showing_attribute */}
-                        {field.showing_attribute?.map(
-                          attr => (
+                        {field.showing_attribute?.map((attr) => {
+                          // Find the child step to get the field labels
+                          const childStep = parsedSteps.find((s) => s.id === field.ref);
+                          const childField = childStep?.pages?.[0]?.sections?.[0]?.fields?.find((f) => f.id === attr);
+                          const fieldLabel = childField?.labels?.[language]?.[attr] || childField?.labels?.eng?.[attr] || attr;
+                          
+                          return (
                             <div
                               key={attr}
-                              className='mt-2 text-sm text-gray-700'
+                              className="mt-2 text-sm text-gray-700"
                             >
-                              <strong>{attr}: </strong>
-                              <span>
-                                {child.data[attr] || '(No Data)'}
-                              </span>
+                              <strong>{fieldLabel}: </strong>
+                              <span>{child.data[attr] || "(No Data)"}</span>
                             </div>
-                          )
-                        )}
+                          );
+                        })}
                       </td>
-                      <td className='border border-gray-300 px-4 py-2 text-center'>
-                        <div className='flex justify-center space-x-2'>
+                      <td className="border border-gray-300 px-4 py-2 text-center">
+                        <div className="flex justify-center space-x-2">
                           <button
-                            type='button'
+                            type="button"
                             onClick={() => {
                               // Enter "edit mode"
-                              setCurrentChildId(child.id)
-                              setCurrentChildParentId(field.id)
+                              setCurrentChildId(child.id);
+                              setCurrentChildParentId(field.id);
                               const idx = parsedSteps.findIndex(
-                                s => s.id === child.stepId
-                              )
+                                (s) => s.id === child.stepId
+                              );
                               if (idx >= 0) {
-                                onNavigate(idx)
+                                onNavigate(idx);
                               }
                             }}
-                            className='rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600'
+                            className="mt-2 rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600"
                           >
                             Edit
                           </button>
                           <button
-                            type='button'
+                            type="button"
                             onClick={() => {
-                              ctxDelete(child.id, field.id, field.ref!)
+                              ctxDelete(child.id, field.id, field.ref!);
                             }}
-                            className='rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600'
+                            className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
+                            style={{ backgroundColor: theme.colors.primary }}
                           >
                             Delete
                           </button>
