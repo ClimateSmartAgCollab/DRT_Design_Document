@@ -73,6 +73,68 @@ def load_github_data(request):
 
     return JsonResponse({'status': 'GitHub data loaded successfully and cached'})
 
+# New function to fetch questionnaire JSON by questionnaire_id
+def fetch_questionnaire_json(questionnaire_id):
+    """
+    Fetch questionnaire JSON from GitHub based on questionnaire_id.
+    Returns the parsed JSON object or None if not found.
+    """
+    try:
+        # Get questionnaire table from cache
+        questionnaire_table = cache.get('questionnaire_table')
+        if not questionnaire_table:
+            # print("Questionnaire table not found in cache")
+            return None
+        
+        # Look up the filename for the given questionnaire_id
+        filename = questionnaire_table.get(questionnaire_id)
+        if not filename:
+            # print(f"Questionnaire ID {questionnaire_id} not found in questionnaire table")
+            return None
+        
+        # Fetch the JSON file from GitHub
+        json_content = fetch_file_from_github(f'source_library/questionnaires/{filename}')
+        if json_content:
+            # Parse the JSON content
+            import json
+            parsed_json = json.loads(json_content)
+            
+            # Cache the parsed questionnaire JSON for future use
+            cache_key = f'questionnaire_json_{questionnaire_id}'
+            cache.set(cache_key, parsed_json, timeout=60*60*24)  # Cache for 24 hours
+            return parsed_json
+        else:
+            # print(f"Failed to fetch questionnaire JSON file: {filename}")
+            return None
+            
+    except Exception as e:
+        # print(f"Error fetching questionnaire JSON for {questionnaire_id}: {str(e)}")
+        return None
+
+# New view to get questionnaire JSON by questionnaire_id
+def get_questionnaire_json(request, questionnaire_id):
+    """
+    API endpoint to get questionnaire JSON by questionnaire_id.
+    First checks cache, then fetches from GitHub if not cached.
+    """
+    try:
+        # Check if already cached
+        cache_key = f'questionnaire_json_{questionnaire_id}'
+        cached_json = cache.get(cache_key)
+        
+        if cached_json:
+            return JsonResponse({'questionnaire': cached_json})
+        
+        # Fetch from GitHub
+        json_content = fetch_questionnaire_json(questionnaire_id)
+        if json_content:
+            return JsonResponse({'questionnaire': json_content})
+        else:
+            return JsonResponse({'error': f'Questionnaire {questionnaire_id} not found'}, status=404)
+            
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching questionnaire: {str(e)}'}, status=500)
+
 # View to retrieve cached data
 def get_cached_data(request, key):
     cached_data = cache.get(key)
@@ -86,7 +148,7 @@ def github_webhook(request):
     if request.method == 'POST':
         # Simulate handling the webhook
         payload = request.body.decode('utf-8')
-        print("Webhook payload received: ", payload)
+        # print("Webhook payload received: ", payload)
         load_github_data(request)
         return JsonResponse({'status': 'Webhook received, data reloaded'}, status=200)
 

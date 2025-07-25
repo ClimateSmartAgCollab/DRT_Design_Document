@@ -16,8 +16,13 @@ interface NegotiationItemProps {
   onReload: () => void;
 }
 
-function getFieldMeta() {
-  const steps = parseJsonToFormStructure();
+function getFieldMeta(questionnaireJson?: any) {
+  if (!questionnaireJson) {
+    console.warn('No questionnaire JSON provided to getFieldMeta');
+    return {};
+  }
+  
+  const steps = parseJsonToFormStructure(questionnaireJson);
   const fieldMeta: Record<
     string,
     { label: string; options?: Record<string, string> }
@@ -37,37 +42,143 @@ function getFieldMeta() {
   return fieldMeta;
 }
 
-function ResponseTable({ data }: { data: Record<string, any> }) {
-  const fieldMeta = React.useMemo(getFieldMeta, []);
-  return (
-    <table className="min-w-full text-sm border border-gray-200 rounded">
-      <tbody>
-        {Object.entries(data).map(([fieldId, value]) => {
-          if (fieldId === "save" || fieldId === "submit") return null;
-          const meta = fieldMeta[fieldId] || { label: fieldId };
-          let displayValue = value;
-          if (Array.isArray(value)) {
-            displayValue = value
-              .map((v) =>
-                meta.options && meta.options[v] ? meta.options[v] : v
-              )
-              .join(", ");
-          } else if (meta.options && meta.options[value]) {
-            displayValue = meta.options[value];
+function ResponseTable({ data, questionnaireJson }: { data: Record<string, any>; questionnaireJson?: any }) {
+  const fieldMeta = React.useMemo(() => getFieldMeta(questionnaireJson), [questionnaireJson]);
+  
+  // Get the parsed form structure to maintain order
+  const steps = React.useMemo(() => {
+    if (!questionnaireJson) {
+      console.warn('No questionnaire JSON provided to ResponseTable');
+      return [];
+    }
+    try {
+      return parseJsonToFormStructure(questionnaireJson);
+    } catch (error) {
+      console.error("Error parsing form structure:", error);
+      return [];
+    }
+  }, [questionnaireJson]);
+  
+  // Flatten nested responses
+  const flatData = Object.entries(data).reduce((acc, [k, v]) => {
+    if (v && typeof v === "object" && !Array.isArray(v) && !v.childrenData) {
+      return { ...acc, ...v };
+    }
+    acc[k] = v;
+    return acc;
+  }, {} as Record<string, any>);
+  
+  
+  const orderedFields: Array<{ fieldId: string; value: any; meta: any }> = [];
+  const addedFieldIds = new Set<string>();
+  
+  
+  steps.forEach((step: any) => {
+    step.pages.forEach((page: any) => {
+      page.sections.forEach((section: any) => {
+        section.fields.forEach((field: any) => {
+          const fieldId = field.id;
+          const value = flatData[fieldId];
+          
+          // Only add fields that have data and haven't been added yet
+          if (value !== undefined && fieldId !== "save" && fieldId !== "submit" && !addedFieldIds.has(fieldId)) {
+            const meta = fieldMeta[fieldId] || { label: fieldId };
+            orderedFields.push({ fieldId, value, meta });
+            addedFieldIds.add(fieldId);
           }
+        });
+      });
+    });
+  });
+  
+  return (
+    <div className="space-y-4">
+      {orderedFields.map(({ fieldId, value, meta }) => {
+        // Check if this field has children's data
+        const hasChildrenData = value && typeof value === 'object' && value.childrenData;
+        
+        if (hasChildrenData) {
+          // Display children's data
           return (
-            <tr key={fieldId}>
-              <td className="font-medium py-1 pr-4 text-gray-700">
+            <div key={fieldId} className="space-y-2">
+              <div className="font-medium text-gray-700">
                 {meta.label}
-              </td>
-              <td className="py-1 text-gray-800">
-                {displayValue || <span className="text-gray-400">—</span>}
-              </td>
-            </tr>
+              </div>
+              <div className="ml-4 border-l-4 border-blue-500 pl-4">
+                <div className="text-md font-semibold text-blue-600 mb-2">
+                  Child Entries for "{meta.label}"
+                </div>
+                {Object.entries(value.childrenData as Record<string, any>).map(([childStepId, children]) => {
+                  if (Array.isArray(children)) {
+                    return children.map((child: any, index: number) => (
+                      <div key={`${fieldId}-${childStepId}-${index}`} className="mb-4 p-2 bg-blue-50 rounded">
+                        <div className="text-sm font-medium text-gray-700 mb-2">
+                          Entry {index + 1}
+                        </div>
+                        {child.data && typeof child.data === 'object' ? (
+                          <div className="space-y-1 ml-4">
+                            {Object.entries(child.data as Record<string, any>).map(([childFieldId, childValue]) => {
+                              const childMeta = fieldMeta[childFieldId] || { label: childFieldId };
+                              let displayChildValue = childValue;
+                              if (Array.isArray(childValue)) {
+                                displayChildValue = childValue
+                                  .map((v) =>
+                                    childMeta.options && childMeta.options[v as string] ? childMeta.options[v as string] : v
+                                  )
+                                  .join(", ");
+                              } else if (childMeta.options && childMeta.options[childValue as string]) {
+                                displayChildValue = childMeta.options[childValue as string];
+                              }
+                              return (
+                                <div key={childFieldId} className="text-sm">
+                                  <strong>{childMeta.label}: </strong>
+                                  <span className="text-gray-600">
+                                    {displayChildValue || <span className="text-gray-400">—</span>}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="ml-4 text-gray-400">No data</div>
+                        )}
+                      </div>
+                    ));
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
           );
-        })}
-      </tbody>
-    </table>
+        }
+        
+        // Regular field display
+        let displayValue = value;
+        if (Array.isArray(value)) {
+          displayValue = value
+            .map((v) =>
+              meta.options && meta.options[v] ? meta.options[v] : v
+            )
+            .join(", ");
+        } else if (meta.options && meta.options[value]) {
+          displayValue = meta.options[value];
+        } else if (value && typeof value === 'object') {
+          // Handle objects by converting to string
+          displayValue = JSON.stringify(value);
+        }
+        
+        return (
+          <div key={fieldId} className="space-y-1">
+            <div className="font-medium text-gray-700">
+              {meta.label}
+            </div>
+            <div className="text-gray-600 break-words">
+              {displayValue ? String(displayValue) : <span className="text-gray-400">—</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -77,17 +188,12 @@ export function NegotiationItem({
   onToggleSelect,
   onReload,
 }: NegotiationItemProps) {
-  const shouldReduce = useReducedMotion();
+
   const [expanded, setExpanded] = React.useState(false);
   const canArchive =
     !n.archived && ["completed", "canceled", "rejected"].includes(n.state);
 
-  const payload = useMemo(() => {
-    if (!n.requestor_responses) return "";
-    const { save, submit, ...rest } = n.requestor_responses;
-    const key = Object.keys(rest)[0];
-    return JSON.stringify(rest[key], null, 2);
-  }, [n.requestor_responses]);
+
 
   const handleArchive = async () => {
     await archiveNegotiation(n.negotiation_id);
@@ -197,17 +303,10 @@ export function NegotiationItem({
                   <h4 className="font-semibold text-gray-700 mb-2">
                     Requestor Responses
                   </h4>
-                  {/* Extract mainKey and render user-friendly table */}
-                  {(() => {
-                    const mainKey = Object.keys(
-                      n.requestor_responses || {}
-                    ).find((k) => k !== "save" && k !== "submit");
-                    const reqData =
-                      mainKey && n.requestor_responses
-                        ? n.requestor_responses[mainKey]
-                        : {};
-                    return <ResponseTable data={reqData} />;
-                  })()}
+                                     {(() => {
+                     const { save, submit, ...reqData } = n.requestor_responses || {};
+                     return <ResponseTable data={reqData} questionnaireJson={n.questionnaire} />;
+                   })()}
                 </div>
               </div>
               <div>
@@ -215,20 +314,19 @@ export function NegotiationItem({
                   <h4 className="font-semibold text-gray-700 mb-2">
                     Owner Responses
                   </h4>
-                  {/* Parse owner responses if string */}
-                  {(() => {
-                    let ownerData = {};
-                    try {
-                      ownerData =
-                        n.owner_responses &&
-                        typeof n.owner_responses === "string"
-                          ? JSON.parse(n.owner_responses)
-                          : n.owner_responses || {};
-                    } catch {
-                      ownerData = {};
-                    }
-                    return <ResponseTable data={ownerData} />;
-                  })()}
+                                     {(() => {
+                     let ownerData = {};
+                     try {
+                       ownerData =
+                         n.owner_responses &&
+                         typeof n.owner_responses === "string"
+                           ? JSON.parse(n.owner_responses)
+                           : n.owner_responses || {};
+                     } catch {
+                       ownerData = {};
+                     }
+                     return <ResponseTable data={ownerData} questionnaireJson={n.questionnaire} />;
+                   })()}
                 </div>
                 {/* Show rationale if rejected */}
                 {n.state === "rejected" &&

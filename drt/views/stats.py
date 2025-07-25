@@ -368,6 +368,21 @@ def negotiation_list_api(request):
     data = []
     for n in qs:
         link = getattr(n, 'link', None)
+        
+        questionnaire_json = None
+        try:
+            cache_key = f'questionnaire_json_{n.questionnaire_SAID}'
+            cached_json = cache.get(cache_key)
+            
+            if cached_json:
+                questionnaire_json = cached_json
+            else:
+                from datastore.views import fetch_questionnaire_json
+                questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
+        except Exception as e:
+            print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
+            questionnaire_json = None
+        
         data.append({
             'negotiation_id':     str(n.negotiation_id),
             'conversation_id':    str(n.conversation_id),
@@ -377,6 +392,7 @@ def negotiation_list_api(request):
             'state':              n.state,
             'reminder_sent':      n.reminder_sent,
             'questionnaire_SAID': n.questionnaire_SAID,
+            'questionnaire':      questionnaire_json,  # Add questionnaire JSON
             'timestamps':         n.timestamps.isoformat(),
             'archived':           n.archived,
             'owner_link':         str(link.owner_link) if link else None,

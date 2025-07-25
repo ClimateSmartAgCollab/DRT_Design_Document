@@ -227,7 +227,20 @@ export default function ReviewSection({
         </button>
         <button
           type="button"
-          onClick={() => onSubmit(formData)}
+          onClick={() => {
+            const combinedData = { ...formData };
+            
+            Object.keys(parentFormData).forEach(parentId => {
+              if (parentFormData[parentId] && parentFormData[parentId].childrenData) {
+                combinedData[parentId] = {
+                  ...combinedData[parentId],
+                  childrenData: parentFormData[parentId].childrenData
+                };
+              }
+            });
+            
+            onSubmit(combinedData);
+          }}
           style={buttonStyle}
           onMouseEnter={(e) => {
             e.currentTarget.style.opacity = "0.9";
@@ -240,7 +253,20 @@ export default function ReviewSection({
         </button>
         <button
           type="button"
-          onClick={() => onSave(formData)}
+          onClick={() => {
+            const combinedData = { ...formData };
+            
+            Object.keys(parentFormData).forEach(parentId => {
+              if (parentFormData[parentId] && parentFormData[parentId].childrenData) {
+                combinedData[parentId] = {
+                  ...combinedData[parentId],
+                  childrenData: parentFormData[parentId].childrenData
+                };
+              }
+            });
+            
+            onSave(combinedData);
+          }}
           style={buttonStyle}
           onMouseEnter={(e) => {
             e.currentTarget.style.opacity = "0.9";
