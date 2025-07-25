@@ -1,7 +1,7 @@
 # drt_core\settings\local.py
 from .base import *  # noqa: F403, F401
 import os
-import dj_database_url
+# import dj_database_url
 
 print("▶︎ USING local.py; ENVIRONMENT =", os.getenv("ENVIRONMENT"))
 print("▶︎ SMTP USER =", os.getenv("ETHEREAL_USER"))
@@ -118,8 +118,8 @@ DATABASES = {
 }
 
 
-database_url = os.environ.get("DATABASE_URL")
-DATABASES["default"] = dj_database_url.parse(database_url)
+# database_url = os.environ.get("DATABASE_URL")
+# DATABASES["default"] = dj_database_url.parse(database_url)
 
 REDIS_URL = os.environ.get("REDIS_URL")
 if REDIS_URL is None:
