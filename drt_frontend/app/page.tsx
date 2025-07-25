@@ -36,7 +36,8 @@ const content = {
     headerTitle: "Semantic Engine",
     headerSubtitle: "Agreements",
     headerHelp: "Helping share your work",
-    headerDesc: "Describe in custom terms how you want to make your work available",
+    headerDesc:
+      "Describe in custom terms how you want to make your work available",
     poweredBy: "Powered by",
     supportedBy: "Supported by",
     attentionCard: {
@@ -46,43 +47,59 @@ const content = {
       etherealLabel: "Ethereal Email Messages",
       username: "Username:",
       password: "Password:",
-      afterLogin: 'Once logged in, select the "Messages" tab to view all test emails.',
+      afterLogin:
+        'Once logged in, select the "Messages" tab to view all test emails.',
       stepsTitle: "Testing Steps",
       steps: [
         {
           title: "Begin Questionnaire",
-          desc: "Click a link below to start your questionnaire:",
+          desc: "Start your test by selecting one of the questionnaire:",
           links: [
-            // { label: "Start Questionnaire_prototype1-23-A-cow", url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb" },
-            // { label: "Start Questionnaire_prototype1-23-B-pig", url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e" },
-            { label: "Start Questionnaire_prototype1-23-A-cow", url: "http://127.0.0.1:3000/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb" },
-            { label: "Start Questionnaire_prototype1-23-B-pig", url: "http://127.0.0.1:3000/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e" },
+            // { label: "Start Questionnaire_prototype1-23-A-cow", url: "http://localhost:3000/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb" },
+            // { label: "Start Questionnaire_prototype1-23-B-pig", url: "http://localhost:3000/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e" },
+            {
+              label: "Questionnaire_prototype1-23-A-cow",
+              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
+            },
+            {
+              label: "Questionnaire_prototype1-23-B-pig",
+              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
+            },
+            {
+              label: "Questionnaire_prototype2-23-A-cow",
+              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
+            },
+            {
+              label: "Questionnaire_prototype2-23-B-pig",
+              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
+            },
           ],
         },
         {
-          title: "Verify Email",
-          desc: "Use the sandbox email inbox to verify your identity as a requestor.",
+          title: "Verify Your Email as a Requestor",
+          desc: "Use the sandbox email inbox to verify your identity as a requestor.\n Any email works.\n<em><u>Important</u></em>: use the <em>same email</em> later to log in to the dashboard if you want to see your negotiation history for that address.",
         },
+
         {
           title: "Submit Responses",
-          desc: "Answer the questionnaire and submit your responses.",
+          desc: "Complete the questionnaire and submit.",
         },
         {
           title: "Owner Email Review",
-          desc: 'Log in as the owner (owner@drt.ca) using the sandbox email system. Locate and review the questionnaire responses.',
+          desc: "Verify using <em><u>owner@drt.ca</u></em> in the sandbox email to review all questionnaire responses. <em>For testing, this is the only valid owner email—other emails will not show owner-side history.</em>",
         },
         {
           title: "Make a Decision",
           desc: "Based on the responses, choose one:",
           options: [
             "Accept responses.",
-            "Request Additional Feedback by sending the questionnaire back.",
-            "Reject clearly specifying reasons.",
+            "Request additional feedback (send the questionnaire back).",
+            "Reject (clearly state reasons).",
           ],
         },
         {
           title: "Interactive Communication",
-          desc: "Simulate communication between the owner and requestor within the sandbox email. (Note: Sending emails from this inbox is disabled.)",
+          desc: "Notifications to both requestor and owner in the sandbox inbox simulate their email exchange. (Sending emails from this inbox is disabled.)",
         },
         {
           title: "Automatic License Generation",
@@ -90,16 +107,19 @@ const content = {
         },
         {
           title: "Review Generated License",
-          desc: "View the generated license document attached in the sandbox email sent to the owner.",
+          desc: "View the generated license document attached in the sandbox email sent to the <em><u>owner@drt.ca</u></em>.",
         },
       ],
       dashboardTitle: "Dashboard Overview and Alternative Testing Method",
       dashboardPoints: [
-        "Use our intuitive dashboard to easily track testing activities:",
-        "Owner Dashboard (default email: owner@drt.ca) or Requestor Dashboard (any email)",
+        "Use the Dashboard to track everything easily.",
         "Review submitted questions, responses, negotiation history, and the negotiation status.",
         "Access summary statistics of all requests handled by the owner.",
         "Optional: Extended Dashboard Testing\nFor experienced users, questionnaires and review processes can be managed directly through the dashboard, eliminating reliance solely on email links.",
+      ],
+      dashboardSubPoints: [
+        "Log in as the requestor with the <em>same email</em> you used to answer the questionnaire to view your negotiation history and communications.",
+        "Log in as the owner with <em><u>owner@drt.ca</u></em>.\n <em>For testing, this is the only valid owner email—other emails will not show owner-side history.</em>",
       ],
     },
   },
@@ -134,7 +154,8 @@ const content = {
     headerTitle: "Moteur Sémantique",
     headerSubtitle: "Accords",
     headerHelp: "Aider à partager votre travail",
-    headerDesc: "Décrivez selon des termes personnalisés comment vous souhaitez rendre votre travail disponible",
+    headerDesc:
+      "Décrivez selon des termes personnalisés comment vous souhaitez rendre votre travail disponible",
     poweredBy: "Propulsé par",
     supportedBy: "Soutenu par",
     attentionCard: {
@@ -144,28 +165,43 @@ const content = {
       etherealLabel: "Messages Email Ethereal",
       username: "Nom d'utilisateur :",
       password: "Mot de passe :",
-      afterLogin: 'Une fois connecté, sélectionnez l’onglet "Messages" pour voir tous les e-mails de test.',
+      afterLogin:
+        'Une fois connecté, sélectionnez l\'onglet "Messages" pour voir tous les e-mails de test.',
       stepsTitle: "Étapes de test",
       steps: [
         {
           title: "Commencer le questionnaire",
           desc: "Cliquez sur un lien ci-dessous pour démarrer votre questionnaire :",
           links: [
-            { label: "Démarrer le Questionnaire 1", url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb" },
-            { label: "Démarrer le Questionnaire 2", url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e" },
+            {
+              label: "Questionnaire_prototype1-23-A-cow",
+              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
+            },
+            {
+              label: "Questionnaire_prototype1-23-B-pig",
+              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
+            },
+            {
+              label: "Questionnaire_prototype2-23-A-cow",
+              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
+            },
+            {
+              label: "Questionnaire_prototype2-23-B-pig",
+              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
+            },
           ],
         },
         {
-          title: "Vérifier l’e-mail",
-          desc: "Utilisez la boîte de réception sandbox pour vérifier votre identité en tant que demandeur.",
+          title: "Vérifier l'e-mail",
+          desc: "Utilisez la boîte de réception sandbox pour vérifier votre identité en tant que demandeur.\n N'importe quel e-mail fonctionne.\n<em><u>Important</u></em> : utilisez le <em>même e-mail</em> plus tard pour vous connecter au tableau de bord si vous voulez voir votre historique de négociation pour cette adresse.",
         },
         {
           title: "Soumettre les réponses",
           desc: "Répondez au questionnaire et soumettez vos réponses.",
         },
         {
-          title: "Revue de l’e-mail du propriétaire",
-          desc: 'Connectez-vous en tant que propriétaire (owner@drt.ca) via le système d’e-mail sandbox. Trouvez et examinez les réponses au questionnaire.',
+          title: "Revue de l'e-mail du propriétaire",
+          desc: "Vérifiez en utilisant <em><u>owner@drt.ca</u></em> dans l'e-mail sandbox pour examiner toutes les réponses au questionnaire. <em>Pour les tests, c'est le seul e-mail de propriétaire valide—les autres e-mails ne montreront pas l'historique côté propriétaire.</em>",
         },
         {
           title: "Prendre une décision",
@@ -178,7 +214,7 @@ const content = {
         },
         {
           title: "Communication interactive",
-          desc: "Simulez la communication entre le propriétaire et le demandeur dans la sandbox email. (Remarque : L’envoi d’e-mails depuis cette boîte de réception est désactivé.)",
+          desc: "Simulez la communication entre le propriétaire et le demandeur dans la sandbox email. (Remarque : L'envoi d'e-mails depuis cette boîte de réception est désactivé.)",
         },
         {
           title: "Génération automatique de licence",
@@ -186,16 +222,20 @@ const content = {
         },
         {
           title: "Revoir la licence générée",
-          desc: "Consultez le document de licence généré en pièce jointe dans l’e-mail envoyé au propriétaire.",
+          desc: "Consultez le document de licence généré en pièce jointe dans l'e-mail envoyé au <em><u>owner@drt.ca</u></em>.",
         },
       ],
-      dashboardTitle: "Aperçu du tableau de bord et méthode de test alternative",
+      dashboardTitle:
+        "Aperçu du tableau de bord et méthode de test alternative",
       dashboardPoints: [
-        "Utilisez notre tableau de bord intuitif pour suivre facilement les activités de test :",
-        "Tableau de bord Propriétaire (e-mail par défaut : owner@drt.ca) ou Tableau de bord Demandeur (n’importe quel e-mail)",
-        "Consultez les questions soumises, les réponses, l’historique des négociations et le statut de la négociation.",
+        "Utilisez le tableau de bord pour tout suivre facilement.",
+        "Consultez les questions soumises, les réponses, l'historique des négociations et le statut de la négociation.",
         "Accédez aux statistiques récapitulatives de toutes les demandes traitées par le propriétaire.",
         "Optionnel : Test étendu via le tableau de bord\nPour les utilisateurs expérimentés, les questionnaires et les processus de révision peuvent être gérés directement via le tableau de bord, sans dépendre uniquement des liens e-mail.",
+      ],
+      dashboardSubPoints: [
+        "Connectez-vous en tant que demandeur avec le <em>même e-mail</em> que vous avez utilisé pour répondre au questionnaire pour voir votre historique de négociation et vos communications.",
+        "Connectez-vous en tant que propriétaire avec <em><u>owner@drt.ca</u></em>.\n <em>Pour les tests, c'est le seul e-mail de propriétaire valide—les autres e-mails ne montreront pas l'historique côté propriétaire.</em>",
       ],
     },
   },
@@ -240,6 +280,11 @@ export default function HomePage() {
       }
       document.body.removeChild(textArea);
     }
+  };
+
+  // Helper function to render text with HTML formatting
+  const renderFormattedText = (text: string) => {
+    return <span dangerouslySetInnerHTML={{ __html: text }} />;
   };
   return (
     <main className="min-h-screen bg-white flex flex-col">
@@ -346,12 +391,18 @@ export default function HomePage() {
           </p>
 
           <div className="bg-red-200 rounded-md p-6 mb-8">
-            <h2 className="text-black font-bold text-xl mb-2">{t.attentionCard.title}</h2>
+            <h2 className="text-black font-bold text-xl mb-2">
+              {t.attentionCard.title}
+            </h2>
             <div className="pl-8">
-              <p className="text-black mb-2 font-medium">{t.attentionCard.intro}</p>
+              <p className="text-black mb-2 font-medium">
+                {t.attentionCard.intro}
+              </p>
               <div className="bg-white border border-red-300 rounded p-4 mt-2 mb-4">
                 <div className="mb-1 flex items-center flex-wrap gap-2">
-                  <span className="font-medium">{t.attentionCard.sandboxEmail}</span>
+                  <span className="font-medium">
+                    {t.attentionCard.sandboxEmail}
+                  </span>
                   <a
                     href="https://ethereal.email/messages"
                     target="_blank"
@@ -362,10 +413,16 @@ export default function HomePage() {
                   </a>
                 </div>
                 <div className="mb-1 flex items-center flex-wrap gap-2">
-                  <span className="font-medium">{t.attentionCard.username}</span>
-                  <span className="font-mono select-all">aditya.nienow@ethereal.email</span>
+                  <span className="font-medium">
+                    {t.attentionCard.username}
+                  </span>
+                  <span className="font-mono select-all">
+                    aditya.nienow@ethereal.email
+                  </span>
                   <button
-                    onClick={() => handleCopy("aditya.nienow@ethereal.email", "username")}
+                    onClick={() =>
+                      handleCopy("aditya.nienow@ethereal.email", "username")
+                    }
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
                     title={t.copy}
                   >
@@ -377,17 +434,31 @@ export default function HomePage() {
                       stroke="currentColor"
                       strokeWidth="2"
                     >
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" className="fill-white" />
+                      <rect
+                        x="9"
+                        y="9"
+                        width="13"
+                        height="13"
+                        rx="2"
+                        ry="2"
+                        className="fill-white"
+                      />
                       <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
                     </svg>
                     <span>
-                      {copied.field === "username" && copied.status ? t.copied : t.copy}
+                      {copied.field === "username" && copied.status
+                        ? t.copied
+                        : t.copy}
                     </span>
                   </button>
                 </div>
                 <div className="flex items-center flex-wrap gap-2">
-                  <span className="font-medium">{t.attentionCard.password}</span>
-                  <span className="font-mono select-all">AqFy19WdAnDghQQrdm</span>
+                  <span className="font-medium">
+                    {t.attentionCard.password}
+                  </span>
+                  <span className="font-mono select-all">
+                    AqFy19WdAnDghQQrdm
+                  </span>
                   <button
                     onClick={() => handleCopy("AqFy19WdAnDghQQrdm", "password")}
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
@@ -401,22 +472,93 @@ export default function HomePage() {
                       stroke="currentColor"
                       strokeWidth="2"
                     >
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" className="fill-white" />
+                      <rect
+                        x="9"
+                        y="9"
+                        width="13"
+                        height="13"
+                        rx="2"
+                        ry="2"
+                        className="fill-white"
+                      />
                       <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
                     </svg>
                     <span>
-                      {copied.field === "password" && copied.status ? t.copied : t.copy}
+                      {copied.field === "password" && copied.status
+                        ? t.copied
+                        : t.copy}
                     </span>
                   </button>
                 </div>
               </div>
               <p className="text-black mb-4">{t.attentionCard.afterLogin}</p>
-              <h3 className="text-lg font-bold text-black mt-6 mb-2">{t.attentionCard.stepsTitle}</h3>
+              <h3 className="text-lg font-bold text-black mt-6 mb-2">
+                {t.attentionCard.stepsTitle}
+              </h3>
               <ol className="list-decimal list-inside text-black mb-4 space-y-2">
                 {t.attentionCard.steps.map((step, idx) => (
                   <li key={idx}>
                     <b>{step.title}</b>
-                    {step.desc && <div className="pl-4 mt-1">{step.desc}</div>}
+                    {step.desc && (
+                      <div className="pl-4 mt-1">
+                        {renderFormattedText(step.desc)}
+                      </div>
+                    )}
+                    {idx === 3 && (
+                      <div className="bg-white border border-red-300 rounded p-4 mt-2 ml-4">
+                        <div className="mb-1 flex items-center flex-wrap gap-2">
+                          <span className="font-medium">
+                            {lang === "EN"
+                              ? "Owner Email:"
+                              : "E-mail du propriétaire :"}
+                          </span>
+                        </div>
+                        <div className="flex items-center flex-wrap gap-2">
+                          <span className="font-mono select-all">
+                            owner@drt.ca
+                          </span>
+                          <button
+                            onClick={() =>
+                              handleCopy("owner@drt.ca", "owner-email")
+                            }
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                            title={t.copy}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <rect
+                                x="9"
+                                y="9"
+                                width="13"
+                                height="13"
+                                rx="2"
+                                ry="2"
+                                className="fill-white"
+                              />
+                              <rect
+                                x="3"
+                                y="3"
+                                width="13"
+                                height="13"
+                                rx="2"
+                                ry="2"
+                              />
+                            </svg>
+                            <span>
+                              {copied.field === "owner-email" && copied.status
+                                ? t.copied
+                                : t.copy}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {step.links && (
                       <ul className="list-disc list-inside mt-2 space-y-1">
                         {step.links.map((link, lidx) => (
@@ -443,10 +585,23 @@ export default function HomePage() {
                   </li>
                 ))}
               </ol>
-              <h3 className="text-lg font-bold text-black mt-8 mb-2">{t.attentionCard.dashboardTitle}</h3>
+              <h3 className="text-lg font-bold text-black mt-8 mb-2">
+                {t.attentionCard.dashboardTitle}
+              </h3>
               <ul className="list-disc list-inside text-black mb-2 pl-4 space-y-1">
                 {t.attentionCard.dashboardPoints.map((point, pidx) => (
-                  <li key={pidx}>{point}</li>
+                  <li key={pidx}>
+                    {renderFormattedText(point)}
+                    {pidx === 0 && t.attentionCard.dashboardSubPoints && (
+                      <ul className="list-disc list-inside mt-2 ml-4 space-y-1">
+                        {t.attentionCard.dashboardSubPoints.map(
+                          (subPoint, spidx) => (
+                            <li key={spidx}>{renderFormattedText(subPoint)}</li>
+                          )
+                        )}
+                      </ul>
+                    )}
+                  </li>
                 ))}
               </ul>
             </div>

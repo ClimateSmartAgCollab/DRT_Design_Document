@@ -8,6 +8,7 @@ import Form from "../../../../components/Form/Form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface FillQuestionnaireResponse {
+  questionnaire: any; // The questionnaire JSON data
   saved_responses: Record<string, any>;
   owner_responses?: string;
   comments?: string;
@@ -143,21 +144,19 @@ export default function FillQuestionnairePage() {
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="w-full max-w-3xl p-4">
           {error && <p className="text-red-500 mb-4">{error}</p>}
-          {/* {isSubmitting && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <span className="bg-white px-4 py-2 rounded shadow">Loading…</span>
-            </div>
-          )} */}
           <Form
+            questionnaireJson={data?.questionnaire}
             initialAnswers={initialAnswers}
             ownerComments={ownerComments}
             globalOwnerComments={globalOwnerComments}
             onSave={async (newAnswers) => {
+              console.log('Final payload to backend:', JSON.stringify({ ...newAnswers, submit: false, save: true }, null, 2));
               setError(null);
               setStatusMessage(null);
               await mutateAsync({ answers: newAnswers, isSubmit: false });
             }}
             onSubmit={async (newAnswers) => {
+              console.log('Final payload to backend:', JSON.stringify({ ...newAnswers, submit: true, save: false }, null, 2));
               setError(null);
               setStatusMessage(null);
               await mutateAsync({ answers: newAnswers, isSubmit: true });

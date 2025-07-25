@@ -13,6 +13,7 @@ export interface Negotiation {
   rationale?: string | null;
   tags?: string[];
   record_label?: string;
+  questionnaire?: any; // The questionnaire JSON data
 }
 
 export const ALL_STATUSES = [

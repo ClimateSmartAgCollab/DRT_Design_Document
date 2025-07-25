@@ -12,6 +12,53 @@ import { useSubmissionMapping } from "./mapping";
 
 // The main hook. Returns all values/functions needed by FormWrapper.
 export function useDynamicForm(parsedSteps: Step[]) {
+  // Safety check: ensure we have valid parsedSteps
+  if (!parsedSteps || parsedSteps.length === 0) {
+    console.warn("useDynamicForm: No valid parsedSteps provided");
+    return {
+      language: "en",
+      setLanguage: () => {},
+      currentStep: 0,
+      visitedSteps: new Set<string>(),
+      formData: {},
+      setFormData: () => {},
+      parentSteps: [],
+      onNavigate: () => {},
+      finishHandler: () => {},
+      cancelHandler: () => {},
+      isParentStep: () => false,
+      setCurrentChildId: () => {},
+      currentChildId: null,
+      setCurrentChildParentId: () => {},
+      currentChildParentId: null,
+      createNewChild: () => ({ id: "", data: {} }),
+      pageIndexByStep: {},
+      expandedStep: null,
+      setExpandedStep: () => {},
+      handleNavigate: () => {},
+      handleNextPage: () => {},
+      handlePreviousPage: () => {},
+      goToNextParent: () => {},
+      goToPreviousParent: () => {},
+      isVeryLastPageOfLastStep: false,
+      currentPage: undefined,
+      isLastPageOfThisStep: false,
+      isFirstPageOfThisStep: true,
+      step: undefined,
+      handleFieldChange: () => {},
+      registerFieldRef: () => {},
+      editExistingChild: () => undefined,
+      deleteChild: () => {},
+      reviewOutput: false,
+      setReviewOutput: () => {},
+      handleSubmit_openAIRE: () => {},
+      isNewChild: false,
+      setIsNewChild: () => {},
+      prefillCurrentPageData: () => {},
+      fieldErrors: {},
+    };
+  }
+
   const [language, setLanguage] = useState("eng");
   const [currentStep, setCurrentStep] = useState(0);
   const [pageIndexByStep, setPageIndexByStep] = useState<
@@ -318,16 +365,18 @@ export function useDynamicForm(parsedSteps: Step[]) {
     goToPreviousParent,
     isVeryLastPageOfLastStep:
       isParentStep(parsedSteps[currentStep]) &&
-      pageIndexByStep[parsedSteps[currentStep].id] ===
-        parsedSteps[currentStep].pages.length - 1,
+      pageIndexByStep[parsedSteps[currentStep]?.id] ===
+        parsedSteps[currentStep]?.pages.length - 1,
     currentPage:
       parsedSteps[currentStep]?.pages[
         pageIndexByStep[parsedSteps[currentStep]?.id] ?? 0
       ],
     isLastPageOfThisStep:
-      pageIndexByStep[parsedSteps[currentStep].id] ===
-      parsedSteps[currentStep].pages.length - 1,
-    isFirstPageOfThisStep: pageIndexByStep[parsedSteps[currentStep].id] === 0,
+      parsedSteps[currentStep] && 
+      pageIndexByStep[parsedSteps[currentStep]?.id] ===
+      parsedSteps[currentStep]?.pages.length - 1,
+    isFirstPageOfThisStep:
+      pageIndexByStep[parsedSteps[currentStep]?.id] === 0,
     step: parsedSteps[currentStep],
     saveCurrentPageData,
     fieldErrors,

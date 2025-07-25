@@ -1,7 +1,7 @@
 // drt_frontend/app/components/Form/FormWrapper.tsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -28,10 +28,13 @@ import ChildReview from "./ChildReview";
 import styles from "./Form.module.css";
 import Footer from "../Footer/footer";
 
-const unsorted = parseJsonToFormStructure();
-const parsedSteps = sortStepsByReferences(unsorted);
-const validationSchema = buildValidationSchema(parsedSteps);
-type FormValues = yup.InferType<typeof validationSchema>;
+
+const defaultParsedSteps: ParsedStep[] = [];
+
+interface FormWrapperProps extends FormProps {
+  parsedSteps?: ParsedStep[]; 
+  questionnaireJson?: any; 
+}
 
 export default function FormWrapper({
   initialAnswers = {},
@@ -39,10 +42,53 @@ export default function FormWrapper({
   globalOwnerComments,
   onSave,
   onSubmit,
-}: FormProps) {
+  parsedSteps: providedParsedSteps, 
+  questionnaireJson, 
+}: FormWrapperProps) {
   const theme = useTheme();
   
-  // RHF setup
+  const parsedSteps = useMemo(() => {
+    if (questionnaireJson) {
+      try {
+        const unsorted = parseJsonToFormStructure(questionnaireJson);
+        const sorted = sortStepsByReferences(unsorted);
+        
+        if (!sorted || sorted.length === 0) {
+          console.warn("No valid steps found in questionnaire JSON");
+          return [];
+        }
+        
+        return sorted;
+      } catch (error) {
+        console.error("Error parsing questionnaire JSON:", error);
+        return [];
+      }
+    }
+    
+    if (providedParsedSteps) {
+      return providedParsedSteps;
+    }
+    
+    console.warn("No questionnaire JSON or provided steps available");
+    return [];
+  }, [questionnaireJson, providedParsedSteps]);
+  
+  if (!parsedSteps || parsedSteps.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">No Questionnaire Available</h2>
+          <p className="text-gray-600">
+            The questionnaire data could not be loaded. Please try refreshing the page or contact support.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  const validationSchema = useMemo(() => buildValidationSchema(parsedSteps), [parsedSteps]);
+  type FormValues = yup.InferType<typeof validationSchema>;
+
   const methods = useForm<FormValues>({
     resolver: yupResolver(validationSchema),
     defaultValues: initialAnswers as any,
@@ -57,6 +103,8 @@ export default function FormWrapper({
   } = methods;
 
   // dynamic‐form hook
+  const dynamicForm = useDynamicForm(parsedSteps);
+
   const {
     language,
     setLanguage,
@@ -96,7 +144,7 @@ export default function FormWrapper({
     fieldErrors,
     setCurrentChildId,
     setCurrentChildParentId,
-  }: UseDynamicFormReturn = useDynamicForm(parsedSteps);
+  } = dynamicForm as UseDynamicFormReturn;
 
   const { parentFormData } = useFormData();
 
@@ -144,12 +192,27 @@ export default function FormWrapper({
     );
   }
 
+  const handleFormSubmit = (formData: any) => {
+    const combinedData = { ...formData };
+    
+    Object.keys(parentFormData).forEach(parentId => {
+      if (parentFormData[parentId] && parentFormData[parentId].childrenData) {
+        combinedData[parentId] = {
+          ...combinedData[parentId],
+          childrenData: parentFormData[parentId].childrenData
+        };
+      }
+    });
+    
+    onSubmit(combinedData);
+  };
+
   // NORMAL FORM MODE
   return (
     <FormProvider {...methods}>
       <form 
         className={styles.formLayout} 
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(handleFormSubmit)}
         style={{
           fontFamily: theme.fonts.body,
           backgroundColor: theme.colors.background,
@@ -327,7 +390,18 @@ export default function FormWrapper({
                 finishHandler={finishHandler}
                 handleSubmit_openAIRE={() => {
                   handleSubmit_openAIRE();
-                  onSave(formData);
+                  const combinedData = { ...formData };
+                  
+                  Object.keys(parentFormData).forEach(parentId => {
+                    if (parentFormData[parentId] && parentFormData[parentId].childrenData) {
+                      combinedData[parentId] = {
+                        ...combinedData[parentId],
+                        childrenData: parentFormData[parentId].childrenData
+                      };
+                    }
+                  });
+                  
+                  onSave(combinedData);
                 }}
               />
             </motion.div>

@@ -46,7 +46,7 @@ def generate_nlinks(request, link_id):
         return JsonResponse({'error': str(e)}, status=500)
 
     logger.info(f"Negotiation created with PK: {negotiation.pk}")
-    print(f"Negotiation created with PK: {negotiation.pk}")
+    # print(f"Negotiation created with PK: {negotiation.pk}")
 
     # todo: use uuid7 that includes embedded timestamp data,to manage time-related functionality for link expiration.
     # Create NLink and associate it with the Negotiation
@@ -74,8 +74,8 @@ def generate_nlinks(request, link_id):
 def request_access(request, link_id):
     """Send the requestor a direct link to access the questionnaire."""
 
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
+    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
 
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
@@ -106,11 +106,13 @@ def fill_questionnaire(request, link_id):
             return JsonResponse({'error': 'Invalid JSON data provided.'}, status=400)
 
         if data.get('save'):
+            # print(f"🔍 SAVING DATA: {json.dumps(data, indent=2)}")
             negotiation.requestor_responses = data
             negotiation.save()
             return JsonResponse({'message': 'Questionnaire saved successfully!'})
 
         elif data.get('submit'):
+            # print(f"🔍 SUBMITTING DATA: {json.dumps(data, indent=2)}")
             negotiation.requestor_responses = data
             negotiation.state = 'owner_open'
             negotiation.save()
@@ -134,8 +136,8 @@ def fill_questionnaire(request, link_id):
             if owner_table and nlink.owner_id in owner_table:
                 # Generate the dynamic URL
                 owner_email = owner_table[nlink.owner_id]["owner_email"]
-                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-                # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
+                # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+                frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
                 owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
                 msg = EmailMultiAlternatives(
@@ -173,13 +175,42 @@ def fill_questionnaire(request, link_id):
         return JsonResponse({'error': 'Invalid action specified.'}, status=400)
 
     else:
-        sample_questionnaire = cache.get("OCA_package_schema_paper")
+        questionnaire_json = None
+        
+        cache_key = f'questionnaire_json_{negotiation.questionnaire_SAID}'
+        cached_json = cache.get(cache_key)
+        
+        if cached_json:
+            questionnaire_json = cached_json
+        else:
+            from datastore.views import fetch_questionnaire_json
+            questionnaire_json = fetch_questionnaire_json(negotiation.questionnaire_SAID)
+        
+        # Fallback to sample questionnaire if dynamic fetch fails
+        # if not questionnaire_json:
+        #     # Try to load test2.json as fallback
+        #     try:
+        #         import os
+        #         test2_path = os.path.join(settings.BASE_DIR, 'drt_frontend', 'public', 'test2.json')
+        #         if os.path.exists(test2_path):
+        #             with open(test2_path, 'r') as f:
+        #                 import json
+        #                 questionnaire_json = json.load(f)
+        #             logger.warning(f"Using test2.json fallback for {negotiation.questionnaire_SAID}")
+        #         else:
+        #             questionnaire_json = cache.get("OCA_package_schema_paper")
+        #             logger.warning(f"Using cache fallback for {negotiation.questionnaire_SAID}")
+        #     except Exception as e:
+        #         logger.error(f"Error loading fallback questionnaire: {e}")
+        #         questionnaire_json = cache.get("OCA_package_schema_paper")
+        #         logger.warning(f"Using cache fallback for {negotiation.questionnaire_SAID}")
+        
         saved_responses = negotiation.requestor_responses or {}
         owner_blob = negotiation.owner_responses or "{}"
         global_comments = negotiation.comments or ""
 
         return JsonResponse({
-            'questionnaire':    sample_questionnaire,
+            'questionnaire':    questionnaire_json,
             'saved_responses':   saved_responses,
             'owner_responses':   owner_blob,
             'comments':          global_comments,
@@ -200,7 +231,37 @@ def owner_review(request, link_id):
         if negotiation.state == 'completed' and not bypass_completed:
             return Response({'error': 'The negotiation is completed and cannot be edited.'}, status=403)
 
+        questionnaire_json = None
+        
+        cache_key = f'questionnaire_json_{negotiation.questionnaire_SAID}'
+        cached_json = cache.get(cache_key)
+        
+        if cached_json:
+            questionnaire_json = cached_json
+        else:
+            from datastore.views import fetch_questionnaire_json
+            questionnaire_json = fetch_questionnaire_json(negotiation.questionnaire_SAID)
+        
+        # if not questionnaire_json:
+        #     # Try to load test2.json as fallback
+        #     try:
+        #         import os
+        #         test2_path = os.path.join(settings.BASE_DIR, 'drt_frontend', 'public', 'test2.json')
+        #         if os.path.exists(test2_path):
+        #             with open(test2_path, 'r') as f:
+        #                 questionnaire_json = json.load(f)
+        #             logger.warning(f"Using test2.json fallback for owner review: {negotiation.questionnaire_SAID}")
+        #         else:
+        #             questionnaire_json = cache.get("OCA_package_schema_paper")
+        #             logger.warning(f"Using cache fallback for owner review: {negotiation.questionnaire_SAID}")
+        #     except Exception as e:
+        #         logger.error(f"Error loading fallback questionnaire for owner review: {e}")
+        #         questionnaire_json = cache.get("OCA_package_schema_paper")
+        #         logger.warning(f"Using cache fallback for owner review: {negotiation.questionnaire_SAID}")
+
+        # print(f"🔍 RETRIEVING DATA FOR OWNER: {json.dumps(negotiation.requestor_responses, indent=2)}")
         return Response({
+            'questionnaire': questionnaire_json,
             'owner_responses': negotiation.owner_responses,
             'comments': negotiation.comments,
             'requestor_responses': negotiation.requestor_responses,
@@ -252,8 +313,8 @@ def owner_review(request, link_id):
 
 def send_clarification_email(requestor_email, link_id):
 
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
+    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
 
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 

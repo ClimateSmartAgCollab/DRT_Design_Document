@@ -12,7 +12,7 @@ import {
   Section,
 } from '../components/type';
 
-import metadataJson from '../../public/test2.json';
+
 
 // Utility functions
 const asRoot = (json: unknown): Root => json as Root;
@@ -278,8 +278,15 @@ const parsePresentation = (
 };
 
 // Main public function
-export const parseJsonToFormStructure = (): Step[] => {
-  const metadata = asRoot(metadataJson);
+export const parseJsonToFormStructure = (dynamicMetadataJson?: any): Step[] => {
+  // If no metadata is provided, return empty array
+  if (!dynamicMetadataJson) {
+    console.warn('No metadata JSON provided to parseJsonToFormStructure');
+    return [];
+  }
+  
+  // Use provided metadataJson
+  const metadata = asRoot(dynamicMetadataJson);
   normalizeEntryCodes(metadata.oca_bundle.dependencies);
   const { bundle, dependencies } = metadata.oca_bundle;
   
