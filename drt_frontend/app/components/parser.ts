@@ -259,6 +259,7 @@ const parsePresentation = (
           return {
             sectionKey: grp.named_section,
             sectionLabel: langPick(presentation.page_labels, grp.named_section),
+            subheading: langPick(presentation.subheading, grp.named_section),
             fields: grp.attribute_order
               .map((fId) => fields.find((f) => f.id === fId))
               .filter(Boolean) as Field[],
@@ -279,6 +280,7 @@ const parsePresentation = (
 
 // Main public function
 export const parseJsonToFormStructure = (dynamicMetadataJson?: any): Step[] => {
+  console.log(dynamicMetadataJson);
   // If no metadata is provided, return empty array
   if (!dynamicMetadataJson) {
     console.warn('No metadata JSON provided to parseJsonToFormStructure');
@@ -427,7 +429,9 @@ export const parseJsonToFormStructure = (dynamicMetadataJson?: any): Step[] => {
         }
         return fld;
       });
-      const pages = parsePresentation(presentation, labels, fields);
+      // Find the correct presentation for this step
+      const stepPresentation = presentations.find(p => p.capture_base === capBase) || presentation;
+      const pages = parsePresentation(stepPresentation, labels, fields);
       if (!allSteps[capBase]) {
         allSteps[capBase] = {
           id: capBase,

@@ -22,13 +22,13 @@ export default function ChildReview({
   const children = parentFormData[field.id]?.childrenData?.[field.ref!] || [];
 
   return (
-    <div 
+    <div
       className="ml-4 mt-2 border-l-4 p-2"
       style={{ borderLeftColor: theme.colors.primary }}
     >
-      <h5 
+      <h5
         className="text-md font-semibold"
-        style={{ 
+        style={{
           color: theme.colors.primary,
           fontFamily: theme.fonts.heading,
         }}
@@ -41,10 +41,7 @@ export default function ChildReview({
       </h5>
 
       {children.length === 0 && (
-        <p 
-          className="ml-4"
-          style={{ color: theme.colors.grey[600] }}
-        >
+        <p className="ml-4" style={{ color: theme.colors.grey[600] }}>
           No child structure found.
         </p>
       )}
@@ -52,8 +49,8 @@ export default function ChildReview({
       {children.map((child) => {
         const childStep = parsedSteps.find((s) => s.id === child.stepId);
         return (
-          <div 
-            key={child.id} 
+          <div
+            key={child.id}
             className="mt-2 p-2"
             style={{ backgroundColor: theme.colors.blue[100] }}
           >
@@ -62,9 +59,9 @@ export default function ChildReview({
                 <div key={cPage.pageKey} className="ml-4">
                   {cPage.sections.map((cSection) => (
                     <div key={cSection.sectionKey} className="ml-4 mb-4">
-                      <h6 
+                      <h6
                         className="text-lg font-medium"
-                        style={{ 
+                        style={{
                           color: theme.colors.text,
                           fontFamily: theme.fonts.heading,
                         }}
@@ -82,7 +79,7 @@ export default function ChildReview({
                         if (nestedChildren) {
                           return (
                             <div key={cField.id} className="mb-1 ml-4">
-                              <label 
+                              <label
                                 className="block text-sm font-semibold"
                                 style={{ color: theme.colors.text }}
                               >
@@ -125,10 +122,7 @@ export default function ChildReview({
                 </div>
               ))
             ) : (
-              <p 
-                className="ml-4"
-                style={{ color: theme.colors.grey[600] }}
-              >
+              <p className="ml-4" style={{ color: theme.colors.grey[600] }}>
                 No child structure found.
               </p>
             )}
