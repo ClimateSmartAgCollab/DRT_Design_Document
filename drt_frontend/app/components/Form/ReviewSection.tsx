@@ -19,6 +19,53 @@ interface ReviewSectionProps {
   globalOwnerComments?: string;
 }
 
+// Helper function to format subheading text with line breaks and bullet points
+const formatSubheading = (text: string): string => {
+  if (!text) return '';
+  
+  // Split by double line breaks to separate paragraphs
+  const paragraphs = text.split('\n\n');
+  
+  // Process each paragraph
+  const formattedParagraphs = paragraphs.map(paragraph => {
+    // Check if paragraph contains bullet points
+    if (paragraph.includes('•')) {
+      // Split by single line breaks to separate bullet points
+      const lines = paragraph.split('\n');
+      const formattedLines = lines.map(line => {
+        if (line.trim().startsWith('•')) {
+          // Format bullet points
+          return `<li>${line.trim().substring(1).trim()}</li>`;
+        } else if (line.trim().includes(':')) {
+          // Format section headers (like "Role:", "Responsibilities:")
+          return `<strong>${line.trim()}</strong>`;
+        } else {
+          // Regular text
+          return line.trim();
+        }
+      });
+      
+      // Join bullet points in a list
+      const listItems = formattedLines.filter(line => line.startsWith('<li>'));
+      const otherLines = formattedLines.filter(line => !line.startsWith('<li>'));
+      
+      let result = '';
+      if (otherLines.length > 0) {
+        result += otherLines.join('<br/>');
+      }
+      if (listItems.length > 0) {
+        result += '<ul style="margin: 8px 0; padding-left: 20px;">' + listItems.join('') + '</ul>';
+      }
+      return result;
+    } else {
+      // Regular paragraph
+      return paragraph.trim().replace(/\n/g, '<br/>');
+    }
+  });
+  
+  return formattedParagraphs.join('<br/><br/>');
+};
+
 export default function ReviewSection({
   parsedSteps,
   reviewOutput,
@@ -32,7 +79,7 @@ export default function ReviewSection({
   globalOwnerComments,
 }: ReviewSectionProps) {
   const theme = useTheme();
-  
+
   // Identify which steps are children (referenced by other fields)
   const childStepIds = new Set<string>();
   parsedSteps.forEach((step) =>
@@ -45,7 +92,9 @@ export default function ReviewSection({
     )
   );
   // Only display steps that are *not* children (i.e., parent/root steps)
-  const parentStepsForReview = parsedSteps.filter((step) => !childStepIds.has(step.id));
+  const parentStepsForReview = parsedSteps.filter(
+    (step) => !childStepIds.has(step.id)
+  );
 
   const buttonStyle = {
     padding: "0.75rem 1.5rem",
@@ -62,24 +111,24 @@ export default function ReviewSection({
   };
 
   return (
-    <section 
+    <section
       className="flex flex-col min-h-screen"
       style={{ fontFamily: theme.fonts.body }}
     >
-      <header 
+      <header
         className="border-b pb-4"
         style={{ borderBottomColor: theme.colors.grey[300] }}
       >
-        <h1 
+        <h1
           className="mb-2 text-center text-3xl font-bold"
-          style={{ 
+          style={{
             color: theme.colors.primary,
             fontFamily: theme.fonts.heading,
           }}
         >
           {reviewOutput.title || "Review Your Responses"}
         </h1>
-        <p 
+        <p
           className="text-center text-lg"
           style={{ color: theme.colors.grey[600] }}
         >
@@ -91,9 +140,9 @@ export default function ReviewSection({
         <div className="space-y-6">
           {parentStepsForReview.map((step) => (
             <div key={step.id} className="mb-6">
-              <h2 
+              <h2
                 className="text-2xl font-bold"
-                style={{ 
+                style={{
                   color: theme.colors.primary,
                   fontFamily: theme.fonts.heading,
                 }}
@@ -106,9 +155,9 @@ export default function ReviewSection({
                   className="mb-4 border-l-2 pl-4"
                   style={{ borderLeftColor: theme.colors.grey[300] }}
                 >
-                  <h3 
+                  <h3
                     className="text-xl font-semibold"
-                    style={{ 
+                    style={{
                       color: theme.colors.text,
                       fontFamily: theme.fonts.heading,
                     }}
@@ -121,30 +170,43 @@ export default function ReviewSection({
                       className="mb-4 border-l-2 pl-4"
                       style={{ borderLeftColor: theme.colors.grey[200] }}
                     >
-                      <h4 
+                      <h4
                         className="text-lg font-medium"
-                        style={{ 
+                        style={{
                           color: theme.colors.text,
                           fontFamily: theme.fonts.heading,
                         }}
                       >
-                        {section.sectionLabel[language] || section.sectionLabel.eng}
+                        {section.sectionLabel[language] ||
+                          section.sectionLabel.eng}
                       </h4>
+                      {section.subheading && section.subheading[language] && (
+                        <div
+                          className="text-sm mb-2 italic pl-4"
+                          style={{ color: theme.colors.grey[600] }}
+                          dangerouslySetInnerHTML={{
+                            __html: formatSubheading(section.subheading[language])
+                          }}
+                        />
+                      )}
                       {section.fields.map((field) => {
                         const hasChildren =
                           field.type === "reference" &&
                           field.ref &&
                           parentFormData[field.id]?.childrenData?.[field.ref] &&
-                          parentFormData[field.id].childrenData[field.ref].length > 0;
+                          parentFormData[field.id].childrenData[field.ref]
+                            .length > 0;
 
                         if (hasChildren) {
                           return (
                             <div key={field.id} className="mb-2">
-                              <label 
+                              <label
                                 className="block text-sm font-semibold"
                                 style={{ color: theme.colors.text }}
                               >
-                                {field.labels[language]?.[field.id] || field.labels.eng?.[field.id] || "No label"}
+                                {field.labels[language]?.[field.id] ||
+                                  field.labels.eng?.[field.id] ||
+                                  "No label"}
                               </label>
                               <ChildReview
                                 field={field}
@@ -155,32 +217,36 @@ export default function ReviewSection({
                           );
                         }
 
-                        const fieldAnswer = formData[step.id]?.[field.id] ?? field.value;
+                        const fieldAnswer =
+                          formData[step.id]?.[field.id] ?? field.value;
                         return (
                           <div key={field.id} className="mb-4">
-                            <label 
+                            <label
                               className="block text-sm font-semibold"
                               style={{ color: theme.colors.text }}
                             >
-                              {field.labels[language]?.[field.id] || field.labels.eng?.[field.id]}
+                              {field.labels[language]?.[field.id] ||
+                                field.labels.eng?.[field.id]}
                             </label>
-                            <div 
+                            <div
                               className="mt-1 break-words"
                               style={{ color: theme.colors.grey[600] }}
                             >
                               {Array.isArray(fieldAnswer)
                                 ? fieldAnswer.join(", ")
-                                : fieldAnswer?.toString() || "No response provided"}
+                                : fieldAnswer?.toString() ||
+                                  "No response provided"}
                             </div>
                             {ownerComments?.[field.id] && (
-                              <div 
+                              <div
                                 className="mt-2 p-2 text-sm rounded"
-                                style={{ 
+                                style={{
                                   backgroundColor: theme.colors.pink[200],
                                   color: theme.colors.text,
                                 }}
                               >
-                                <strong>Owner Comment:</strong> {ownerComments[field.id]}
+                                <strong>Owner Comment:</strong>{" "}
+                                {ownerComments[field.id]}
                               </div>
                             )}
                           </div>
@@ -195,9 +261,9 @@ export default function ReviewSection({
         </div>
 
         {globalOwnerComments && (
-          <div 
+          <div
             className="mt-6 p-4 rounded"
-            style={{ 
+            style={{
               backgroundColor: theme.colors.pink[200],
               color: theme.colors.text,
             }}
@@ -208,7 +274,7 @@ export default function ReviewSection({
         )}
       </main>
 
-      <footer 
+      <footer
         className="flex justify-center space-x-4 py-4 border-t"
         style={{ borderTopColor: theme.colors.grey[300] }}
       >
@@ -229,16 +295,19 @@ export default function ReviewSection({
           type="button"
           onClick={() => {
             const combinedData = { ...formData };
-            
-            Object.keys(parentFormData).forEach(parentId => {
-              if (parentFormData[parentId] && parentFormData[parentId].childrenData) {
+
+            Object.keys(parentFormData).forEach((parentId) => {
+              if (
+                parentFormData[parentId] &&
+                parentFormData[parentId].childrenData
+              ) {
                 combinedData[parentId] = {
                   ...combinedData[parentId],
-                  childrenData: parentFormData[parentId].childrenData
+                  childrenData: parentFormData[parentId].childrenData,
                 };
               }
             });
-            
+
             onSubmit(combinedData);
           }}
           style={buttonStyle}
@@ -255,16 +324,19 @@ export default function ReviewSection({
           type="button"
           onClick={() => {
             const combinedData = { ...formData };
-            
-            Object.keys(parentFormData).forEach(parentId => {
-              if (parentFormData[parentId] && parentFormData[parentId].childrenData) {
+
+            Object.keys(parentFormData).forEach((parentId) => {
+              if (
+                parentFormData[parentId] &&
+                parentFormData[parentId].childrenData
+              ) {
                 combinedData[parentId] = {
                   ...combinedData[parentId],
-                  childrenData: parentFormData[parentId].childrenData
+                  childrenData: parentFormData[parentId].childrenData,
                 };
               }
             });
-            
+
             onSave(combinedData);
           }}
           style={buttonStyle}

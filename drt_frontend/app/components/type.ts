@@ -238,6 +238,7 @@ export interface Field {
 export interface Section {
   sectionKey: string;
   sectionLabel: Record<string, string>;
+  subheading?: Record<string, string>;
   fields: Field[];
 }
 

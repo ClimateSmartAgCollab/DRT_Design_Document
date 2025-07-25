@@ -23,6 +23,7 @@ export type ParsedPage = Page_parsed;
 export interface ParsedSection {
   sectionKey: string;
   sectionLabel: Record<string, string>;
+  subheading?: Record<string, string>;
   fields: Field[];
 }
 

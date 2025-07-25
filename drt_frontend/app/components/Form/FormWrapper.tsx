@@ -36,6 +36,53 @@ interface FormWrapperProps extends FormProps {
   questionnaireJson?: any; 
 }
 
+// Helper function to format subheading text with line breaks and bullet points
+const formatSubheading = (text: string): string => {
+  if (!text) return '';
+  
+  // Split by double line breaks to separate paragraphs
+  const paragraphs = text.split('\n\n');
+  
+  // Process each paragraph
+  const formattedParagraphs = paragraphs.map(paragraph => {
+    // Check if paragraph contains bullet points
+    if (paragraph.includes('•')) {
+      // Split by single line breaks to separate bullet points
+      const lines = paragraph.split('\n');
+      const formattedLines = lines.map(line => {
+        if (line.trim().startsWith('•')) {
+          // Format bullet points
+          return `<li>${line.trim().substring(1).trim()}</li>`;
+        } else if (line.trim().includes(':')) {
+          // Format section headers (like "Role:", "Responsibilities:")
+          return `<strong>${line.trim()}</strong>`;
+        } else {
+          // Regular text
+          return line.trim();
+        }
+      });
+      
+      // Join bullet points in a list
+      const listItems = formattedLines.filter(line => line.startsWith('<li>'));
+      const otherLines = formattedLines.filter(line => !line.startsWith('<li>'));
+      
+      let result = '';
+      if (otherLines.length > 0) {
+        result += otherLines.join('<br/>');
+      }
+      if (listItems.length > 0) {
+        result += '<ul style="margin: 8px 0; padding-left: 20px;">' + listItems.join('') + '</ul>';
+      }
+      return result;
+    } else {
+      // Regular paragraph
+      return paragraph.trim().replace(/\n/g, '<br/>');
+    }
+  });
+  
+  return formattedParagraphs.join('<br/><br/>');
+};
+
 export default function FormWrapper({
   initialAnswers = {},
   ownerComments = {},
@@ -269,6 +316,15 @@ export default function FormWrapper({
                     >
                       {section.sectionLabel[language]}
                     </h3>
+                  )}
+                  {section.subheading && section.subheading[language] && (
+                    <div 
+                      className="text-md mb-4 italic pl-4"
+                      style={{ color: theme.colors.grey[600] }}
+                      dangerouslySetInnerHTML={{
+                        __html: formatSubheading(section.subheading[language])
+                      }}
+                    />
                   )}
 
                   {section.fields.map((field) => {
