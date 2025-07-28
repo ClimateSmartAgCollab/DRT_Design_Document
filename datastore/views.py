@@ -18,8 +18,6 @@ def fetch_file_from_github(file_path):
     url = f"{GITHUB_API_URL}/{file_path}"
     headers = {'Authorization': f'token {GITHUB_TOKEN}'}
     response = requests.get(url, headers=headers)
-    
-    # print(response) 
 
     if response.status_code == 200:
         content = base64.b64decode(response.json()['content']).decode('utf-8')
@@ -31,8 +29,7 @@ def load_github_data(request):
     owner_table_csv = fetch_file_from_github('owner_table.csv')
     link_table_csv = fetch_file_from_github('linktable.csv')
     questionnaire_table_csv = fetch_file_from_github('source_library/questionnaire_table.csv')
-    sample_questionnaire_json = fetch_file_from_github('source_library/sample_questionnaire_package.json')
-    sample_questionnaire_json_1 = fetch_file_from_github('source_library/OCA_package_schema_paper.json')
+    license_table_csv = fetch_file_from_github('source_library/license_table.csv')
 
     if owner_table_csv:
         owner_table = {}  
@@ -66,10 +63,13 @@ def load_github_data(request):
             questionnaire_table[row['questionnaire_SAID']] = row['questionnaire_filename']
         cache.set('questionnaire_table', questionnaire_table, timeout=60*60*24)
 
-    if sample_questionnaire_json:
-        cache.set('sample_questionnaire_package', sample_questionnaire_json, timeout=60*60*24)  
-    if sample_questionnaire_json_1:
-        cache.set('OCA_package_schema_paper', sample_questionnaire_json_1, timeout=60*60*24)
+    if license_table_csv:
+        license_table = {}
+        reader = csv.DictReader(io.StringIO(license_table_csv))
+        for row in reader:
+            license_table[row['license_SAID']] = row['license_filename']
+        cache.set('license_table', license_table, timeout=60*60*24)
+
 
     return JsonResponse({'status': 'GitHub data loaded successfully and cached'})
 
@@ -111,21 +111,42 @@ def fetch_questionnaire_json(questionnaire_id):
         # print(f"Error fetching questionnaire JSON for {questionnaire_id}: {str(e)}")
         return None
 
-# New view to get questionnaire JSON by questionnaire_id
-def get_questionnaire_json(request, questionnaire_id):
-    """
-    API endpoint to get questionnaire JSON by questionnaire_id.
-    First checks cache, then fetches from GitHub if not cached.
-    """
+def fetch_license_template(license_id):
     try:
-        # Check if already cached
+        license_table = cache.get('license_table')
+        print(license_table)
+        if not license_table:
+            # print("License table not found in cache")
+            return None
+        
+        filename = license_table.get(license_id)
+        print(filename)
+        if not filename:
+            # print(f"License ID {license_id} not found in license table")
+            return None
+        
+        license_content = fetch_file_from_github(f'source_library/license/{filename}')
+        print(license_content)
+        if license_content:
+            cache_key = f'license_template_{license_id}'
+            cache.set(cache_key, license_content, timeout=60*60*24)  # Cache for 24 hours
+            return license_content
+        else:
+            # print(f"Failed to fetch license template file: {filename}")
+            return None
+            
+    except Exception as e:
+        # print(f"Error fetching license template for {license_id}: {str(e)}")
+        return None
+
+def get_questionnaire_json(request, questionnaire_id):
+    try:
         cache_key = f'questionnaire_json_{questionnaire_id}'
         cached_json = cache.get(cache_key)
         
         if cached_json:
             return JsonResponse({'questionnaire': cached_json})
         
-        # Fetch from GitHub
         json_content = fetch_questionnaire_json(questionnaire_id)
         if json_content:
             return JsonResponse({'questionnaire': json_content})
@@ -135,7 +156,34 @@ def get_questionnaire_json(request, questionnaire_id):
     except Exception as e:
         return JsonResponse({'error': f'Error fetching questionnaire: {str(e)}'}, status=500)
 
-# View to retrieve cached data
+def get_license_template(request, license_id):
+    try:
+        cache_key = f'license_template_{license_id}'
+        cached_template = cache.get(cache_key)
+        
+        if cached_template:
+            return JsonResponse({'license_template': cached_template})
+        
+        template_content = fetch_license_template(license_id)
+        if template_content:
+            return JsonResponse({'license_template': template_content})
+        else:
+            return JsonResponse({'error': f'License template {license_id} not found'}, status=404)
+            
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching license template: {str(e)}'}, status=500)
+
+def get_license_table(request):
+    try:
+        license_table = cache.get('license_table')
+        if license_table:
+            return JsonResponse({'license_table': license_table})
+        else:
+            return JsonResponse({'error': 'License table not found in cache'}, status=404)
+            
+    except Exception as e:
+        return JsonResponse({'error': f'Error fetching license table: {str(e)}'}, status=500)
+
 def get_cached_data(request, key):
     cached_data = cache.get(key)
     if cached_data is None:
