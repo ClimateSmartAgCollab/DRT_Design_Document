@@ -426,34 +426,65 @@ def submission_view(request):
 
     submission = json.loads(request.body)
     fmt = request.GET.get("format", "json").lower()
-
-    env = Environment(
-        loader=FileSystemLoader("drt/templates"),
-        autoescape=select_autoescape(["html", "xml", "json"])
-    )
+    license_id = request.GET.get("license_id", "l-001-test")  # Get license_id from query params
 
     if fmt == "license":
-        print("📄 rendering license_template.jinja")
-        template = env.get_template("license_template.jinja")
-        content_type = "text/plain"
-        filename = "license.txt"
-        context = {"submission": submission}
+        print(f"📄 rendering license template from GitHub for license_id: {license_id}")
+        # Get license template from cache or fetch from GitHub
+        cache_key = f'license_template_{license_id}'
+        license_template_content = cache.get(cache_key)
+        if not license_template_content:
+            from datastore.views import fetch_license_template
+            license_template_content = fetch_license_template(license_id)
+        
+        if license_template_content:
+            # Create template from string content and render it as human-readable text
+            from jinja2 import Template
+            template = Template(license_template_content)
+            content_type = "text/plain"
+            filename = "license.txt"
+            owner_table = cache.get("owner_table")
+            
+            # Import the flatten function from license service
+            from drt.services.license import flatten_form_data
+            details = flatten_form_data(submission)
+            
+            context = {"submission": details, "owner_table": owner_table}
+            rendered = template.render(**context)
+        else:
+            # Fallback to hardcoded template if GitHub fetch fails
+            print(f"⚠️ License template not found for {license_id}, using fallback template")
+            from jinja2 import Environment, FileSystemLoader, select_autoescape
+            env = Environment(
+                loader=FileSystemLoader("drt/templates"),
+                autoescape=select_autoescape(["html", "xml", "json"])
+            )
+            template = env.get_template("license_template_fallback.jinja")
+            content_type = "text/plain"
+            filename = "license.txt"
+            owner_table = cache.get("owner_table")
+            
+            # Import the flatten function from license service
+            from drt.services.license import flatten_form_data
+            details = flatten_form_data(submission)
+            
+            context = {"submission": details, "owner_table": owner_table}
+            rendered = template.render(**context)
 
-    elif fmt == "odrl":
-        print("📃 rendering license_odrl.xml.jinja")
-        template = env.get_template("license_odrl.xml.jinja")
-        content_type = "application/xml"
-        filename = "license.xml"
-        context = {"submission": submission}
+    # elif fmt == "odrl":
+    #     print("📃 rendering license_odrl.xml.jinja")
+    #     template = env.get_template("license_odrl.xml.jinja")
+    #     content_type = "application/xml"
+    #     filename = "license.xml"
+    #     context = {"submission": submission}
 
-    else:
-        print("🔧 rendering catalog_response.jinja")
-        template = env.get_template("catalog_response.jinja")
-        content_type = "application/json"
-        filename = "standardized_openAIRE.json"
-        context = {"submission": submission}
+    # else:
+    #     print("🔧 rendering catalog_response.jinja")
+    #     template = env.get_template("catalog_response.jinja")
+    #     content_type = "application/json"
+    #     filename = "standardized_openAIRE.json"
+    #     context = {"submission": submission}
 
-    rendered = template.render(**context)
     response = HttpResponse(rendered, content_type=content_type)
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
