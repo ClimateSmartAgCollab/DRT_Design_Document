@@ -326,7 +326,7 @@ export function useSubmissionMapping(
 
   // Called to POST the reviewOutput to your Django endpoint
   const handleVerifyAndSubmit = useCallback(
-    async (format: 'json' | 'license' | 'odrl') => {
+    async (format: 'license' ) => {
       if (!reviewOutput) return
       // const url = `http://127.0.0.1:8000/drt/api/submission/?format=${format}`
       const url = `http://drt-test.canadacentral.cloudapp.azure.com:8000/drt/api/submission/?format=${format}`
@@ -365,9 +365,7 @@ export function useSubmissionMapping(
         const filename =
           match?.[1] ||
           {
-            json: 'openAIRE.json',
             license: 'license.txt',
-            odrl: 'license.xml',
           }[format]
 
         const blobUrl = window.URL.createObjectURL(blob)

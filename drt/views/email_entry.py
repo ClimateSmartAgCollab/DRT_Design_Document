@@ -14,7 +14,43 @@ import datetime
 from ..models import Requestor, NLink
 import logging
 import secrets
+import threading
+
 logger = logging.getLogger(__name__)
+
+def send_requestor_verification_email_async(email, magic_link, expiry):
+    """Send requestor verification email asynchronously"""
+    try:
+        msg = EmailMultiAlternatives(
+            subject="Access Link for Requestor Verification",
+            body=(
+                "Hello Dear Requestor,\n\n"
+                "Click the link below to verify your email and access the questionnaire:\n\n"
+                f"{magic_link}\n\n"
+                f"This link will expire at {expiry:%H:%M}.\n\n"
+                "For your security, please do not share this link with anyone. "
+                "If you did not request this link, simply ignore this message or "
+                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "Best regards,\n"
+                "The DRT System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+        )
+        html_content = f"""
+            <p>Hello Dear Requestor,</p>
+            <p>Click the link below to verify your email and access the questionnaire:</p>
+            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+            <p>This link will expire at {expiry:%H:%M}.</p>
+            <p>For your security, please do not share this link with anyone.<br>
+            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Error sending requestor verification email: {str(e)}")
 
 
 @api_view(['GET', 'POST'])
@@ -61,34 +97,8 @@ def requestor_email_entry(request, link_id):
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?token={token}"
 
-        msg = EmailMultiAlternatives(
-            subject="Access Link for Requestor Verification",
-            body=(
-                "Hello Dear Requestor,\n\n"
-                "Click the link below to verify your email and access the questionnaire:\n\n"
-                f"{magic_link}\n\n"
-                f"This link will expire at {expiry:%H:%M}.\n\n"
-                "For your security, please do not share this link with anyone. "
-                "If you did not request this link, simply ignore this message or "
-                "contact our support team at ssanavi@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[email],
-            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-        )
-        html_content = f"""
-            <p>Hello Dear Requestor,</p>
-            <p>Click the link below to verify your email and access the questionnaire:</p>
-            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
-            <p>This link will expire at {expiry:%H:%M}.</p>
-            <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
-        msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=False)
+        # Send email asynchronously
+        threading.Thread(target=send_requestor_verification_email_async, args=(email, magic_link, expiry)).start()
 
         magic_link_path = f"/negotiation/{link_id}/magic-link-verification?token={token}"
         return Response({'redirect_url': settings.FRONTEND_BASE_URL + magic_link_path})

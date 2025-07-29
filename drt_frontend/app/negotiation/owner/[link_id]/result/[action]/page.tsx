@@ -56,7 +56,8 @@ export default function OutcomePage() {
       title: "Thank you!",
       lines: [
         "Your acceptance has been recorded.",
-        "Please check your email for the license agreement files.",
+        "License generation and email delivery are being processed in the background.",
+        "You will receive the license agreement files via email shortly.",
       ],
       color: "green",
       iconPath: "M5 13l4 4L19 7",
@@ -64,7 +65,7 @@ export default function OutcomePage() {
     reject: {
       title: "Request Rejected",
       lines: [
-        "You’ve rejected this request.",
+        "You've rejected this request.",
         "The requestor has been notified and can revise or withdraw.",
       ],
       color: "red",
@@ -206,7 +207,7 @@ export default function OutcomePage() {
                   )}
                   {resendMutation.isSuccess && (
                     <p className="text-green-600">
-                      ✅ Email resent! Please check your inbox.
+                      ✅ Email resent.
                     </p>
                   )}
                 </div>

@@ -6,6 +6,9 @@ import csv
 import io
 from django.views.decorators.csrf import csrf_exempt
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 GITHUB_API_URL = os.environ.get('GITHUB_API_URL')
 if GITHUB_API_URL is None:
@@ -17,12 +20,19 @@ GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 def fetch_file_from_github(file_path):
     url = f"{GITHUB_API_URL}/{file_path}"
     headers = {'Authorization': f'token {GITHUB_TOKEN}'}
-    response = requests.get(url, headers=headers)
+    try:
+        response = requests.get(url, headers=headers, timeout=10)  # 10 second timeout
 
-    if response.status_code == 200:
-        content = base64.b64decode(response.json()['content']).decode('utf-8')
-        return content
-    return None
+        if response.status_code == 200:
+            content = base64.b64decode(response.json()['content']).decode('utf-8')
+            return content
+        return None
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout fetching file from GitHub: {file_path}")
+        return None
+    except Exception as e:
+        logger.error(f"Error fetching file from GitHub {file_path}: {str(e)}")
+        return None
 
 # View to load GitHub data and store it only in cache
 def load_github_data(request):
@@ -69,9 +79,11 @@ def load_github_data(request):
         for row in reader:
             license_table[row['license_SAID']] = row['license_filename']
         cache.set('license_table', license_table, timeout=60*60*24)
+        
+        # Pre-load license templates after loading the license table
+        preload_license_templates()
 
-
-    return JsonResponse({'status': 'GitHub data loaded successfully and cached'})
+    return JsonResponse({'message': 'Data loaded successfully'})
 
 # New function to fetch questionnaire JSON by questionnaire_id
 def fetch_questionnaire_json(questionnaire_id):
@@ -189,6 +201,32 @@ def get_cached_data(request, key):
     if cached_data is None:
         return JsonResponse({'error': f'No cached data found for key: {key}'}, status=404)
     return JsonResponse({key: cached_data})
+
+def preload_license_templates():
+    """Pre-load all license templates into cache to avoid delays during license generation"""
+    try:
+        license_table = cache.get('license_table')
+        if not license_table:
+            logger.warning("License table not found in cache, cannot preload templates")
+            return
+        
+        logger.info("Pre-loading license templates into cache...")
+        for license_id, filename in license_table.items():
+            cache_key = f'license_template_{license_id}'
+            if not cache.get(cache_key):
+                try:
+                    license_content = fetch_file_from_github(f'source_library/license/{filename}')
+                    if license_content:
+                        cache.set(cache_key, license_content, timeout=60*60*24)
+                        logger.info(f"Pre-loaded license template: {license_id}")
+                    else:
+                        logger.warning(f"Failed to pre-load license template: {license_id}")
+                except Exception as e:
+                    logger.error(f"Error pre-loading license template {license_id}: {str(e)}")
+        
+        logger.info("License template pre-loading completed")
+    except Exception as e:
+        logger.error(f"Error in preload_license_templates: {str(e)}")
 
 # GitHub webhook to receive and handle updates from the GitHub repository
 @csrf_exempt

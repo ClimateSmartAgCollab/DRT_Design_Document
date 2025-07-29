@@ -4,7 +4,8 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     owner_email_entry, verify_owner_magic_link, owner_review, archive_view,
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
-                    req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint
+                    req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint,
+                    regenerate_license_view
                     )
 
 urlpatterns = [
@@ -81,6 +82,10 @@ urlpatterns = [
     path('negotiations/delete/<uuid:negotiation_id>/',
          delete_negotiation_files,
          name='delete_negotiation_files'),  # Delete negotiation files
+
+    path('negotiations/regenerate-license/<uuid:negotiation_id>/',
+         regenerate_license_view,
+         name='regenerate_license'),  # Regenerate license for a negotiation
 
     path('negotiations/delete-old/',
          delete_old_negotiations_view,

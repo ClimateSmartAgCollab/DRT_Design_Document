@@ -1,10 +1,11 @@
 // drt_frontend\app\negotiation\owner\list\components\NegotiationItem.tsx
-import React, { useMemo } from "react";
+import React from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { Negotiation } from "../types";
 import {
   archiveNegotiation,
   deleteNegotiation,
+  regenerateLicense,
 } from "../services/negotiationApi";
 import Link from "next/link";
 import { parseJsonToFormStructure } from "@/app/components/parser";
@@ -190,6 +191,7 @@ export function NegotiationItem({
 }: NegotiationItemProps) {
 
   const [expanded, setExpanded] = React.useState(false);
+  const [isRegenerating, setIsRegenerating] = React.useState(false);
   const canArchive =
     !n.archived && ["completed", "canceled", "rejected"].includes(n.state);
 
@@ -203,6 +205,28 @@ export function NegotiationItem({
   const handleDelete = async () => {
     await deleteNegotiation(n.negotiation_id);
     onReload();
+  };
+
+  const handleRegenerateLicense = async () => {
+    try {
+      setIsRegenerating(true);
+      const blob = await regenerateLicense(n.negotiation_id);
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `license_negotiation_id:${n.negotiation_id}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error regenerating license:', error);
+      alert('Failed to regenerate license. Please try again.');
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   return (
@@ -350,6 +374,15 @@ export function NegotiationItem({
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                 >
                   Archive
+                </button>
+              )}
+              {n.state === "completed" && (
+                <button
+                  onClick={handleRegenerateLicense}
+                  disabled={isRegenerating}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRegenerating ? "Generating..." : "Regenerate License"}
                 </button>
               )}
               <button

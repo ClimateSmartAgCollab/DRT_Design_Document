@@ -100,6 +100,18 @@ export default function FillQuestionnairePage() {
   }, [data?.owner_responses]);
   const globalOwnerComments = data?.comments ?? "";
 
+  const isQuestionnaireLoading = data?.questionnaire?._loading;
+
+  useEffect(() => {
+    if (isQuestionnaireLoading) {
+      const interval = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ["fillQuestionnaire", linkId] });
+      }, 2000); // Check every 2 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [isQuestionnaireLoading, queryClient, linkId]);
+
   useEffect(() => {
     if (
       loadError &&
@@ -124,10 +136,10 @@ export default function FillQuestionnairePage() {
     return null;
   }
 
-  if (isLoadingData) {
+  if (isLoadingData || isQuestionnaireLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <p>Loading questionnaire…</p>
+        <p>{isQuestionnaireLoading ? "Loading questionnaire data..." : "Loading questionnaire…"}</p>
       </div>
     );
   }
