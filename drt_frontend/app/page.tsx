@@ -71,8 +71,7 @@ const content = {
             //   label: "Questionnaire_prototype2-23-B-pig",
             //   url: "http://localhost:3000/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
             // },
-                        
-            
+
             {
               label: "Questionnaire_prototype1-23-A-cow",
               url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
@@ -639,8 +638,11 @@ export default function HomePage() {
                 </a>
                 {t.ownersBody2}
               </p>
+
               <Link
                 href="/negotiation/owner/homepage"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block text-center text-[#2382A0] underline text-2xl font-sans mt-8"
               >
                 {t.ownerDashboard}
@@ -658,6 +660,8 @@ export default function HomePage() {
               </p>
               <Link
                 href="/negotiation/homepage"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block text-center text-[#2382A0] underline text-2xl font-sans mt-8"
               >
                 {t.requestorDashboard}

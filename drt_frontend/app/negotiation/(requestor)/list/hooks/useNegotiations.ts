@@ -1,4 +1,4 @@
-// drt_frontend/app/negotiation/list/hooks/useNegotiations.ts
+// drt_frontend/app/negotiation/(requestor)/list/hooks/useNegotiations.ts
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchNegotiations } from "../services/negotiationApi";
@@ -9,17 +9,24 @@ export function useNegotiations() {
     data = [],
     error,
     isLoading,
+    isFetching,
     refetch,
   } = useQuery<Negotiation[], Error>({
     queryKey: ["negotiations"],
     queryFn: fetchNegotiations,
-    staleTime: 1000 * 60 * 5, // cache for 5 minutes
+    staleTime: 1000 * 60 * 5, 
+    refetchInterval: 1000 * 30, 
+    refetchIntervalInBackground: true, 
+    refetchOnWindowFocus: true, 
+    refetchOnMount: true, 
+    retry: 2, 
   });
 
   return {
     data,
     error: error?.message ?? null,
     isLoading,
+    isFetching,
     reload: refetch,
   };
 }

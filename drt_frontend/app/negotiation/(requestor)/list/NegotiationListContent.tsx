@@ -15,7 +15,7 @@ import fetchApi from "@/app/api/apiHelper";
 
 export default function NegotiationListContent() {
   const router = useRouter();
-  const { data: negs, error, reload } = useNegotiations();
+  const { data: negs, error, reload, isFetching } = useNegotiations();
   const {
     filters,
     setSearchTerm,
@@ -128,10 +128,41 @@ export default function NegotiationListContent() {
         >
           Back to homepage
         </button>
-        <h1 className="text-3xl font-extrabold mb-6 text-gray-800">
+        <h1 className="text-3xl font-extrabold mb-6 text-gray-800 flex items-center">
           Negotiations ({sorted.length})
+          {isFetching && !whoamiQuery.isLoading && (
+            <div className="ml-3 flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-sm text-gray-500">Updating...</span>
+            </div>
+          )}
         </h1>
-        {error && <p className="text-red-600 mb-4">{error}</p>}
+        
+        {whoamiQuery.isLoading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">Loading negotiations...</span>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded">
+            <p className="text-red-600">Error loading negotiations: {error}</p>
+            <button
+              onClick={() => reload()}
+              className="mt-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!whoamiQuery.isLoading && !error && sorted.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Please Waite.</p>
+          </div>
+        )}
+        
         {hasOld && (
           <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
             <p className="text-gray-700">

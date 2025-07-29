@@ -4,19 +4,21 @@ from django.utils.translation import gettext_lazy as _
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
+
 def flatten_form_data(submission_data):
     flattened = {}
-    
+
     if not submission_data:
         return flattened
-    
+
     for step_id, step_data in submission_data.items():
         if step_id in ['save', 'submit']:
             continue
-            
+
         if isinstance(step_data, dict):
             # Handle regular step data
             for field_id, field_value in step_data.items():
@@ -41,84 +43,95 @@ def flatten_form_data(submission_data):
             # Direct value - normalize step ID
             normalized_step_id = step_id.replace('.', '_')
             flattened[normalized_step_id] = step_data
-    
+
     return flattened
 
+
 def generate_license_and_notify_owner(nlink):
+    """Generate license and send email"""
+    try:
+        negotiation = nlink.negotiation
+        submission = negotiation.requestor_responses
 
-    negotiation = nlink.negotiation
-    submission = negotiation.requestor_responses
+        # Flatten the nested form data structure
+        details = flatten_form_data(submission)
 
-    # # Debug logging
-    # logger.info(f"Original submission data: {submission}")
-    # print(f"Original submission data: {submission}")  # For debugging
-    # logger.info(f"Submission type: {type(submission)}")
-    # print(f"Submission type: {type(submission)}")  # For debugging
+        attachments = []
 
-    # Flatten the nested form data structure
-    details = flatten_form_data(submission)
-    # print(f"Flattened details: {details}")  # For debugging
-    
-    # logger.info(f"Flattened details: {details}")
+        owner_table = cache.get("owner_table")
 
-    attachments = []
+        license_id = getattr(nlink, 'license_id', None)
+        cache_key = f'license_template_{license_id}'
+        license_template_content = cache.get(cache_key)
 
-    owner_table = cache.get("owner_table")
-    
-    license_id = getattr(nlink, 'license_id', None) or 'l-001-test'
-    cache_key = f'license_template_{license_id}'
-    license_template_content = cache.get(cache_key)
-    
-    if not license_template_content:
-        from datastore.views import fetch_license_template
-        license_template_content = fetch_license_template(license_id)
-    
-    if license_template_content:
-        # Create template from string content and render it
-        template = Template(license_template_content)
-        txt = template.render(submission=details, owner_table=owner_table)
-    else:
-        # Fallback to default template if GitHub fetch fails
-        env = Environment(
-            loader=FileSystemLoader("drt/templates"),
-            autoescape=select_autoescape(['html', 'xml', 'json'])
+        # If not in cache, try to fetch but don't block
+        if not license_template_content:
+            try:
+                from datastore.views import fetch_license_template
+                license_template_content = fetch_license_template(license_id)
+                # Cache it for future use
+                if license_template_content:
+                    cache.set(cache_key, license_template_content,
+                              timeout=60*60*24)
+            except Exception as e:
+                logger.error(f"Error fetching license template: {str(e)}")
+                license_template_content = None
+
+        if license_template_content:
+            # Create template from string content and render it
+            template = Template(license_template_content)
+            txt = template.render(submission=details, owner_table=owner_table)
+        else:
+            # Fallback to default template if GitHub fetch fails
+            logger.warning(f"Using fallback template for license {license_id}")
+            env = Environment(
+                loader=FileSystemLoader("drt/templates"),
+                autoescape=select_autoescape(['html', 'xml', 'json'])
+            )
+            tpl = env.get_template("license_template_fallback.jinja")
+            txt = tpl.render(submission=details, owner_table=owner_table)
+
+        attachments.append(("license.txt", txt, "text/plain"))
+
+        owner_table = cache.get("owner_table", {})
+        owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
+        if not owner_email:
+            logger.error(f"Owner email not found for ID: {nlink.owner_id}")
+            return
+
+        # Send email asynchronously
+        send_license_email_async(owner_email, nlink, attachments)
+
+    except Exception as e:
+        logger.error(f"Error in license generation: {str(e)}")
+
+
+def send_license_email_async(owner_email, nlink, attachments):
+    """Send license email asynchronously"""
+    try:
+        subject = "License Agreement for Record – " + nlink.record_label
+        body = (
+            f"Hello Dear Data Owner,\n\n"
+            f"We hope this message finds you well. Please find attached the license agreement documents related to the dataset for your review and negotiation.\n\n"
+            f"Below are the key details regarding this license request:\n"
+            f"  • Data Label: {nlink.data_label}\n"
+            f"  • Tags: {nlink.tags}\n"
+            f"  • Record Label: {nlink.record_label}\n"
+            f"  • Requestor Email: {nlink.requestor_email}\n\n"
+            f"Please review the attached documents at your earliest convenience. If you have any questions or require clarification, do not hesitate to contact us.\n\n"
+            f"Best regards,\n"
+            f"DART System"
         )
-        tpl = env.get_template("license_template_fallback.jinja")
-        txt = tpl.render(submission=details, owner_table=owner_table)
-    
-    attachments.append(("license.txt", txt, "text/plain"))
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[owner_email],
+        )
 
-    # # ODRL XML
-    # tpl = env.get_template("license_odrl.xml.jinja")
-    # xml = tpl.render(submission=details)
-    # attachments.append(("license.xml", xml, "application/xml"))
+        for filename, content, mimetype in attachments:
+            email.attach(filename, content, mimetype)
 
-    # # OpenAIRE JSON
-    # tpl = env.get_template("catalog_response.jinja")
-    # jsn = tpl.render(submission=details)
-    # attachments.append(("standardized_openAIRE.json", jsn, "application/json"))
-
-    owner_table = cache.get("owner_table", {})
-    owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
-    if not owner_email:
-        raise ValueError(f"Owner email not found for ID: {nlink.owner_id}")
-
-    subject = "License Agreement"
-    body = (
-        f"Hello,\n\n"
-        f"Please review the attached license documents for your negotiation.\n"
-        f"Requestor Email: {nlink.requestor_email}\n\n"
-        f"Best,\nDART System"
-    )
-    email = EmailMultiAlternatives(
-        subject=subject,
-        body=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[owner_email],
-    )
-
-    for filename, content, mimetype in attachments:
-        email.attach(filename, content, mimetype)
-
-    email.send()
-
+        email.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Error sending license email: {str(e)}")

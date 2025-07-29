@@ -13,9 +13,9 @@ from django.shortcuts import get_object_or_404
 from .utils import owner_auth_required, requestor_auth_required
 from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 import json
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -294,14 +294,26 @@ def archive_view(request, negotiation_id):
 def generate_summary_statistics(sender, instance, **kwargs):
     """Generate summary statistics and archive negotiation upon state change."""
     if instance.state in ['completed', 'canceled', 'rejected']:
-        handle_negotiation_archive_and_summary(instance)
+        threading.Thread(target=handle_negotiation_archive_and_summary_async, args=(instance,)).start()
 
 
 @receiver(post_save, sender=Negotiation)
-def generate_summary_statistics(sender, instance, **kwargs):
+def generate_summary_statistics_duplicate(sender, instance, **kwargs):
     """Auto-archive and export statistics when a negotiation is completed, canceled, or rejected."""
     if instance.state in ['completed', 'canceled', 'rejected'] and not instance.archived:
-        handle_negotiation_archive_and_summary(instance)
+        threading.Thread(target=handle_negotiation_archive_and_summary_async, args=(instance,)).start()
+
+
+def handle_negotiation_archive_and_summary_async(negotiation):
+    """Archives the negotiation and exports summary statistics asynchronously."""
+    try:
+        with transaction.atomic():
+            export_summary_to_drt()
+            if not negotiation.archived:
+                archive_negotiation(negotiation)
+        logger.info(f"Successfully processed negotiation {negotiation.negotiation_id} asynchronously")
+    except Exception as e:
+        logger.error(f"Error processing negotiation {negotiation.negotiation_id} asynchronously: {e}")
 
 
 def delete_negotiation_files(request, negotiation_id):
@@ -488,3 +500,55 @@ def submission_view(request):
     response = HttpResponse(rendered, content_type=content_type)
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+@owner_auth_required
+def regenerate_license_view(request, negotiation_id):
+    """Regenerate license for a specific negotiation and return it for download"""
+    try:
+        from drt.models import Negotiation, NLink
+        from drt.services.license import flatten_form_data
+        
+        negotiation = get_object_or_404(Negotiation, negotiation_id=negotiation_id)
+        nlink = get_object_or_404(NLink, negotiation=negotiation)
+        
+        owner_table = cache.get("owner_table", {})
+        owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
+        
+        if not owner_email or owner_email != request.owner_email:
+            return JsonResponse({"error": "Unauthorized access to this negotiation"}, status=403)
+        
+        submission = negotiation.requestor_responses
+        if not submission:
+            return JsonResponse({"error": "No requestor responses found for this negotiation"}, status=400)
+        
+        details = flatten_form_data(submission)
+        
+        license_id = getattr(nlink, 'license_id', None) or 'l-001-test'
+        cache_key = f'license_template_{license_id}'
+        license_template_content = cache.get(cache_key)
+        
+        if not license_template_content:
+            from datastore.views import fetch_license_template
+            license_template_content = fetch_license_template(license_id)
+            
+        if license_template_content:
+            from jinja2 import Template
+            template = Template(license_template_content)
+            rendered = template.render(submission=details, owner_table=owner_table)
+        else:
+            from jinja2 import Environment, FileSystemLoader, select_autoescape
+            env = Environment(
+                loader=FileSystemLoader("drt/templates"),
+                autoescape=select_autoescape(['html', 'xml', 'json'])
+            )
+            template = env.get_template("license_template_fallback.jinja")
+            rendered = template.render(submission=details, owner_table=owner_table)
+        
+        response = HttpResponse(rendered, content_type="text/plain")
+        response["Content-Disposition"] = f'attachment; filename="license_{negotiation_id}.txt"'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error regenerating license for negotiation {negotiation_id}: {str(e)}")
+        return JsonResponse({"error": "Failed to regenerate license"}, status=500)

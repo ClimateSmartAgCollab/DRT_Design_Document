@@ -7,8 +7,19 @@ import { defaultTokens, ThemeTokens }    from "../theme/tokens.default";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries:   { staleTime: 300_000, retry: 1 },
-    mutations: { retry: 1 },
+    queries: { 
+      staleTime: 300_000, // 5 minutes
+      retry: 2,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
+    },
+    mutations: { 
+      retry: 1,
+      onError: (error) => {
+        console.error('Mutation error:', error);
+      },
+    },
   },
 });
 
