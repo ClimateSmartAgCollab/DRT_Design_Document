@@ -1,56 +1,107 @@
 // app/negotiation/generate-link/[link_id]/page.tsx
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import fetchApi from '@/app/api/apiHelper';
+import React, { useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import fetchApi from "@/app/api/apiHelper";
 
-const GenerateLinkPage = () => {
-  const router = useRouter();
-  const { link_id } = useParams();
-  const [error, setError] = useState<string | null>(null);
-
-  const generateLink = async () => {
-    try {
-      // Make the API call using fetchApi
-      const response = await fetchApi(`/drt/generate_nlinks/${link_id}/`, {
-        method: 'GET',
-      });
-
-      console.log(response)
-      // Check if the response was successful
-      if (response.ok) {
-        const data = await response.json();
-
-        // Check for `requestor_link_id` in the parsed JSON response
-        if (data && data.requestor_link_id) {
-          const requestorLinkId = data.requestor_link_id;
-          router.push(`/negotiation/${requestorLinkId}/email-entry`);
-        } else {
-          throw new Error('Invalid response format or missing requestor_link_id');
-        }
-      } else {
-        // Parse the JSON error message if response is not ok
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to generate link. Please try again later.');
-      }
-    } catch (err) {
-      console.error('Error during link generation:', err);
-      setError('Failed to generate link. Please try again later.');
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <button
-        onClick={generateLink}
-        className="bg-blue-500 text-white px-6 py-3 rounded-lg"
-      >
-        start a new request for data
-      </button>
-      {error && <p className="text-red-500 mt-4">{error}</p>}
-    </div>
-  );
+type LoadResponse = {
+  status: string;
+  data?: any;
 };
 
-export default GenerateLinkPage;
+async function fetchLoadData(): Promise<LoadResponse> {
+  const res = await fetchApi("/datastore/load-data/");
+  if (!res.ok) {
+    // try to extract a JSON error if available
+    let msg = res.statusText;
+    try {
+      const errBody = await res.json();
+      msg = errBody.error ?? msg;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+async function generateLinkApi(linkId: string): Promise<string> {
+  const res = await fetchApi(`/drt/generate_nlinks/${linkId}/`);
+  const data = await res.json();
+  if (!res.ok || !data.requestor_link_id) {
+    throw new Error(data.error || "Failed to generate link");
+  }
+  return data.requestor_link_id as string;
+}
+
+export default function GenerateLinkPage() {
+  const { link_id: linkId } = useParams<{ link_id: string }>();
+  const router = useRouter();
+
+  const [redirecting, setRedirecting] = useState(false);
+
+  const loadDataQuery = useQuery<LoadResponse, Error>({
+    queryKey: ["datastore", "load-data"],
+    queryFn: fetchLoadData,
+    retry: 1,
+    staleTime: Infinity,
+  });
+
+  const { mutate, isPending, isError, error } = useMutation<
+    string,
+    Error,
+    void
+  >({
+    mutationFn: () => generateLinkApi(linkId!),
+    onSuccess: (requestorLinkId: string) => {
+      setRedirecting(true);
+      router.push(`/negotiation/${requestorLinkId}/email-entry`);
+    },
+  });
+
+    if (loadDataQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-600">
+        Loading cache…
+      </div>
+    );
+  }
+
+  if (loadDataQuery.isError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-red-600">
+        Error: {loadDataQuery.error.message}
+      </div>
+    );
+  }
+  
+  const loading = isPending || redirecting;
+
+  return (
+    <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
+        {/* Title */}
+        <h1 className="text-2xl font-semibold text-gray-800">
+          Start a New Data Request
+        </h1>
+
+        {/* Body */}
+        {loading ? (
+          <p className="text-gray-600">Generating link…</p>
+        ) : isError ? (
+          <p className="text-red-600">{error.message}</p>
+        ) : (
+          <button
+            onClick={() => mutate()}
+            className="inline-block w-full rounded-lg bg-blue-600 px-4 py-2 text-white font-medium transition hover:bg-blue-700 disabled:bg-gray-400"
+            disabled={isPending}
+          >
+            {isPending ? "Generating…" : "Generate Access Link"}
+          </button>
+        )}
+      </section>
+    </main>
+  );
+}

@@ -1,25 +1,31 @@
-// drt_frontend\app\negotiation\owner\list\hooks\useNegotiations.ts
-import { useState, useEffect } from "react";
+// drt_frontend/app/negotiation/owner/list/hooks/useNegotiations.ts
+import { useQuery } from "@tanstack/react-query";
 import { fetchNegotiations } from "../services/negotiationApi";
 import type { Negotiation } from "../types";
 
 export function useNegotiations() {
+  const {
+    data = [],
+    error,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery<Negotiation[], Error>({
+    queryKey: ["negotiations"],
+    queryFn: fetchNegotiations,
+    staleTime: 1000 * 60 * 5, 
+    refetchInterval: 1000 * 30, 
+    refetchIntervalInBackground: true, 
+    refetchOnWindowFocus: true, 
+    refetchOnMount: true, 
+    retry: 2, 
+  });
 
-  const [data, setData] = useState<Negotiation[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  const reload = async () => {
-    try {
-      const list = await fetchNegotiations();
-      setData(list);
-    } catch (e: any) {
-      setError(e.message);
-    }
+  return {
+    data,
+    error: error?.message ?? null,
+    isLoading,
+    isFetching,
+    reload: refetch,
   };
-
-  useEffect(() => {
-    reload();
-  }, []);
-
-  return { data, error, reload };
 }

@@ -1,75 +1,151 @@
 // app/negotiation/[link_id]/fill-questionnaire/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import fetchApi from "@/app/api/apiHelper";
 import Form from "../../../../components/Form/Form";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+export interface FillQuestionnaireResponse {
+  questionnaire: any; // The questionnaire JSON data
+  saved_responses: Record<string, any>;
+  owner_responses?: string;
+  comments?: string;
+}
+
+async function fetchFillQuestionnaire(
+  linkId: string
+): Promise<FillQuestionnaireResponse> {
+  const res = await fetchApi(`/drt/fill_questionnaire/${linkId}/`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to load questionnaire");
+  return data;
+}
+
+export interface SubmitQuestionnairePayload {
+  answers: Record<string, any>;
+  isSubmit: boolean;
+}
+
+async function submitQuestionnaire(
+  linkId: string,
+  { answers, isSubmit }: SubmitQuestionnairePayload
+): Promise<void> {
+  const res = await fetchApi(`/drt/fill_questionnaire/${linkId}/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...answers, submit: isSubmit, save: !isSubmit }),
+  });
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error ?? "Submission failed");
+}
 
 export default function FillQuestionnairePage() {
-  const { link_id } = useParams();
+  const { link_id: linkId } = useParams<{ link_id: string }>();
   const router = useRouter();
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const queryClient = useQueryClient();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [ownerComments, setOwnerComments] = useState<Record<string, string>>(
-    {}
+  const [redirecting, setRedirecting] = useState(false);
+
+  const {
+    data,
+    isLoading: isLoadingData,
+    isError: loadError,
+    error: loadErrorObj,
+  } = useQuery<FillQuestionnaireResponse, Error>({
+    queryKey: ["fillQuestionnaire", linkId],
+    queryFn: () => fetchFillQuestionnaire(linkId!),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false, // avoid automatic retries
+    enabled: !!linkId, // only run when linkId exists
+  });
+
+  const { mutateAsync, isPending: isSubmitting } = useMutation<
+    void,
+    Error,
+    SubmitQuestionnairePayload
+  >({
+    mutationFn: async (payload: SubmitQuestionnairePayload) =>
+      submitQuestionnaire(linkId!, payload),
+    onSuccess: (_data, variables) => {
+      if (!variables.isSubmit) {
+        setStatusMessage("Questionnaire saved successfully.");
+        // Optionally refetch the data to sync with server
+        queryClient.invalidateQueries({
+          queryKey: ["fillQuestionnaire", linkId],
+        });
+      } else {
+        router.push(`/negotiation/${linkId}/fill-questionnaire/success`);
+      }
+    },
+    onError: (error) => {
+      setError(
+        error.message || "An error occurred while submitting the questionnaire."
+      );
+    },
+  });
+
+  const initialAnswers = useMemo(
+    () => data?.saved_responses ?? {},
+    [data?.saved_responses]
   );
-  const [globalOwnerComments, setGlobalOwnerComments] = useState<string>("");
+  const ownerComments = useMemo(() => {
+    try {
+      return data?.owner_responses ? JSON.parse(data.owner_responses) : {};
+    } catch {
+      return {};
+    }
+  }, [data?.owner_responses]);
+  const globalOwnerComments = data?.comments ?? "";
+
+  const isQuestionnaireLoading = data?.questionnaire?._loading;
 
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetchApi(`/drt/fill_questionnaire/${link_id}/`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Load failed");
-        if (data.saved_responses) setAnswers(data.saved_responses);
-        if (data.owner_responses) {
-          try {
-            setOwnerComments(JSON.parse(data.owner_responses));
-          } catch {
-            /* ignore parse errors for now*/
-          }
-        }
-        if (data.comments) {
-          setGlobalOwnerComments(data.comments);
-        }
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message);
-      }
+    if (isQuestionnaireLoading) {
+      const interval = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ["fillQuestionnaire", linkId] });
+      }, 2000); // Check every 2 seconds
+      
+      return () => clearInterval(interval);
     }
-    load();
-  }, [link_id]);
+  }, [isQuestionnaireLoading, queryClient, linkId]);
 
-  const submitForm = async (isSubmit: boolean) => {
-    setError(null);
-    setStatusMessage(null);
-    try {
-      const res = await fetchApi(`/drt/fill_questionnaire/${link_id}/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...answers, submit: isSubmit, save: !isSubmit }),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Submit failed");
-      if (!isSubmit) {
-          setStatusMessage("Questionnaire saved successfully.");
-          return;
-        }
-  
-        router.push(
-          `/negotiation/${link_id}/fill-questionnaire/success`
-        );
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message);
+  useEffect(() => {
+    if (
+      loadError &&
+      loadErrorObj &&
+      (loadErrorObj.message.includes("401") ||
+        loadErrorObj.message.includes("403") ||
+        loadErrorObj.message.toLowerCase().includes("authentication"))
+    ) {
+      setRedirecting(true);
+      router.replace(`/negotiation/${linkId}/email-entry`);
     }
-  };
+  }, [loadError, loadErrorObj, router]);
+
+  if (
+    redirecting ||
+    (loadError &&
+      loadErrorObj &&
+      (loadErrorObj.message.includes("401") ||
+        loadErrorObj.message.includes("403") ||
+        loadErrorObj.message.toLowerCase().includes("authentication")))
+  ) {
+    return null;
+  }
+
+  if (isLoadingData || isQuestionnaireLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p>{isQuestionnaireLoading ? "Loading questionnaire data..." : "Loading questionnaire…"}</p>
+      </div>
+    );
+  }
 
   return (
     <>
-      {/* Toast at top-center */}
       {statusMessage && (
         <div className="fixed top-4 inset-x-0 flex justify-center pointer-events-none z-50">
           <div className="bg-green-500 text-white px-6 py-2 rounded shadow-lg">
@@ -77,22 +153,25 @@ export default function FillQuestionnairePage() {
           </div>
         </div>
       )}
-
-      {/* keep your centering if you still want the form in the middle */}
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="w-full max-w-3xl p-4">
           {error && <p className="text-red-500 mb-4">{error}</p>}
           <Form
-            initialAnswers={answers}
+            questionnaireJson={data?.questionnaire}
+            initialAnswers={initialAnswers}
             ownerComments={ownerComments}
             globalOwnerComments={globalOwnerComments}
-            onSave={(newAnswers) => {
-              setAnswers(newAnswers);
-              submitForm(false);
+            onSave={async (newAnswers) => {
+              console.log('Final payload to backend:', JSON.stringify({ ...newAnswers, submit: false, save: true }, null, 2));
+              setError(null);
+              setStatusMessage(null);
+              await mutateAsync({ answers: newAnswers, isSubmit: false });
             }}
-            onSubmit={(newAnswers) => {
-              setAnswers(newAnswers);
-              submitForm(true);
+            onSubmit={async (newAnswers) => {
+              console.log('Final payload to backend:', JSON.stringify({ ...newAnswers, submit: true, save: false }, null, 2));
+              setError(null);
+              setStatusMessage(null);
+              await mutateAsync({ answers: newAnswers, isSubmit: true });
             }}
           />
         </div>

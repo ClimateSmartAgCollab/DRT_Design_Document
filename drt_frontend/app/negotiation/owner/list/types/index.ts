@@ -10,6 +10,10 @@ export interface Negotiation {
   timestamps: string;
   archived: boolean;
   owner_link: string | null;
+  rationale?: string | null;
+  tags?: string[];
+  record_label?: string;
+  questionnaire?: any; // The questionnaire JSON data
 }
 
 export const ALL_STATUSES = [

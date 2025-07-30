@@ -10,12 +10,12 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from ..services.negotiation import delete_old_negotiations, handle_negotiation_archive_and_summary
 from django.shortcuts import get_object_or_404
-from .utils import owner_otp_required, requestor_otp_required
+from .utils import owner_auth_required, requestor_auth_required
 from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 import json
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,6 @@ def export_summary_to_drt_view(request):
     HTTP GET → run the per-dataset export_summary_to_drt and return JSON status.
     """
     try:
-        # call your exporter (which now takes no args)
         export_summary_to_drt()
         return JsonResponse({'message': 'Summary statistics exported successfully.'})
     except Exception as e:
@@ -42,7 +41,7 @@ def export_summary_to_drt():
 
     per_group_stats = (
         NLink.objects
-        .values('owner_id', 'dataset_ID', 'data_label')
+        .values('owner_id', 'dataset_ID', 'data_label', 'record_label')
         .annotate(
             total_requests=Count('negotiation'),
             completed_requests=Count('negotiation', filter=Q(
@@ -55,29 +54,31 @@ def export_summary_to_drt():
                 negotiation__state='owner_open')),
         )
     )
-    logger.info(f"Found {per_group_stats.count()} owner/dataset groups")
+    logger.info(f"Found {per_group_stats.count()} owner/dataset/record_label groups")
 
     for grp in per_group_stats:
         owner_pk = grp['owner_id']
         ds_id = grp['dataset_ID']
         ds_label = grp['data_label']
+        record_label = grp['record_label']
 
         nlink = NLink.objects.filter(
             owner_id=owner_pk,
             dataset_ID=ds_id,
             data_label=ds_label,
+            record_label=record_label,
         ).first()
         if not nlink:
             logger.warning(
-                f"No NLink found for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}; skipping."
+                f"No NLink found for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}, record_label={record_label!r}; skipping."
             )
             continue
         logger.info(
-            f"Using NLink pk={nlink.pk} for {owner_pk!r}/{ds_id!r}/{ds_label!r}")
+            f"Using NLink pk={nlink.pk} for {owner_pk!r}/{ds_id!r}/{ds_label!r}/{record_label!r}")
 
         domain_qs = (
             NLink.objects
-            .filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label)
+            .filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label)
             .values(domain=F('requestor_email'))
             .annotate(request_count=Count('negotiation'))
         )
@@ -101,13 +102,14 @@ def export_summary_to_drt():
             owner_id=nlink,
             datasets_requested=datasets_list,
             data_label=ds_label,
-            tag='',  # empty string = “no tag”
-            defaults={'overall_stat': overall_stat},
+            tag='',  # empty string = "no tag"
+            record_label=record_label,
+            defaults={'overall_stat': overall_stat, 'record_label': record_label},
         )
         logger.info(f"Upserted no‐tag summary for NLink pk={nlink.pk}")
 
         tags = set()
-        for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label):
+        for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label):
             tags.update(link.tags)
         tags = sorted(tags)
 
@@ -116,6 +118,7 @@ def export_summary_to_drt():
                 owner_id=owner_pk,
                 dataset_ID=ds_id,
                 data_label=ds_label,
+                record_label=record_label,
                 tags__contains=[t],
             ).aggregate(
                 total_requests=Count('negotiation'),
@@ -144,7 +147,8 @@ def export_summary_to_drt():
                 datasets_requested=datasets_list,
                 data_label=ds_label,
                 tag=t,
-                defaults={'overall_stat': tag_stat_payload},
+                record_label=record_label,
+                defaults={'overall_stat': tag_stat_payload, 'record_label': record_label},
             )
             logger.info(f"Upserted tag={t!r} summary for NLink pk={nlink.pk}")
 
@@ -154,9 +158,69 @@ def delete_old_negotiations_view(request):
     return delete_old_negotiations()
 
 
-@owner_otp_required
-def summary_statistics_view(request, owner_id):
+@owner_auth_required
+def owner_links_api(request):
+
+    raw_owner_cache = cache.get("owner_table") or {}
+
+    user_email = request.owner_email
+
+    logger.debug(f"owner_links_api: user_email = {user_email}")
+
+    owner_ids = [
+        owner_id
+        for owner_id, info in raw_owner_cache.items()
+        if info.get("owner_email") == user_email
+    ]
+
+    # If no owner_id matches, return empty list
+    if not owner_ids:
+        logger.warning(
+            f"No owner_id found for email {user_email}. Returning empty links list."
+        )
+        return JsonResponse({"links": []})
+
+    logger.debug(f"owner_links_api: owner_ids = {owner_ids}")
+
+    raw_link_cache = cache.get("link_table") or {}
+
+    entries = []
+    for link_url, row in raw_link_cache.items():
+        if row.get("owner_id") in owner_ids:
+            entries.append(
+                {
+                    "url": link_url,
+                    "questionnaireId": row.get("questionnaire_id"),
+                    "licenseId": row.get("license_id"),
+                    "expiry": row.get("expiry") or "Never",
+                    "label": row.get("data_label", ""),
+                    "tags": row.get("tags", "(none)"),
+                    "recordLabel": row.get("record_label", ""),
+                }
+            )
+
+    return JsonResponse({"links": entries})
+
+
+@owner_auth_required
+def summary_statistics_view(request):
     """Endpoint for retrieving summary statistics based on the provided owner_id (string)."""
+
+    email = request.owner_email
+
+    cache_data = cache.get("owner_table") or {}
+
+    if not email:
+        return JsonResponse({'error': 'Email parameter is required'}, status=400)
+
+    owner_ids = [
+        owner_id
+        for owner_id, info in cache_data.items()
+        if info.get("owner_email") == email
+    ]
+
+    owner_id = owner_ids[0] if owner_ids else None
+
     try:
         stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
         if not stats_qs.exists():
@@ -171,6 +235,7 @@ def summary_statistics_view(request, owner_id):
             statistics_data.append({
                 'data_label':               stat.data_label,
                 'tag':                     stat.tag or '',
+                'record_label':            getattr(stat, 'record_label', ''),
                 'total_requests':           stats_block.get('total_requests', 0),
                 'accepted_requests':        stats_block.get('accepted_requests', 0),
                 'rejected_requests':        stats_block.get('rejected_requests', 0),
@@ -229,14 +294,26 @@ def archive_view(request, negotiation_id):
 def generate_summary_statistics(sender, instance, **kwargs):
     """Generate summary statistics and archive negotiation upon state change."""
     if instance.state in ['completed', 'canceled', 'rejected']:
-        handle_negotiation_archive_and_summary(instance)
+        threading.Thread(target=handle_negotiation_archive_and_summary_async, args=(instance,)).start()
 
 
 @receiver(post_save, sender=Negotiation)
-def generate_summary_statistics(sender, instance, **kwargs):
+def generate_summary_statistics_duplicate(sender, instance, **kwargs):
     """Auto-archive and export statistics when a negotiation is completed, canceled, or rejected."""
     if instance.state in ['completed', 'canceled', 'rejected'] and not instance.archived:
-        handle_negotiation_archive_and_summary(instance)
+        threading.Thread(target=handle_negotiation_archive_and_summary_async, args=(instance,)).start()
+
+
+def handle_negotiation_archive_and_summary_async(negotiation):
+    """Archives the negotiation and exports summary statistics asynchronously."""
+    try:
+        with transaction.atomic():
+            export_summary_to_drt()
+            if not negotiation.archived:
+                archive_negotiation(negotiation)
+        logger.info(f"Successfully processed negotiation {negotiation.negotiation_id} asynchronously")
+    except Exception as e:
+        logger.error(f"Error processing negotiation {negotiation.negotiation_id} asynchronously: {e}")
 
 
 def delete_negotiation_files(request, negotiation_id):
@@ -250,8 +327,12 @@ def delete_negotiation_files(request, negotiation_id):
     return JsonResponse({'message': _('Negotiation %(id)s deleted successfully') % {'id': negotiation_id}})
 
 
-@requestor_otp_required
-def negotiation_list_api_req(request, email):
+@requestor_auth_required
+def negotiation_list_api_req(request):
+    email = request.requestor_email
+    if not email:
+        return JsonResponse({'error': 'Email parameter is required'}, status=400)
+
     # only pull negotiations whose NLink.requestor_email matches
     qs = Negotiation.objects.select_related(
         'link').filter(link__requestor_email=email)
@@ -271,18 +352,17 @@ def negotiation_list_api_req(request, email):
             'timestamps': n.timestamps.isoformat(),
             # 'archived': n.archived,
             'requestor_link': str(requestor_link.requestor_link) if requestor_link else None,
+            'rationale': n.rationale,
         })
 
     return JsonResponse(data, safe=False)
 
 
-@owner_otp_required
+@owner_auth_required
 def negotiation_list_api(request):
 
     email = request.owner_email
-    print(f"🔍 negotiation_list_api: email param = '{email}'")  # <-- debug
 
-    print("🔍 negotiation_list_api called")  # <-- debug
     cache_data = cache.get("owner_table") or {}
 
     if not email:
@@ -300,6 +380,21 @@ def negotiation_list_api(request):
     data = []
     for n in qs:
         link = getattr(n, 'link', None)
+        
+        questionnaire_json = None
+        try:
+            cache_key = f'questionnaire_json_{n.questionnaire_SAID}'
+            cached_json = cache.get(cache_key)
+            
+            if cached_json:
+                questionnaire_json = cached_json
+            else:
+                from datastore.views import fetch_questionnaire_json
+                questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
+        except Exception as e:
+            print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
+            questionnaire_json = None
+        
         data.append({
             'negotiation_id':     str(n.negotiation_id),
             'conversation_id':    str(n.conversation_id),
@@ -309,9 +404,13 @@ def negotiation_list_api(request):
             'state':              n.state,
             'reminder_sent':      n.reminder_sent,
             'questionnaire_SAID': n.questionnaire_SAID,
+            'questionnaire':      questionnaire_json,  # Add questionnaire JSON
             'timestamps':         n.timestamps.isoformat(),
             'archived':           n.archived,
             'owner_link':         str(link.owner_link) if link else None,
+            'rationale':          n.rationale,
+            'tags': link.tags if link else [],
+            'record_label': link.record_label if link else "",
         })
 
     return JsonResponse(data, safe=False)
@@ -338,37 +437,118 @@ def submission_view(request):
         return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
 
     submission = json.loads(request.body)
-    print("submission:", submission)  # <<–– debug
     fmt = request.GET.get("format", "json").lower()
-    print(f"🔍 submission_view: format param = '{fmt}'")   # <<–– debug
-
-    env = Environment(
-        loader=FileSystemLoader("drt/templates"),
-        autoescape=select_autoescape(["html", "xml", "json"])
-    )
+    license_id = request.GET.get("license_id", "l-001-test")  # Get license_id from query params
 
     if fmt == "license":
-        print("📄 rendering license_template.jinja")
-        template = env.get_template("license_template.jinja")
-        content_type = "text/plain"
-        filename = "license.txt"
-        context = {"submission": submission}
+        print(f"📄 rendering license template from GitHub for license_id: {license_id}")
+        # Get license template from cache or fetch from GitHub
+        cache_key = f'license_template_{license_id}'
+        license_template_content = cache.get(cache_key)
+        if not license_template_content:
+            from datastore.views import fetch_license_template
+            license_template_content = fetch_license_template(license_id)
+        
+        if license_template_content:
+            # Create template from string content and render it as human-readable text
+            from jinja2 import Template
+            template = Template(license_template_content)
+            content_type = "text/plain"
+            filename = "license.txt"
+            owner_table = cache.get("owner_table")
+            
+            # Import the flatten function from license service
+            from drt.services.license import flatten_form_data
+            details = flatten_form_data(submission)
+            
+            context = {"submission": details, "owner_table": owner_table}
+            rendered = template.render(**context)
+        else:
+            # Fallback to hardcoded template if GitHub fetch fails
+            print(f"⚠️ License template not found for {license_id}, using fallback template")
+            from jinja2 import Environment, FileSystemLoader, select_autoescape
+            env = Environment(
+                loader=FileSystemLoader("drt/templates"),
+                autoescape=select_autoescape(["html", "xml", "json"])
+            )
+            template = env.get_template("license_template_fallback.jinja")
+            content_type = "text/plain"
+            filename = "license.txt"
+            owner_table = cache.get("owner_table")
+            
+            # Import the flatten function from license service
+            from drt.services.license import flatten_form_data
+            details = flatten_form_data(submission)
+            
+            context = {"submission": details, "owner_table": owner_table}
+            rendered = template.render(**context)
 
-    elif fmt == "odrl":
-        print("📃 rendering license_odrl.xml.jinja")
-        template = env.get_template("license_odrl.xml.jinja")
-        content_type = "application/xml"
-        filename = "license.xml"
-        context = {"submission": submission}
+    # elif fmt == "odrl":
+    #     print("📃 rendering license_odrl.xml.jinja")
+    #     template = env.get_template("license_odrl.xml.jinja")
+    #     content_type = "application/xml"
+    #     filename = "license.xml"
+    #     context = {"submission": submission}
 
-    else:
-        print("🔧 rendering catalog_response.jinja")
-        template = env.get_template("catalog_response.jinja")
-        content_type = "application/json"
-        filename = "standardized_openAIRE.json"
-        context = {"submission": submission}
+    # else:
+    #     print("🔧 rendering catalog_response.jinja")
+    #     template = env.get_template("catalog_response.jinja")
+    #     content_type = "application/json"
+    #     filename = "standardized_openAIRE.json"
+    #     context = {"submission": submission}
 
-    rendered = template.render(**context)
     response = HttpResponse(rendered, content_type=content_type)
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+@owner_auth_required
+def regenerate_license_view(request, negotiation_id):
+    """Regenerate license for a specific negotiation and return it for download"""
+    try:
+        from drt.models import Negotiation, NLink
+        from drt.services.license import flatten_form_data
+        
+        negotiation = get_object_or_404(Negotiation, negotiation_id=negotiation_id)
+        nlink = get_object_or_404(NLink, negotiation=negotiation)
+        
+        owner_table = cache.get("owner_table", {})
+        owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
+        
+        if not owner_email or owner_email != request.owner_email:
+            return JsonResponse({"error": "Unauthorized access to this negotiation"}, status=403)
+        
+        submission = negotiation.requestor_responses
+        if not submission:
+            return JsonResponse({"error": "No requestor responses found for this negotiation"}, status=400)
+        
+        details = flatten_form_data(submission)
+        
+        license_id = getattr(nlink, 'license_id', None) or 'l-001-test'
+        cache_key = f'license_template_{license_id}'
+        license_template_content = cache.get(cache_key)
+        
+        if not license_template_content:
+            from datastore.views import fetch_license_template
+            license_template_content = fetch_license_template(license_id)
+            
+        if license_template_content:
+            from jinja2 import Template
+            template = Template(license_template_content)
+            rendered = template.render(submission=details, owner_table=owner_table)
+        else:
+            from jinja2 import Environment, FileSystemLoader, select_autoescape
+            env = Environment(
+                loader=FileSystemLoader("drt/templates"),
+                autoescape=select_autoescape(['html', 'xml', 'json'])
+            )
+            template = env.get_template("license_template_fallback.jinja")
+            rendered = template.render(submission=details, owner_table=owner_table)
+        
+        response = HttpResponse(rendered, content_type="text/plain")
+        response["Content-Disposition"] = f'attachment; filename="license_{negotiation_id}.txt"'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error regenerating license for negotiation {negotiation_id}: {str(e)}")
+        return JsonResponse({"error": "Failed to regenerate license"}, status=500)

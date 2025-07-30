@@ -3,86 +3,190 @@
 
 import React, { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
-const EmailEntry = () => {
-  console.log("EmailEntry");
+export default function EmailEntry() {
   const [email, setEmail] = useState("");
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [resendError, setResendError] = useState<string | null>(null);
   const router = useRouter();
   const { link_id } = useParams(); // Access `link_id` with `useParams`
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  function getCSRFToken(): string {
+    return (
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("csrftoken="))
+        ?.split("=")[1] ?? ""
+    );
+  }
 
-    // Client-side validation for email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    try {
-      // Make the API call using fetchApi with POST method
-      const response = await fetchApi(`/drt/verify/requestor/${link_id}/`, {
+  const {
+    mutate: sendMagicLink,
+    isPending,
+    isError,
+  } = useMutation<void, Error, string>({
+    mutationFn: async (emailToSend: string) => {
+      const res = await fetchApi(`/drt/verify/requestor/${link_id}/`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken(),
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: emailToSend }),
       });
-
-      // Check if the response was successful
-      if (response.ok) {
-        // Redirect to OTP verification page on success
-        router.push(`/negotiation/${link_id}/otp-verification`);
-      } else {
-        // Parse JSON only if status is not ok
-        const data = await response.json();
-        console.error(
-          "Server responded with status",
-          response.status,
-          "and body",
-          data
-        );
-        setError(
-          data.error ?? data.detail ?? `Server error ${response.status}`
-        );
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error || "Failed to send Access link");
       }
-    } catch (err) {
-      console.error("Network or JS error:", err);
-      setError("Network error. Please try again.");
-    }
-  };
+    },
+    onSuccess: (_data, variables) => {
+      sessionStorage.setItem("reqEmail", variables);
+      setSuccess(true);
+    },
+  });
 
+  const isValidEmail = /\S+@\S+\.\S+/.test(email);
+  const isDisabled = isPending || !isValidEmail;
+  if (success) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <svg
+              className="h-6 w-6 text-green-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Access Link Sent!
+          </h1>
+          <p className="text-gray-600">
+            Check your email and click the Access link to access the questionnaire.
+          </p>
+          {/* Resend feedback */}
+          {resendStatus === "success" && (
+            <p className="text-green-600 text-sm">Link resent!</p>
+          )}
+          {resendStatus === "error" && (
+            <p className="text-red-600 text-sm">{resendError}</p>
+          )}
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={async () => {
+                setResendStatus("loading");
+                setResendError(null);
+                try {
+                  await sendMagicLink(email);
+                  setResendStatus("success");
+                  setTimeout(() => setResendStatus("idle"), 2000);
+                } catch (err: any) {
+                  setResendStatus("error");
+                  setResendError(err?.message || "Failed to resend link");
+                }
+              }}
+              disabled={resendStatus === "loading"}
+              className={`w-full rounded-lg px-4 py-2 font-medium text-white transition ${
+                resendStatus === "loading"
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              {resendStatus === "loading" ? "Resending…" : `Resend to Same Email`}
+            </button>
+            <button
+              onClick={() => {
+                setSuccess(false);
+                setEmail("");
+                setResendStatus("idle");
+                setResendError(null);
+              }}
+              className="w-full rounded-lg px-4 py-2 font-medium text-blue-700 border border-blue-600 bg-white hover:bg-blue-50 transition"
+            >
+              Send to a New Email
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow-md w-full max-w-md"
-      >
-        <h2 className="text-2xl font-bold mb-4 text-black">Enter Your Email</h2>
-        {error && <p className="text-red-500">{error}</p>}
+    <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
+        {/* Mail Icon */}
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+          <svg
+            className="h-6 w-6 text-blue-600"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 8V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z"
+            />
+          </svg>
+        </div>
+
+        {/* Title & Description */}
+        <h1 className="text-2xl font-semibold text-gray-800">
+          Verify Your Email
+        </h1>
+        <p className="text-gray-600">
+          We'll send you a Access link to access the questionnaire.
+        </p>
+
+        {/* Validation & Errors */}
+        {isError && error && <p className="text-red-600 text-sm">{error}</p>}
+        {!isValidEmail && email && (
+          <p className="text-yellow-600 text-sm">
+            Please enter a valid email address.
+          </p>
+        )}
+
+        {/* Email Input */}
         <input
           type="email"
           value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setError(null); // Clear error when user starts typing again
-          }}
-          placeholder="Enter email"
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
           required
-          className="w-full p-2 mb-4 border border-gray-300 rounded text-black"
+          className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
-        <button
-          type="submit"
-          className="w-full bg-blue-500 text-white p-2 rounded"
-        >
-          Submit
-        </button>
-      </form>
-    </div>
-  );
-};
 
-export default EmailEntry;
+        {/* Send Magic Link Button */}
+        <button
+          onClick={() => sendMagicLink(email)}
+          disabled={isDisabled}
+          className={`w-full rounded-lg px-4 py-2 font-medium text-white transition ${
+            isDisabled
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {isPending ? "Sending…" : "Send Access Link"}
+        </button>
+      </section>
+    </main>
+  );
+}

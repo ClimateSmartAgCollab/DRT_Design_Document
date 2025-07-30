@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
@@ -14,120 +13,95 @@ from django.core.mail import EmailMultiAlternatives
 import datetime
 from ..models import Requestor, NLink
 import logging
+import secrets
+import threading
+
 logger = logging.getLogger(__name__)
 
-
-
-@csrf_exempt
-@api_view(['POST'])
-def owner_email_entry(request):
-    email = request.data.get('email')
+def send_requestor_verification_email_async(email, magic_link, expiry):
+    """Send requestor verification email asynchronously"""
     try:
-        validate_email(email)
-    except ValidationError:
-        return Response({'error': 'Invalid email'}, status=400)
-
-    # generate OTP
-    otp = "9832"  # for testing
-    # uncomment the next line for production
-    # otp = get_random_string(6, '0123456789')
-
-    expiry = timezone.now() + datetime.timedelta(minutes=10)
-    # store in cache under "owner_auth:{email}"
-    cache.set(f"owner_auth:{email}", {'otp': otp, 'expiry': expiry}, 600)
-
-    # # send it
-    # EmailMultiAlternatives(
-    #   subject="Your Owner OTP",
-    #   body=f"Your OTP is {otp}. Expires at {expiry:%H:%M}.",
-    #   from_email=settings.DEFAULT_FROM_EMAIL,
-    #   to=[email],
-    # ).send(fail_silently=False)
-
-    return Response({'message': 'OTP sent'}, status=200)
-
-
-# @csrf_exempt
-@api_view(['POST'])
-def req_email_entry(request):
-    email = request.data.get('email')
-    try:
-        validate_email(email)
-    except ValidationError:
-        return Response({'error': 'Invalid email'}, status=400)
-
-    # generate OTP
-    otp = "9832"  # for testing
-    # uncomment the next line for production
-    # otp = get_random_string(6, '0123456789')
-
-    expiry = timezone.now() + datetime.timedelta(minutes=10)
-    # store in cache under "req_auth:{email}"
-    cache.set(f"req_auth:{email}", {'otp': otp, 'expiry': expiry}, 600)
-    print(f"OTP for {email}: {otp}")  # <-- debug
-    print(f"Your OTP is {otp}. Expires at {expiry:%H:%M}.")  # <-- debug
-
-    # # send it
-    # EmailMultiAlternatives(
-    #   subject="Your Req OTP",
-    #   body=f"Your OTP is {otp}. Expires at {expiry:%H:%M}.",
-    #   from_email=settings.DEFAULT_FROM_EMAIL,
-    #   to=[email],
-    # ).send(fail_silently=False)
-
-    return Response({'message': 'OTP sent'}, status=200)
+        msg = EmailMultiAlternatives(
+            subject="Access Link for Requestor Verification",
+            body=(
+                "Hello Dear Requestor,\n\n"
+                "Click the link below to verify your email and access the questionnaire:\n\n"
+                f"{magic_link}\n\n"
+                f"This link will expire at {expiry:%H:%M}.\n\n"
+                "For your security, please do not share this link with anyone. "
+                "If you did not request this link, simply ignore this message or "
+                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "Best regards,\n"
+                "The DRT System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
+        )
+        html_content = f"""
+            <p>Hello Dear Requestor,</p>
+            <p>Click the link below to verify your email and access the questionnaire:</p>
+            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+            <p>This link will expire at {expiry:%H:%M}.</p>
+            <p>For your security, please do not share this link with anyone.<br>
+            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Error sending requestor verification email: {str(e)}")
 
 
 @api_view(['GET', 'POST'])
-@ensure_csrf_cookie      # on a GET it will set csrftoken
-@csrf_exempt             # only if you reorder so this still applies
+@ensure_csrf_cookie
+@csrf_exempt
 def requestor_email_entry(request, link_id):
     try:
-        # grab & validate
         email = request.data.get('email')
         if not email:
             return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
         validate_email(email)
 
-        # generate + store OTP
-        otp = "9832"  # for testing
-        # uncomment the next line for production
-        # otp = get_random_string(6, '0123456789')
-
-        expiry = timezone.now() + datetime.timedelta(minutes=10)
-        # find or make the Requestor, then reset its OTP & expiry
         requestor, created = Requestor.objects.update_or_create(
             requestor_email=email,
             defaults={
-                'otp': otp,
-                'otp_expiry': expiry,
                 'is_verified': False,
             }
         )
+
+        token = secrets.token_urlsafe(32)
+        expiry = timezone.now() + datetime.timedelta(minutes=10)
+
+        # Invalidate previous token for this email and link_id, if any
+        email_link_key = f"magic_token_for:{email}:{link_id}"
+        old_token = cache.get(email_link_key)
+        if old_token:
+            cache.delete(f"magic_token:{old_token}")
+
+        # Store the new token and a reverse mapping for easy invalidation
+        cache.set(f"magic_token:{token}", {
+            'email': email, 'expiry': expiry, 'link_id': link_id
+        }, 600)
+        cache.set(email_link_key, token, 600)
+
+        # Update the Requestor with the new token and expiry
+        requestor.otp = token  # Reusing otp field for token
+        requestor.otp_expiry = expiry
+        requestor.is_verified = False
+        requestor.save()
+
         nlink = get_object_or_404(NLink, requestor_link=link_id)
         nlink.requestor_email = email
         nlink.save(update_fields=['requestor_email'])
 
-        # build and send the email
-        subject = "DART System One-Time Password"
-        text_content = (
-            f"Hello,\n\n"
-            f"Your one-time password (OTP) is:\n\n    {otp}\n\n"
-            f"It expires at {expiry:%Y-%m-%d %H:%M:%S}.\n\n"
-            f"— DART System Team"
-        )
-        # msg = EmailMultiAlternatives(
-        #     subject=subject,
-        #     body=text_content,
-        #     from_email=settings.DEFAULT_FROM_EMAIL,
-        #     to=[email],
-        #     headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-        # )
-        # msg.send(fail_silently=False)
+        magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?token={token}"
 
-        # return the frontend redirect
-        otp_path = reverse('verify_otp', kwargs={'link_id': link_id})
-        return Response({'redirect_url': settings.FRONTEND_BASE_URL + otp_path})
+        # Send email asynchronously
+        threading.Thread(target=send_requestor_verification_email_async, args=(email, magic_link, expiry)).start()
+
+        magic_link_path = f"/negotiation/{link_id}/magic-link-verification?token={token}"
+        return Response({'redirect_url': settings.FRONTEND_BASE_URL + magic_link_path})
 
     except ValidationError:
         return Response({'error': 'Please enter a valid email address.'},
@@ -139,4 +113,3 @@ def requestor_email_entry(request, link_id):
             {'error': 'Server error. Check logs for details.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-

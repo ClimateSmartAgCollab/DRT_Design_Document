@@ -1,0 +1,283 @@
+# drt/views/auth.py
+
+import os
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.utils import timezone
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.views.decorators.csrf import csrf_exempt
+from django.core.cache import cache
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+import datetime
+import logging
+import secrets
+import threading
+
+logger = logging.getLogger(__name__)
+
+def send_owner_email_async(email, magic_link, expiry):
+    """Send owner email asynchronously"""
+    try:
+        msg = EmailMultiAlternatives(
+            subject="Access Link for Owner Verification" ,
+            body=(
+                "Hello Dear Data Owner,\n\n"
+                "Click the link below to verify your email and access the owner dashboard:\n\n"
+                f"    {magic_link}\n\n"
+                f"This link will expire at {expiry:%H:%M}.\n\n"
+                "For your security, please do not share this link with anyone. "
+                "If you did not request this link, simply ignore this message or "
+                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "Best regards,\n"
+                "The DRT System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+        )
+        html_content = f"""
+            <p>Hello Dear Data Owner,</p>
+            <p>Click the link below to verify your email and access the owner dashboard:</p>
+            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+            <p>This link will expire at {expiry:%H:%M}.</p>
+            <p>For your security, please do not share this link with anyone.<br>
+            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Error sending owner email: {str(e)}")
+
+def send_requestor_email_async(email, magic_link, expiry):
+    """Send requestor email asynchronously"""
+    try:
+        msg = EmailMultiAlternatives(
+            subject="Access Link for Requestor Verification",
+            body=(
+                "Hello Dear Requestor,\n\n"
+                "Click the link below to verify your email and access the dashboard:\n\n"
+                f"    {magic_link}\n\n"
+                f"This link will expire at {expiry:%H:%M}.\n\n"
+                "For your security, please do not share this link with anyone. "
+                "If you did not request this link, simply ignore this message or "
+                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "Best regards,\n"
+                "The DRT System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+        )
+        html_content = f"""
+            <p>Hello Dear Requestor,</p>
+            <p>Click the link below to verify your email and access the dashboard:</p>
+            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+            <p>This link will expire at {expiry:%H:%M}.</p>
+            <p>For your security, please do not share this link with anyone.<br>
+            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Error sending requestor email: {str(e)}")
+
+
+@csrf_exempt
+@api_view(['GET'])
+def test_endpoint(request):
+    """Simple test endpoint to check if the server is working"""
+    return Response({'message': 'Test endpoint working'}, status=200)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def owner_email_entry(request):
+    try:
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=400)
+        try:
+            validate_email(email)
+        except ValidationError:
+            return Response({'error': 'Invalid email'}, status=400)
+
+        # Generate a secure random token for the magic link
+        token = secrets.token_urlsafe(32)
+        expiry = timezone.now() + datetime.timedelta(minutes=10)
+
+        # Invalidate previous token for this email, if any
+        old_token = cache.get(f"magic_token_for:{email}")
+        if old_token:
+            cache.delete(f"magic_token:{old_token}")
+
+        # Store the new token and a reverse mapping for easy invalidation
+        cache.set(f"magic_token:{token}", {
+                  'email': email, 'expiry': expiry}, 600)
+        cache.set(f"magic_token_for:{email}", token, 600)
+
+        magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
+
+        logger.info(
+            "OWNER_EMAIL_ENTRY (request): ENVIRONMENT=%r, EMAIL_BACKEND=%r, "
+            "EMAIL_HOST=%r, EMAIL_HOST_USER=%r",
+            os.getenv("ENVIRONMENT"),
+            settings.EMAIL_BACKEND,
+            settings.EMAIL_HOST,
+            settings.EMAIL_HOST_USER,
+        )
+
+        try:
+            # Use threading to send email asynchronously
+            threading.Thread(target=send_owner_email_async, args=(email, magic_link, expiry)).start()
+        except Exception as email_error:
+            logger.exception("Email sending failed")
+            # Return the real SMTP exception to the client for now
+            return Response({'error': str(email_error)}, status=500)
+
+        return Response({'message': 'Access link sent to your email'}, status=200)
+
+    except Exception as e:
+        logger.error(f"Error in owner_email_entry: {str(e)}")
+        return Response({'error': f'Internal server error: {str(e)}'}, status=500)
+
+
+@csrf_exempt
+@api_view(["POST"])
+def verify_owner_magic_link(request):
+    try:
+        token = request.data.get('token')
+        if not token:
+            return Response({"error": "Missing required parameters"}, status=400)
+
+        entry = cache.get(f"magic_token:{token}")
+        if not entry or timezone.now() > entry["expiry"]:
+            return Response({"error": "Access link expired"}, status=400)
+
+        email = entry["email"]
+
+        # Ensure this token is the latest for this email
+        latest_token = cache.get(f"magic_token_for:{email}")
+        if latest_token != token:
+            return Response({"error": "This link has been expired by a newer request."}, status=400)
+
+        # Store owner_email in the Django session (signed cookie)
+        request.session["owner_email"] = email
+        cache.set(f"owner_logged_in:{email}", True, 3600)
+        cache.delete(f"magic_token:{token}")
+        cache.delete(f"magic_token_for:{email}")
+        logger.info(f"Access link verified for {email} at {timezone.now()}")
+        return Response({"message": "verified"}, status=200)
+
+    except Exception as e:
+        logger.error(f"Error in verify_owner_magic_link: {str(e)}")
+        return Response({'error': 'Internal server error'}, status=500)
+
+
+@require_GET
+def whoami(request):
+    owner_email = request.session.get("owner_email")
+    if not owner_email:
+        return JsonResponse({"email": None}, status=401)
+    return JsonResponse({"email": owner_email}, status=200)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def req_email_entry(request):
+    try:
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=400)
+        try:
+            validate_email(email)
+        except ValidationError:
+            return Response({'error': 'Invalid email'}, status=400)
+
+        from ..models import Requestor
+        requestor, created = Requestor.objects.get_or_create(
+            requestor_email=email)
+        requestor_id = str(requestor.requestor_id)
+
+        # Generate a secure random token for the magic link
+        token = secrets.token_urlsafe(32)
+        expiry = timezone.now() + datetime.timedelta(minutes=10)
+
+        # Invalidate previous token for this email, if any
+        old_token = cache.get(f"magic_token_for:{email}")
+        if old_token:
+            cache.delete(f"magic_token:{old_token}")
+
+        # Store the new token and a reverse mapping for easy invalidation
+        cache.set(f"magic_token:{token}", {
+                  'email': email, 'expiry': expiry}, 600)
+        cache.set(f"magic_token_for:{email}", token, 600)
+
+        magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/verify-magic-link?token={token}"
+        
+        logger.info(
+            "REQ_EMAIL_ENTRY (request): ENVIRONMENT=%r, EMAIL_BACKEND=%r, "
+            "EMAIL_HOST=%r, EMAIL_HOST_USER=%r",
+            os.getenv("ENVIRONMENT"),
+            settings.EMAIL_BACKEND,
+            settings.EMAIL_HOST,
+            settings.EMAIL_HOST_USER,
+        )
+        try:
+            # Use threading to send email asynchronously
+            threading.Thread(target=send_requestor_email_async, args=(email, magic_link, expiry)).start()
+        except Exception as email_error:
+            logger.exception("Email sending failed")
+            # Return the real SMTP exception to the client for now
+            return Response({'error': str(email_error)}, status=500)
+        
+        return Response({'message': 'Access link sent'}, status=200)
+
+    except Exception as e:
+        logger.error(f"Error in req_email_entry: {str(e)}")
+        return Response({'error': f'Internal server error: {str(e)}'}, status=500)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def verify_req_magic_link(request):
+    try:
+        token = request.data.get('token')
+        if not token:
+            return Response({"error": "Missing required parameters"}, status=400)
+
+        entry = cache.get(f"magic_token:{token}")
+        if not entry or timezone.now() > entry["expiry"]:
+            return Response({"error": "Access link expired"}, status=400)
+
+        email = entry["email"]
+        if not email:
+            return Response({"error": "Invalid Access link"}, status=400)
+
+        # Ensure this token is the latest for this email
+        latest_token = cache.get(f"magic_token_for:{email}")
+        if latest_token != token:
+            return Response({"error": "This link has been expired by a newer request."}, status=400)
+
+        # Store requestor_email in the Django session (signed cookie)
+        request.session["requestor_email"] = email
+        cache.set(f"req_logged_in:{email}", True, 3600)
+        cache.delete(f"magic_token:{token}")
+        cache.delete(f"magic_token_for:{email}")
+        logger.info(f"Access link verified for {email} at {timezone.now()}")
+        return Response({'message': 'verified'}, status=200)
+
+    except Exception as e:
+        logger.error(f"Error in verify_req_magic_link: {str(e)}")
+        return Response({'error': 'Internal server error'}, status=500)
+
+
+@require_GET
+def req_whoami(request):
+    requestor_email = request.session.get("requestor_email")
+    if not requestor_email:
+        return JsonResponse({"email": None}, status=401)
+    return JsonResponse({"email": requestor_email}, status=200)

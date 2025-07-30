@@ -1,18 +1,19 @@
-// src/components/Form/NavigationItem.tsx
-import React from 'react'
-import { motion } from 'framer-motion'
-import { Step } from '../type'
-import { FiChevronDown, FiChevronRight } from 'react-icons/fi'
+// drt_frontend\app\components\Form\NavigationItem.tsx
+import React from "react";
+import { motion } from "framer-motion";
+import { ParsedStep } from "./types";
+import { FiChevronDown, FiChevronRight } from "react-icons/fi";
+import { useTheme } from "./hooks/useTheme";
 
 interface NavigationItemProps {
-  step: Step
-  currentStep: number
-  currentPageIndex: number
-  onNavigate: (stepIndex: number, pageIndex?: number) => void
-  language: string
-  getIndex: (stepId: string) => number
-  expandedStep: string | null
-  setExpandedStep: (stepId: string | null) => void
+  step: ParsedStep;
+  currentStep: number;
+  currentPageIndex: number;
+  onNavigate: (stepIndex: number, pageIndex?: number) => void;
+  language: string;
+  getIndex: (stepId: string) => number;
+  expandedStep: string | null;
+  setExpandedStep: (stepId: string | null) => void;
 }
 
 export const NavigationItem = React.memo(function NavigationItem({
@@ -23,56 +24,80 @@ export const NavigationItem = React.memo(function NavigationItem({
   language,
   getIndex,
   expandedStep,
-  setExpandedStep
+  setExpandedStep,
 }: NavigationItemProps) {
-  const stepIndex = getIndex(step.id)
-
-  const isExpanded = expandedStep === step.id
-  const isActiveStep = currentStep === stepIndex
+  const theme = useTheme();
+  
+  const stepIndex = getIndex(step.id);
+  const isExpanded = expandedStep === step.id;
+  const isActiveStep = currentStep === stepIndex;
 
   const toggleExpand = () => {
-    setExpandedStep(isExpanded ? null : step.id)
-  }
+    setExpandedStep(isExpanded ? null : step.id);
+  };
 
-  const stepButtonClass = isExpanded
-    ? 'bg-blue-600 text-white'
-    : 'bg-gray-200 text-gray-800'
+  const stepButtonStyle = isExpanded 
+    ? {
+        backgroundColor: theme.colors.primary,
+        color: theme.colors.white,
+        fontFamily: theme.fonts.body,
+        fontWeight: "500",
+      }
+    : {
+        backgroundColor: theme.colors.grey[200],
+        color: theme.colors.text,
+        fontFamily: theme.fonts.body,
+        fontWeight: "500",
+      };
+
+  const pageButtonStyle = (isActivePage: boolean) => ({
+    backgroundColor: isActivePage ? theme.colors.primary : theme.colors.white,
+    color: isActivePage ? theme.colors.white : theme.colors.text,
+    fontFamily: theme.fonts.body,
+    fontSize: "0.875rem",
+  });
 
   return (
-    <li className='mb-2'>
+    <li className="mb-2">
       {/* STEP BUTTON */}
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        type='button'
+        type="button"
         onClick={toggleExpand}
-        className={`flex w-full items-center justify-between rounded px-4 py-2 text-left transition-all ${stepButtonClass}`}
+        className="flex w-full items-center justify-between rounded px-4 py-2 text-left transition-all"
+        style={stepButtonStyle}
+        onMouseEnter={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.backgroundColor = theme.colors.grey[300];
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.backgroundColor = theme.colors.grey[200];
+          }
+        }}
       >
-        {/* Use sidebar_label as the second option if available */}
         <span>
           {step.sidebar_label?.[language] ||
             step.names[language] ||
-            step.names['eng']}
+            step.names["eng"]}
         </span>
         {step.pages.length > 1 && (
           <motion.div
             animate={{ rotate: isExpanded ? 1 : 0 }}
             transition={{ duration: 0.2 }}
           >
-            {isExpanded ? (
-              <FiChevronDown size={18} />
-            ) : (
-              <FiChevronRight size={18} />
-            )}
+            {isExpanded ? <FiChevronDown size={18} /> : <FiChevronRight size={18} />}
           </motion.div>
         )}
       </motion.button>
 
-      {/* PAGES (expanded if user clicked the step) */}
+      {/* PAGES (only visible if expanded) */}
       {isExpanded && (
-        <ul className='ml-4 mt-2 space-y-1'>
+        <ul className="ml-4 mt-2 space-y-1">
           {step.pages.map((page, pageIndex) => {
-            const isActivePage = isActiveStep && currentPageIndex === pageIndex
+            const isActivePage = isActiveStep && currentPageIndex === pageIndex;
 
             return (
               <motion.li
@@ -81,21 +106,28 @@ export const NavigationItem = React.memo(function NavigationItem({
                 whileTap={{ scale: 0.98 }}
               >
                 <button
-                  type='button'
+                  type="button"
                   onClick={() => onNavigate(stepIndex, pageIndex)}
-                  className={`w-full rounded px-4 py-2 text-left ${
-                    isActivePage
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
+                  className="w-full rounded px-4 py-2 text-left transition-all"
+                  style={pageButtonStyle(isActivePage)}
+                  onMouseEnter={(e) => {
+                    if (!isActivePage) {
+                      e.currentTarget.style.backgroundColor = theme.colors.grey[200];
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActivePage) {
+                      e.currentTarget.style.backgroundColor = isActivePage ? theme.colors.primary : theme.colors.white;
+                    }
+                  }}
                 >
-                  {page.sidebar_label[language] || page.sidebar_label['eng']}
+                  {page.sidebar_label?.[language] ?? page.sidebar_label?.["eng"] ?? ""}
                 </button>
               </motion.li>
-            )
+            );
           })}
         </ul>
       )}
     </li>
-  )
-})
+  );
+});

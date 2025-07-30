@@ -7,98 +7,129 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework.response import Response
 from django.core.mail import EmailMultiAlternatives
-import datetime
+from django.conf import settings
+from datetime import timedelta
 from ..models import Requestor, NLink
+import secrets
 import logging
+import threading
+
 logger = logging.getLogger(__name__)
 
-@csrf_exempt
-@api_view(['POST'])
-def verify_owner_otp(request, email):
-    entry = cache.get(f"owner_auth:{email}")
-    otp_sub = request.data.get('otp')
-    if not entry or timezone.now() > entry['expiry']:
-        return Response({'error': 'OTP expired'}, status=400)
-    if entry['otp'] != otp_sub:
-        return Response({'error': 'Wrong OTP'}, status=400)
-
-    # just store the email in the *signed cookie* session:
-    request.session["owner_email"] = email
-
-    # mark as “logged in” (e.g. set a short‐lived token or flag in cache)
-    cache.set(f"owner_logged_in:{email}", True, 3600)
-    return Response({'message': 'verified'}, status=200)
-
-
-@csrf_exempt
-@api_view(['POST'])
-def verify_req_otp(request, email):
-    entry = cache.get(f"req_auth:{email}")
-    otp_sub = request.data.get('otp')
-    if not entry or timezone.now() > entry['expiry']:
-        return Response({'error': 'OTP expired'}, status=400)
-    if entry['otp'] != otp_sub:
-        return Response({'error': 'Wrong OTP'}, status=400)
-
-    # mark as “logged in” (e.g. set a short‐lived token or flag in cache)
-    cache.set(f"req_logged_in:{email}", True, 3600)
-    return Response({'message': 'verified'}, status=200)
+def send_magic_link_resend_email_async(requestor, magic_link):
+    """Send magic link resend email asynchronously"""
+    try:
+        msg = EmailMultiAlternatives(
+            subject="Access Link Verification (Resent)",
+            body=(
+                "Hello,\n\n"
+                "Click the link below to verify your email:\n\n"
+                f"    {magic_link}\n\n"
+                "For your security, please do not share this link with anyone. "
+                "If you did not request this link, simply ignore this message or "
+                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "Best regards,\n"
+                "The DRT System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[requestor.requestor_email],
+            headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
+        )
+        html_content = f"""
+            <p>Hello,</p>
+            <p>Click the link below to verify your email:</p>
+            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
+            <p>For your security, please do not share this link with anyone.<br>
+            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Error sending magic link resend email: {str(e)}")
 
 
 @csrf_exempt
 @api_view(['GET', 'POST'])
-def verify_otp(request, link_id):
+def verify_magic_link_view(request, link_id):
     try:
-        nlink = NLink.objects.get(requestor_link=link_id)
-        requestor = Requestor.objects.get(
-            requestor_email=nlink.requestor_email)
-    except (NLink.DoesNotExist, Requestor.DoesNotExist):
+        nlink = NLink.objects.get(requestor_link=link_id)  
+        requestor = Requestor.objects.get(  
+            requestor_email=nlink.requestor_email)  
+    except (NLink.DoesNotExist, Requestor.DoesNotExist): 
         return Response({'error': 'Invalid link or email.'},
                         status=status.HTTP_400_BAD_REQUEST)
 
-    # --- GET: resend the existing OTP ---
+    # --- GET: resend the magic link ---
     if request.method == 'GET':
-        # optionally bump expiry
-        requestor.otp_expiry = timezone.now() + datetime.timedelta(minutes=10)
+        token = secrets.token_urlsafe(32)
+        expiry = timezone.now() + timedelta(minutes=10)
+
+        # Invalidate previous token for this email and link_id, if any
+        email_link_key = f"magic_token_for:{requestor.requestor_email}:{link_id}"
+        old_token = cache.get(email_link_key)
+        if old_token:
+            cache.delete(f"magic_token:{old_token}")
+
+        # Store the new token and a reverse mapping for easy invalidation
+        cache.set(f"magic_token:{token}", {
+            'email': requestor.requestor_email,
+            'expiry': expiry,
+            'link_id': link_id
+        }, 600)
+        cache.set(email_link_key, token, 600)
+
+        # Update expiry/token in DB for reference
+        requestor.otp_expiry = expiry
+        requestor.otp = token
         requestor.save()
 
-        # try:
-        #     msg = EmailMultiAlternatives(
-        #         subject='DART System One-Time Password',
-        #         body=f'Use OTP: {requestor.otp}',
-        #         from_email=settings.DEFAULT_FROM_EMAIL,
-        #         to=[requestor.requestor_email],
-        #         headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
-        #     )
-        #     msg.send(fail_silently=False)
-        # except Exception:
-        #     return Response(
-        #         {'error': 'Unable to send OTP email. Please try again later.'},
-        #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        #     )
+        magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?token={token}"
 
-        # print(f"Resent OTP to {requestor.requestor_email}: {requestor.otp}")
+        # Send email asynchronously
+        threading.Thread(target=send_magic_link_resend_email_async, args=(requestor, magic_link)).start()
 
-        return Response({'message': 'OTP resent successfully.'},
+        return Response({'message': 'Access link resent successfully.'},
                         status=status.HTTP_200_OK)
 
-    # --- POST: check submitted OTP ---
+    # --- POST: verify submitted magic link ---
     if request.method == 'POST':
-        otp = request.data.get('otp')
-        if timezone.now() > requestor.otp_expiry:
-            return Response({'error': 'OTP expired. Please resend and try again.'},
+        token = request.data.get('token')
+        if not token:
+            return Response({'error': 'Missing token.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        entry = cache.get(f"magic_token:{token}")
+        if not entry:
+            return Response({'error': 'Invalid or expired access link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if timezone.now() > entry['expiry']:
+            cache.delete(f"magic_token:{token}")
+            return Response({'error': 'Access link expired. Please resend and try again.'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        if requestor.otp == otp:
-            requestor.is_verified = True
-            requestor.otp_expiry = timezone.now()
-            requestor.save()
-            access_url = reverse('request_access', kwargs={'link_id': link_id})
-            return Response({'redirect_url': access_url})
-        else:
-            return Response({'error': 'Invalid OTP. Please try again.'},
-                            status=status.HTTP_400_BAD_REQUEST)
+        # Only accept the latest token for this email and link_id
+        email_link_key = f"magic_token_for:{entry['email']}:{link_id}"
+        latest_token = cache.get(email_link_key)
+        if latest_token != token:
+            return Response({'error': 'This link has been expired by a newer request.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark as verified
+        requestor.is_verified = True
+        requestor.otp_expiry = timezone.now()
+        requestor.save()
+
+        # Set session variable for authentication
+        request.session['requestor_email'] = entry['email']
+        request.session['link_id'] = link_id
+
+        # Clear cache
+        cache.delete(f"magic_token:{token}")
+        cache.delete(email_link_key)
+
+        # Optionally, set session/cookie here if needed
+
+        access_url = reverse('request_access', kwargs={'link_id': link_id})
+        return Response({'redirect_url': access_url})
 
     return Response({'error': 'Method not allowed.'},
                     status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
