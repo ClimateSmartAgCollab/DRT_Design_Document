@@ -1,3 +1,4 @@
+import os
 from django.core.cache import cache
 from django.http import JsonResponse
 import requests
@@ -5,8 +6,8 @@ import base64
 import csv
 import io
 from django.views.decorators.csrf import csrf_exempt
-import os
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -228,14 +229,36 @@ def preload_license_templates():
     except Exception as e:
         logger.error(f"Error in preload_license_templates: {str(e)}")
 
-# GitHub webhook to receive and handle updates from the GitHub repository
+
+# GitHub webhook for automatic cache invalidation
 @csrf_exempt
 def github_webhook(request):
+    """Webhook to clear cache and refresh data when GitHub changes"""
     if request.method == 'POST':
-        # Simulate handling the webhook
-        payload = request.body.decode('utf-8')
-        # print("Webhook payload received: ", payload)
-        load_github_data(request)
-        return JsonResponse({'status': 'Webhook received, data reloaded'}, status=200)
-
-    return JsonResponse({'error': 'Invalid request'}, status=400)
+        try:
+            # Clear cache immediately
+            cache.delete('owner_table')
+            cache.delete('link_table')
+            cache.delete('questionnaire_table')
+            cache.delete('license_table')
+            cache.delete_pattern('questionnaire_json_*')
+            cache.delete_pattern('license_template_*')
+            
+            # Refresh data in background thread
+            def refresh_data():
+                try:
+                    load_github_data(request)
+                except Exception as e:
+                    logger.error(f"Background refresh error: {str(e)}")
+            
+            thread = threading.Thread(target=refresh_data)
+            thread.daemon = True
+            thread.start()
+            
+            return JsonResponse({'status': 'Cache cleared, refresh started'}, status=200)
+            
+        except Exception as e:
+            logger.error(f"Error processing webhook: {str(e)}")
+            return JsonResponse({'error': 'Internal error'}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
