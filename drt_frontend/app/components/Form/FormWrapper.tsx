@@ -28,6 +28,56 @@ import ChildReview from "./ChildReview";
 import styles from "./Form.module.css";
 import Footer from "../Footer/footer";
 
+// Development-only test data
+const DEV_TEST_DATA = {
+  "EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3": {
+    q1: "John Smith",
+    q2: "john.smith@uoguelph.ca",
+    q3: "University of Guelph",
+    q4: "Canada",
+    q5: "Guelph",
+    q6: "Dr. Jane Doe",
+    q7: "jane.doe@uoguelph.ca",
+    q8: "University of Guelph",
+    q9: "Canada",
+    q10: "Guelph",
+    "q10.5": {
+      childrenData: {
+        "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al": [
+          {
+            id: "collaborator-1",
+            data: {
+              q1: "Dr. Alice Johnson",
+              q2: "University of Guelph",
+              q3: "Will work with anonymized subset of the data",
+              q4: "Data analysis and statistical modeling"
+            },
+            stepId: "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
+            parentId: "q10.5"
+          },
+          {
+            id: "collaborator-2", 
+            data: {
+              q1: "Prof. Bob Wilson",
+              q2: "University of Guelph",
+              q3: "Will work with the full dataset",
+              q4: "GIS analysis and spatial modeling"
+            },
+            stepId: "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
+            parentId: "q10.5"
+          }
+        ]
+      }
+    },
+    q11: "How do environmental factors affect agricultural productivity in different regions?",
+    q12: ["academic", "educational"],
+    q13: "Academic publications, master's thesis, technical report for policy stakeholders, web-based visualization tool for farmers",
+    q14: "Data will be stored on encrypted university servers with access restricted to authorized collaborators only. All data transfers will be logged and monitored.",
+    q15: "2024-06-01",
+    q16: "18 months",
+
+  }
+};
 
 const defaultParsedSteps: ParsedStep[] = [];
 
@@ -193,15 +243,24 @@ export default function FormWrapper({
     setCurrentChildParentId,
   } = dynamicForm as UseDynamicFormReturn;
 
-  const { parentFormData } = useFormData();
+  const { parentFormData, setParentFormData } = useFormData();
 
   useEffect(() => {
-    reset(formData as any);
-  }, [currentStep, pageIndexByStep, currentChildId, reset]);
+    if (initialAnswers && Object.keys(initialAnswers).length > 0) {
+      const hasChanges = JSON.stringify(initialAnswers) !== JSON.stringify(formData);
+      if (hasChanges) {
+        console.log("Resetting form with new initial answers");
+        reset(initialAnswers as any);
+        setFormData(initialAnswers);
+      }
+    }
+  }, [initialAnswers]); // Only depend on initialAnswers, not navigation
 
   useEffect(() => {
-    prefillCurrentPageData();
-  }, [currentStep, pageIndexByStep, currentChildId, prefillCurrentPageData]);
+    if (step && !formData[step.id]) {
+      prefillCurrentPageData();
+    }
+  }, [step?.id]);
 
   // One-time init from initialAnswers
   const didInit = useRef(false);
@@ -266,6 +325,97 @@ export default function FormWrapper({
           color: theme.colors.text,
         }}
       >
+        {/* DEVELOPMENT-ONLY DEBUG BUTTON */}
+        {process.env.NODE_ENV === "development" && (
+          <div
+            style={{
+              position: "fixed",
+              top: "10px",
+              right: "10px",
+              zIndex: 9999,
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                console.log("Filling form with test data...");
+
+                const stepData =
+                  DEV_TEST_DATA["EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3"];
+                const { "q10.5": q10_5, ...mainFields } = stepData as any;
+
+                const mainFormData = {
+                  EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3: mainFields,
+                };
+
+                setFormData(mainFormData);
+
+                Object.entries(mainFormData).forEach(([stepId, stepData]) => {
+                  Object.entries(stepData).forEach(([fieldId, value]) => {
+                    const fieldName = `${stepId}.${fieldId}`;
+                    methods.setValue(fieldName as any, value);
+                  });
+                });
+
+                setParentFormData({
+                  "q10.5": q10_5,
+                });
+
+                console.log("Form filled with test data including children!");
+              }}
+              style={{
+                padding: "8px 12px",
+                backgroundColor: "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: "bold",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#0056b3")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "#007bff")
+              }
+            >
+              🧪 Fill Test Data
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                console.log("Current form data:", formData);
+                console.log(
+                  "Current React Hook Form values:",
+                  methods.getValues()
+                );
+              }}
+              style={{
+                padding: "8px 12px",
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: "bold",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#1e7e34")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "#28a745")
+              }
+            >
+              📊 Log State
+            </button>
+          </div>
+        )}
+
         <FormHeader
           language={language}
           setLanguage={setLanguage}

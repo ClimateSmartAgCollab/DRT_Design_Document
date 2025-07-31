@@ -66,6 +66,38 @@ export default function OwnerReviewPage() {
   const [globalComments, setGlobalComments] = useState<string>("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  // Development-only sample owner comments
+  const SAMPLE_OWNER_COMMENTS = {
+    // Field-specific comments - using just the field IDs without the step prefix
+    "q1": "Please provide a more detailed institutional affiliation.",
+    "q2": "Email format looks good.",
+    "q3": "University of Guelph is an approved institution.",
+    "q4": "Canada is an approved country for data sharing.",
+    "q5": "Guelph location is acceptable.",
+    "q6": "Dr. Jane Doe is a recognized researcher in this field.",
+    "q7": "Email format is valid.",
+    "q8": "University of Guelph is an approved institution.",
+    "q9": "Canada is an approved country for data sharing.",
+    "q10": "Guelph location is acceptable.",
+    "q11": "Research question is well-defined and aligns with our data scope.",
+    "q12": "Academic and educational use is approved.",
+    "q13": "Outputs are appropriate for academic research.",
+    "q14": "Security measures are adequate for the data sensitivity level.",
+    "q15": "Timeline is reasonable for the scope of work.",
+    "q16": "18-month duration is appropriate for this research.",
+    "q10.5": "Collaborators have appropriate credentials and institutional affiliations. Both will work with data under proper supervision."
+  };
+
+  const SAMPLE_GLOBAL_COMMENT = `Overall Assessment:
+  
+This is a well-structured research proposal from qualified researchers at the University of Guelph. The research question is clearly defined and aligns with our data scope. The security measures proposed are adequate for the data sensitivity level.
+
+Recommendations:
+- The timeline of 18 months is reasonable
+- Both collaborators have appropriate credentials
+- Data sharing agreement should include specific provisions for the anonymized subset
+`;
+
   useEffect(() => {
     if (!negotiation) return;
 
@@ -204,6 +236,24 @@ export default function OwnerReviewPage() {
       <div className="flex items-start justify-center min-h-screen bg-gray-50 py-8">
         <div className="bg-white p-6 rounded shadow-md w-full max-w-3xl space-y-6">
           <h2 className="text-2xl font-bold">Owner Review</h2>
+
+           {/* Development-only button to fill sample comments */}
+           {process.env.NODE_ENV === "development" && (
+             <div className="mb-4 p-3 border-yellow-200 rounded">
+               <button
+                 type="button"
+                 onClick={() => {
+                   console.log("Filling sample owner comments...");
+                   setFieldComments(SAMPLE_OWNER_COMMENTS);
+                   setGlobalComments(SAMPLE_GLOBAL_COMMENT);
+                   console.log("Sample owner comments filled!");
+                 }}
+                 className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors text-sm font-medium mr-2"
+               >
+                 🧪 Fill Sample Owner Comments
+               </button>
+             </div>
+           )}
 
           {parentSteps.map((step) => (
             <section key={step.id} className="space-y-4">
