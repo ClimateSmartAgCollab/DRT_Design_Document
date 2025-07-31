@@ -325,19 +325,18 @@ export default function FormWrapper({
           color: theme.colors.text,
         }}
       >
-        {/* DEVELOPMENT-ONLY DEBUG BUTTON */}
-        {process.env.NODE_ENV === "development" && (
-          <div
-            style={{
-              position: "fixed",
-              top: "10px",
-              right: "10px",
-              zIndex: 9999,
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-            }}
-          >
+        {/* DEBUG BUTTONS - visible in all environments */}
+        <div
+          style={{
+            position: "fixed",
+            top: "10px",
+            right: "10px",
+            zIndex: 9999,
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
             <button
               type="button"
               onClick={() => {
@@ -410,11 +409,10 @@ export default function FormWrapper({
               onMouseLeave={(e) =>
                 (e.currentTarget.style.backgroundColor = "#28a745")
               }
-            >
-              📊 Log State
-            </button>
-          </div>
-        )}
+                         >
+               📊 Log State
+             </button>
+           </div>
 
         <FormHeader
           language={language}

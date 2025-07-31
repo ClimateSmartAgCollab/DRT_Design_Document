@@ -237,23 +237,21 @@ Recommendations:
         <div className="bg-white p-6 rounded shadow-md w-full max-w-3xl space-y-6">
           <h2 className="text-2xl font-bold">Owner Review</h2>
 
-           {/* Development-only button to fill sample comments */}
-           {process.env.NODE_ENV === "development" && (
-             <div className="mb-4 p-3 border-yellow-200 rounded">
-               <button
-                 type="button"
-                 onClick={() => {
-                   console.log("Filling sample owner comments...");
-                   setFieldComments(SAMPLE_OWNER_COMMENTS);
-                   setGlobalComments(SAMPLE_GLOBAL_COMMENT);
-                   console.log("Sample owner comments filled!");
-                 }}
-                 className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors text-sm font-medium mr-2"
-               >
-                 🧪 Fill Sample Owner Comments
-               </button>
-             </div>
-           )}
+           {/* Sample comments button - visible in all environments */}
+           <div className="mb-4 p-3 border-yellow-200 rounded">
+             <button
+               type="button"
+               onClick={() => {
+                 console.log("Filling sample owner comments...");
+                 setFieldComments(SAMPLE_OWNER_COMMENTS);
+                 setGlobalComments(SAMPLE_GLOBAL_COMMENT);
+                 console.log("Sample owner comments filled!");
+               }}
+               className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors text-sm font-medium mr-2"
+             >
+               🧪 Fill Sample Owner Comments
+             </button>
+           </div>
 
           {parentSteps.map((step) => (
             <section key={step.id} className="space-y-4">
