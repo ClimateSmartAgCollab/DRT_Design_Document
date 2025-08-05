@@ -23,61 +23,60 @@ import FieldRenderer from "./FieldRenderer";
 import NavigationButtons from "./NavigationButtons";
 import Sidebar from "./Sidebar";
 import ReviewSection from "./ReviewSection";
-import ChildReview from "./ChildReview";
 
 import styles from "./Form.module.css";
 import Footer from "../Footer/footer";
 
 // Development-only test data
-const DEV_TEST_DATA = {
-  "EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3": {
-    q1: "John Smith",
-    q2: "john.smith@uoguelph.ca",
-    q3: "University of Guelph",
-    q4: "Canada",
-    q5: "Guelph",
-    q6: "Dr. Jane Doe",
-    q7: "jane.doe@uoguelph.ca",
-    q8: "University of Guelph",
-    q9: "Canada",
-    q10: "Guelph",
-    "q10.5": {
-      childrenData: {
-        "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al": [
-          {
-            id: "collaborator-1",
-            data: {
-              q1: "Dr. Alice Johnson",
-              q2: "University of Guelph",
-              q3: "Will work with anonymized subset of the data",
-              q4: "Data analysis and statistical modeling"
-            },
-            stepId: "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
-            parentId: "q10.5"
-          },
-          {
-            id: "collaborator-2", 
-            data: {
-              q1: "Prof. Bob Wilson",
-              q2: "University of Guelph",
-              q3: "Will work with the full dataset",
-              q4: "GIS analysis and spatial modeling"
-            },
-            stepId: "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
-            parentId: "q10.5"
-          }
-        ]
-      }
-    },
-    q11: "How do environmental factors affect agricultural productivity in different regions?",
-    q12: ["academic", "educational"],
-    q13: "Academic publications, master's thesis, technical report for policy stakeholders, web-based visualization tool for farmers",
-    q14: "Data will be stored on encrypted university servers with access restricted to authorized collaborators only. All data transfers will be logged and monitored.",
-    q15: "2024-06-01",
-    q16: "18 months",
+// const DEV_TEST_DATA = {
+//   "EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3": {
+//     q1: "John Smith",
+//     q2: "john.smith@uoguelph.ca",
+//     q3: "University of Guelph",
+//     q4: "Canada",
+//     q5: "Guelph",
+//     q6: "Dr. Jane Doe",
+//     q7: "jane.doe@uoguelph.ca",
+//     q8: "University of Guelph",
+//     q9: "Canada",
+//     q10: "Guelph",
+//     "q10.5": {
+//       childrenData: {
+//         "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al": [
+//           {
+//             id: "collaborator-1",
+//             data: {
+//               q1: "Dr. Alice Johnson",
+//               q2: "University of Guelph",
+//               q3: "Will work with anonymized subset of the data",
+//               q4: "Data analysis and statistical modeling"
+//             },
+//             stepId: "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
+//             parentId: "q10.5"
+//           },
+//           {
+//             id: "collaborator-2", 
+//             data: {
+//               q1: "Prof. Bob Wilson",
+//               q2: "University of Guelph",
+//               q3: "Will work with the full dataset",
+//               q4: "GIS analysis and spatial modeling"
+//             },
+//             stepId: "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
+//             parentId: "q10.5"
+//           }
+//         ]
+//       }
+//     },
+//     q11: "How do environmental factors affect agricultural productivity in different regions?",
+//     q12: ["academic", "educational"],
+//     q13: "Academic publications, master's thesis, technical report for policy stakeholders, web-based visualization tool for farmers",
+//     q14: "Data will be stored on encrypted university servers with access restricted to authorized collaborators only. All data transfers will be logged and monitored.",
+//     q15: "2024-06-01",
+//     q16: "18 months",
 
-  }
-};
+//   }
+// };
 
 const defaultParsedSteps: ParsedStep[] = [];
 
@@ -326,7 +325,7 @@ export default function FormWrapper({
         }}
       >
         {/* DEBUG BUTTONS - visible in all environments */}
-        <div
+        {/* <div
           style={{
             position: "fixed",
             top: "10px",
@@ -336,8 +335,8 @@ export default function FormWrapper({
             flexDirection: "column",
             gap: "8px",
           }}
-        >
-            <button
+        > */}
+            {/* <button
               type="button"
               onClick={() => {
                 console.log("Filling form with test data...");
@@ -383,8 +382,8 @@ export default function FormWrapper({
               }
             >
               🧪 Fill Test Data
-            </button>
-            <button
+            </button> */}
+            {/* <button
               type="button"
               onClick={() => {
                 console.log("Current form data:", formData);
@@ -411,8 +410,8 @@ export default function FormWrapper({
               }
                          >
                📊 Log State
-             </button>
-           </div>
+             </button> */}
+           {/* </div> */}
 
         <FormHeader
           language={language}
