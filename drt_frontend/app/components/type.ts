@@ -227,7 +227,7 @@ export interface Field {
   reference_button_text?: Record<string, string>;
   showing_attribute?: string[];
   validation: {
-    conformance: 'M' | 'O';
+    conformance?: 'M' | 'O';
     format?: string;
     entryCodes?: string[];
     characterEncoding?: string;

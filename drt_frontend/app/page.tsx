@@ -55,39 +55,39 @@ const content = {
           title: "Begin Questionnaire",
           desc: "Start your test by selecting one of the questionnaire:",
           links: [
-            // {
-            //   label: "Questionnaire_prototype1-23-A-cow",
-            //   url: "http://localhost:3000/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
-            // },
-            // {
-            //   label: "Questionnaire_prototype1-23-B-pig",
-            //   url: "http://localhost:3000/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
-            // },
-            // {
-            //   label: "Questionnaire_prototype2-23-A-cow",
-            //   url: "http://localhost:3000/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
-            // },
-            // {
-            //   label: "Questionnaire_prototype2-23-B-pig",
-            //   url: "http://localhost:3000/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
-            // },
-
             {
               label: "Questionnaire_prototype1-23-A-cow",
-              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
+              url: "http://localhost:3000/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
             },
             {
               label: "Questionnaire_prototype1-23-B-pig",
-              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
+              url: "http://localhost:3000/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
             },
             {
               label: "Questionnaire_prototype2-23-A-cow",
-              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
+              url: "http://localhost:3000/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
             },
             {
               label: "Questionnaire_prototype2-23-B-pig",
-              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
+              url: "http://localhost:3000/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
             },
+
+            // {
+            //   label: "Questionnaire_prototype1-23-A-cow",
+            //   url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
+            // },
+            // {
+            //   label: "Questionnaire_prototype1-23-B-pig",
+            //   url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
+            // },
+            // {
+            //   label: "Questionnaire_prototype2-23-A-cow",
+            //   url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
+            // },
+            // {
+            //   label: "Questionnaire_prototype2-23-B-pig",
+            //   url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
+            // },
           ],
         },
         {
