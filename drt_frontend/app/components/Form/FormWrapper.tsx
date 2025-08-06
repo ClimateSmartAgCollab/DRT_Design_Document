@@ -1,7 +1,7 @@
 // drt_frontend/app/components/Form/FormWrapper.tsx
 "use client";
 
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -27,91 +27,40 @@ import ReviewSection from "./ReviewSection";
 import styles from "./Form.module.css";
 import Footer from "../Footer/footer";
 
-// Development-only test data
-// const DEV_TEST_DATA = {
-//   "EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3": {
-//     q1: "John Smith",
-//     q2: "john.smith@uoguelph.ca",
-//     q3: "University of Guelph",
-//     q4: "Canada",
-//     q5: "Guelph",
-//     q6: "Dr. Jane Doe",
-//     q7: "jane.doe@uoguelph.ca",
-//     q8: "University of Guelph",
-//     q9: "Canada",
-//     q10: "Guelph",
-//     "q10.5": {
-//       childrenData: {
-//         "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al": [
-//           {
-//             id: "collaborator-1",
-//             data: {
-//               q1: "Dr. Alice Johnson",
-//               q2: "University of Guelph",
-//               q3: "Will work with anonymized subset of the data",
-//               q4: "Data analysis and statistical modeling"
-//             },
-//             stepId: "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
-//             parentId: "q10.5"
-//           },
-//           {
-//             id: "collaborator-2", 
-//             data: {
-//               q1: "Prof. Bob Wilson",
-//               q2: "University of Guelph",
-//               q3: "Will work with the full dataset",
-//               q4: "GIS analysis and spatial modeling"
-//             },
-//             stepId: "ENvnAeARrwf17hM66r0NSX9IqwCbj_M9ZS13pq_aa0al",
-//             parentId: "q10.5"
-//           }
-//         ]
-//       }
-//     },
-//     q11: "How do environmental factors affect agricultural productivity in different regions?",
-//     q12: ["academic", "educational"],
-//     q13: "Academic publications, master's thesis, technical report for policy stakeholders, web-based visualization tool for farmers",
-//     q14: "Data will be stored on encrypted university servers with access restricted to authorized collaborators only. All data transfers will be logged and monitored.",
-//     q15: "2024-06-01",
-//     q16: "18 months",
-
-//   }
-// };
-
-const defaultParsedSteps: ParsedStep[] = [];
+// delay the execution 
+const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
 
 interface FormWrapperProps extends FormProps {
   parsedSteps?: ParsedStep[]; 
   questionnaireJson?: any; 
 }
 
-// Helper function to format subheading text with line breaks and bullet points
 const formatSubheading = (text: string): string => {
   if (!text) return '';
+    const paragraphs = text.split('\n\n');
   
-  // Split by double line breaks to separate paragraphs
-  const paragraphs = text.split('\n\n');
-  
-  // Process each paragraph
   const formattedParagraphs = paragraphs.map(paragraph => {
-    // Check if paragraph contains bullet points
     if (paragraph.includes('•')) {
-      // Split by single line breaks to separate bullet points
       const lines = paragraph.split('\n');
       const formattedLines = lines.map(line => {
         if (line.trim().startsWith('•')) {
-          // Format bullet points
           return `<li>${line.trim().substring(1).trim()}</li>`;
         } else if (line.trim().includes(':')) {
-          // Format section headers (like "Role:", "Responsibilities:")
           return `<strong>${line.trim()}</strong>`;
         } else {
-          // Regular text
           return line.trim();
         }
       });
       
-      // Join bullet points in a list
       const listItems = formattedLines.filter(line => line.startsWith('<li>'));
       const otherLines = formattedLines.filter(line => !line.startsWith('<li>'));
       
@@ -124,7 +73,6 @@ const formatSubheading = (text: string): string => {
       }
       return result;
     } else {
-      // Regular paragraph
       return paragraph.trim().replace(/\n/g, '<br/>');
     }
   });
@@ -142,60 +90,43 @@ export default function FormWrapper({
   questionnaireJson, 
 }: FormWrapperProps) {
   const theme = useTheme();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const parsedSteps = useMemo(() => {
     if (questionnaireJson) {
       try {
-        const unsorted = parseJsonToFormStructure(questionnaireJson);
-        const sorted = sortStepsByReferences(unsorted);
-        
-        if (!sorted || sorted.length === 0) {
-          console.warn("No valid steps found in questionnaire JSON");
-          return [];
-        }
-        
-        return sorted;
-      } catch (error) {
-        console.error("Error parsing questionnaire JSON:", error);
+        return parseJsonToFormStructure(questionnaireJson);
+      } catch (err) {
+        setError('Failed to parse questionnaire structure');
         return [];
       }
     }
-    
-    if (providedParsedSteps) {
-      return providedParsedSteps;
-    }
-    
-    console.warn("No questionnaire JSON or provided steps available");
-    return [];
+    return providedParsedSteps || [];
   }, [questionnaireJson, providedParsedSteps]);
-  
-  if (!parsedSteps || parsedSteps.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">No Questionnaire Available</h2>
-          <p className="text-gray-600">
-            The questionnaire data could not be loaded. Please try refreshing the page or contact support.
-          </p>
-        </div>
-      </div>
-    );
-  }
-  
-  const validationSchema = useMemo(() => buildValidationSchema(parsedSteps), [parsedSteps]);
-  type FormValues = yup.InferType<typeof validationSchema>;
+
+  // Build validation schema
+  const validationSchema = useMemo(() => {
+    try {
+      return buildValidationSchema(parsedSteps);
+    } catch (err) {
+      setError('Failed to build validation schema');
+      return yup.object({});
+    }
+  }, [parsedSteps]);
+
+  type FormValues = Record<string, any>;
 
   const methods = useForm<FormValues>({
     resolver: yupResolver(validationSchema),
-    defaultValues: initialAnswers as any,
-    mode: "onBlur",
-    reValidateMode: "onBlur",
+    mode: "onChange",
   });
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, touchedFields },
+
+  const { 
+    reset, 
+    handleSubmit, 
+    register, 
+    formState: { errors, touchedFields } 
   } = methods;
 
   // dynamic‐form hook
@@ -206,7 +137,6 @@ export default function FormWrapper({
     setLanguage,
     formData,
     setFormData,
-    currentStep,
     visitedSteps,
     parentSteps,
     onNavigate,
@@ -240,20 +170,77 @@ export default function FormWrapper({
     fieldErrors,
     setCurrentChildId,
     setCurrentChildParentId,
+    clearCurrentStepFormData,
   } = dynamicForm as UseDynamicFormReturn;
 
   const { parentFormData, setParentFormData } = useFormData();
 
+  const formInitialized = useRef(false);
+  const lastInitialAnswers = useRef(JSON.stringify(initialAnswers));
+  const lastUserActivity = useRef(Date.now());
+
+  // Debounced user activity tracking for better performance
+  const debouncedUserActivity = useCallback(
+    debounce(() => {
+      lastUserActivity.current = Date.now();
+    }, 100),
+    []
+  );
+
+  useEffect(() => {
+    const handleUserActivity = () => {
+      debouncedUserActivity();
+    };
+
+    document.addEventListener('input', handleUserActivity);
+    document.addEventListener('change', handleUserActivity);
+    document.addEventListener('keydown', handleUserActivity);
+
+    return () => {
+      document.removeEventListener('input', handleUserActivity);
+      document.removeEventListener('change', handleUserActivity);
+      document.removeEventListener('keydown', handleUserActivity);
+    };
+  }, [debouncedUserActivity]);
+
   useEffect(() => {
     if (initialAnswers && Object.keys(initialAnswers).length > 0) {
-      const hasChanges = JSON.stringify(initialAnswers) !== JSON.stringify(formData);
-      if (hasChanges) {
-        console.log("Resetting form with new initial answers");
-        reset(initialAnswers as any);
-        setFormData(initialAnswers);
+      try {
+        const currentInitialAnswers = JSON.stringify(initialAnswers);
+        const hasChanged = currentInitialAnswers !== lastInitialAnswers.current;
+        const isEmptyInitialAnswers = Object.keys(initialAnswers).length === 0;
+        const userRecentlyActive = (Date.now() - lastUserActivity.current) < 2000;
+        
+        if (!formInitialized.current || hasChanged || isEmptyInitialAnswers) {
+          const hasUserData = Object.values(formData).some(stepData => 
+            stepData && typeof stepData === 'object' && Object.values(stepData).some(value => 
+              value && value !== '' && value !== null && value !== undefined
+            )
+          );
+          
+          const currentStepHasData = step && formData[step.id] && 
+            Object.values(formData[step.id]).some(value => 
+              value && value !== '' && value !== null && value !== undefined
+            );
+          
+          if ((!hasUserData && !userRecentlyActive && !currentStepHasData) || isEmptyInitialAnswers) {
+            reset(initialAnswers as any);
+            setFormData(initialAnswers);
+            formInitialized.current = true;
+            lastInitialAnswers.current = currentInitialAnswers;
+          }
+        }
+      } catch (error) {
+        console.error('Error in form reset logic:', error);
+        // Fallback: initialize form if there's an error
+        if (!formInitialized.current) {
+          reset(initialAnswers as any);
+          setFormData(initialAnswers);
+          formInitialized.current = true;
+        }
       }
     }
-  }, [initialAnswers]); // Only depend on initialAnswers, not navigation
+  }, [initialAnswers, formData, step, reset, setFormData]);
 
   useEffect(() => {
     if (step && !formData[step.id]) {
@@ -271,12 +258,48 @@ export default function FormWrapper({
     ) {
       didInit.current = true;
       setFormData(initialAnswers);
-      finishHandler();
     }
-  }, [initialAnswers, setFormData, finishHandler]);
+  }, [initialAnswers, setFormData]);
 
   if (!parsedSteps.length) {
-    return <div>Loading form structure...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">No Questionnaire Available</h2>
+          <p className="text-gray-600">
+            The questionnaire data could not be loaded. Please try refreshing the page or contact support.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
+          <h2 className="text-xl font-semibold text-red-800 mb-4">Error Loading Form</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading form...</p>
+        </div>
+      </div>
+    );
   }
 
   // REVIEW MODE
@@ -324,95 +347,6 @@ export default function FormWrapper({
           color: theme.colors.text,
         }}
       >
-        {/* DEBUG BUTTONS - visible in all environments */}
-        {/* <div
-          style={{
-            position: "fixed",
-            top: "10px",
-            right: "10px",
-            zIndex: 9999,
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-          }}
-        > */}
-            {/* <button
-              type="button"
-              onClick={() => {
-                console.log("Filling form with test data...");
-
-                const stepData =
-                  DEV_TEST_DATA["EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3"];
-                const { "q10.5": q10_5, ...mainFields } = stepData as any;
-
-                const mainFormData = {
-                  EJNfvCh1PK8qqUa52RcZ73uwxJRQZrFo2LGmwhxDRrC3: mainFields,
-                };
-
-                setFormData(mainFormData);
-
-                Object.entries(mainFormData).forEach(([stepId, stepData]) => {
-                  Object.entries(stepData).forEach(([fieldId, value]) => {
-                    const fieldName = `${stepId}.${fieldId}`;
-                    methods.setValue(fieldName as any, value);
-                  });
-                });
-
-                setParentFormData({
-                  "q10.5": q10_5,
-                });
-
-                console.log("Form filled with test data including children!");
-              }}
-              style={{
-                padding: "8px 12px",
-                backgroundColor: "#007bff",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "12px",
-                fontWeight: "bold",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "#0056b3")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "#007bff")
-              }
-            >
-              🧪 Fill Test Data
-            </button> */}
-            {/* <button
-              type="button"
-              onClick={() => {
-                console.log("Current form data:", formData);
-                console.log(
-                  "Current React Hook Form values:",
-                  methods.getValues()
-                );
-              }}
-              style={{
-                padding: "8px 12px",
-                backgroundColor: "#28a745",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "12px",
-                fontWeight: "bold",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "#1e7e34")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "#28a745")
-              }
-                         >
-               📊 Log State
-             </button> */}
-           {/* </div> */}
-
         <FormHeader
           language={language}
           setLanguage={setLanguage}
@@ -512,7 +446,7 @@ export default function FormWrapper({
                           language={language}
                           registerFieldRef={registerFieldRef}
                           // Register with RHF:
-                          register={(register as any)(name)}
+                          register={register(name as any)}
                           // dynamic onChange + keep RHF in sync:
                           handleFieldChange={(newVal) => {
                             handleFieldChange(field, newVal);
@@ -535,6 +469,7 @@ export default function FormWrapper({
                           setCurrentChildParentId={setCurrentChildParentId}
                           fieldErrors={fieldErrors}
                           isValid__UTF8={isValid__UTF8}
+                          clearCurrentStepFormData={clearCurrentStepFormData}
                         />
 
                         {/* only show error if blurred */}

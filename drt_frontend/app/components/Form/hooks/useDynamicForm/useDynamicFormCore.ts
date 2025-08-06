@@ -83,9 +83,12 @@ export function useDynamicForm(parsedSteps: Step[]) {
     const saved = sessionStorage.getItem("formData");
     return saved ? JSON.parse(saved) : {};
   });
-  // Write back on every change
+  
+  // Write back on every change, but only if formData is not empty
   useEffect(() => {
-    sessionStorage.setItem("formData", JSON.stringify(formData));
+    if (typeof window !== "undefined" && Object.keys(formData).length > 0) {
+      sessionStorage.setItem("formData", JSON.stringify(formData));
+    }
   }, [formData]);
 
   const [currentChildId, setCurrentChildId] = useState<string | null>(null);
@@ -152,19 +155,7 @@ export function useDynamicForm(parsedSteps: Step[]) {
         }));
       }
 
-      // // Validate this single field and store in fieldErrors
-      // const errorMsg = validateCurrentPageData(
-      //   parsedSteps,
-      //   currentStep,
-      //   pageIndexByStep,
-      //   language,
-      //   formFieldRefs,
-      //   (errs) => setFieldErrors((prev) => ({ ...prev, ...errs }))
-      // )
-      //   ? ""
-      //   : `Invalid input for ${field.id}`;
-      
-      // Field-level validation for just this field:
+      // Field-level validation for just this field
       const errorMsg = validateField(field, normalizedValue, language) || "";
 
       setFieldErrors((prev) => ({
@@ -260,7 +251,9 @@ export function useDynamicForm(parsedSteps: Step[]) {
     setCurrentChildId,
     setCurrentChildParentId,
     currentChildId,
-    currentChildParentId
+    currentChildParentId,
+    deleteChild,
+    isNewChild
   );
 
   const {
@@ -289,6 +282,32 @@ export function useDynamicForm(parsedSteps: Step[]) {
       stepData = formData[stepObj.id] || {};
     }
 
+    // Clear all form fields first to prevent data persistence
+    currentPage.sections.forEach((section) => {
+      section.fields.forEach((field: Field) => {
+        const element = formFieldRefs.current[field.id];
+        if (!element) return;
+
+        if (field.type === "select" || field.type === "dropdown") {
+          if (element instanceof HTMLInputElement && element.type === "checkbox") {
+            const checkboxes = document.querySelectorAll<HTMLInputElement>(`input[type=checkbox][name='${element.name}']`);
+            checkboxes.forEach((cb) => {
+              cb.checked = false;
+            });
+          } else if (element instanceof HTMLSelectElement) {
+            const selectEl = element as HTMLSelectElement;
+            Array.from(selectEl.options).forEach((opt) => {
+              opt.selected = false;
+            });
+          }
+        } else {
+          const inputEl = element as HTMLInputElement | HTMLTextAreaElement;
+          inputEl.value = "";
+        }
+      });
+    });
+
+    // Now set the correct values
     currentPage.sections.forEach((section) => {
       section.fields.forEach((field: Field) => {
         const fieldValue = stepData[field.id] || "";
@@ -329,13 +348,64 @@ export function useDynamicForm(parsedSteps: Step[]) {
     editExistingChild,
   ]);
 
+  // Clear current step form data
+  const clearCurrentStepFormData = useCallback(() => {
+    const stepObj = parsedSteps[currentStep];
+    if (!stepObj) return;
+
+    const currentPageIdx = pageIndexByStep[stepObj.id] ?? 0;
+    const currentPage: Page_parsed | undefined = stepObj.pages[currentPageIdx];
+    if (!currentPage) return;
+
+    // Clear all form fields
+    currentPage.sections.forEach((section) => {
+      section.fields.forEach((field: Field) => {
+        const element = formFieldRefs.current[field.id];
+        if (!element) return;
+
+        if (field.type === "select" || field.type === "dropdown") {
+          if (element instanceof HTMLInputElement && element.type === "checkbox") {
+            const checkboxes = document.querySelectorAll<HTMLInputElement>(`input[type=checkbox][name='${element.name}']`);
+            checkboxes.forEach((cb) => {
+              cb.checked = false;
+            });
+          } else if (element instanceof HTMLSelectElement) {
+            const selectEl = element as HTMLSelectElement;
+            Array.from(selectEl.options).forEach((opt) => {
+              opt.selected = false;
+            });
+          }
+        } else {
+          const inputEl = element as HTMLInputElement | HTMLTextAreaElement;
+          inputEl.value = "";
+        }
+      });
+    });
+  }, [parsedSteps, currentStep, pageIndexByStep]);
+
+  // Clear and refill form data when switching between children
+  useEffect(() => {
+    if (currentChildId !== null || currentChildParentId !== null) {
+      prefillCurrentPageData();
+    }
+  }, [currentChildId, currentChildParentId, prefillCurrentPageData]);
+
+  // Clear form data when child ID changes to prevent data persistence
+  useEffect(() => {
+    if (currentChildId !== null) {
+      clearCurrentStepFormData();
+      setTimeout(() => {
+        prefillCurrentPageData();
+      }, 0);
+    }
+  }, [currentChildId, clearCurrentStepFormData, prefillCurrentPageData]);
+
   const [debugMode, setDebugMode] = useState(false);
 
   const resetForm = () => {
     setFormData({});
     setCurrentStep(0);
     setVisitedSteps(new Set([parsedSteps[0]?.id]));
-    // ...any other resets...
   };
 
   return {
@@ -392,6 +462,7 @@ export function useDynamicForm(parsedSteps: Step[]) {
     editExistingChild,
     handleVerifyAndSubmit,
     prefillCurrentPageData,
+    clearCurrentStepFormData,
     debugMode,
     setDebugMode,
     resetForm,

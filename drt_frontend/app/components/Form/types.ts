@@ -9,17 +9,11 @@ import {
 
 import { ChildRecord, ParentFormData } from "../Form/context/FormDataContext";
 
-/**
- * ParsedStep is the same as Step, but with a more descriptive name.
- * It represents a step in the form, which can contain multiple pages.
- */
+
 export type ParsedStep = Step;
 export type ParsedPage = Page_parsed;
 
-/**
- * ParsedSection is a section within a step, containing fields.
- * It has a sectionKey (unique identifier) and sectionLabel (localized labels).
- */
+
 export interface ParsedSection {
   sectionKey: string;
   sectionLabel: Record<string, string>;
@@ -27,9 +21,7 @@ export interface ParsedSection {
   fields: Field[];
 }
 
-/**
- * Each individual field (text, date, radio, dropdown, reference, etc.)
- */
+
 export type ParsedField = Field;
 
 
@@ -90,6 +82,7 @@ export interface UseDynamicFormReturn {
   setIsNewChild: (v: boolean) => void;
 
   prefillCurrentPageData: () => void;
+  clearCurrentStepFormData: () => void;
 }
 
 

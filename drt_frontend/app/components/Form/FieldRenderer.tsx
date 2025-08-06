@@ -42,6 +42,7 @@ interface FieldRendererProps {
   setCurrentChildParentId: (id: string | null) => void;
   fieldErrors: Record<string, string>;
   isValid__UTF8: (text: string) => boolean;
+  clearCurrentStepFormData: () => void;
 }
 
 export default function FieldRenderer({
@@ -61,15 +62,13 @@ export default function FieldRenderer({
   setIsNewChild,
   setCurrentChildId,
   setCurrentChildParentId,
-  fieldErrors,
   isValid__UTF8,
+  clearCurrentStepFormData,
 }: FieldRendererProps) {
   const theme = useTheme();
 
-  // pull in your context helpers
   const {
     createNewChild: ctxCreate,
-    editExistingChild: ctxEdit,
     deleteChild: ctxDelete,
   } = useFormData();
 
@@ -281,8 +280,10 @@ export default function FieldRenderer({
 
             setCurrentChildId(newChild.id);
             setCurrentChildParentId(field.id);
+            setIsNewChild(true);
 
-            setIsNewChild(false);
+            // Clear any existing form data before navigating
+            clearCurrentStepFormData();
 
             // Navigate to the child step
             const targetIndex = parsedSteps.findIndex(
@@ -354,9 +355,13 @@ export default function FieldRenderer({
                           <button
                             type="button"
                             onClick={() => {
-                              // Enter "edit mode"
                               setCurrentChildId(child.id);
                               setCurrentChildParentId(field.id);
+                              setIsNewChild(false);
+                              
+                              // Clear any existing form data before navigating
+                              clearCurrentStepFormData();
+                              
                               const idx = parsedSteps.findIndex(
                                 (s) => s.id === child.stepId
                               );

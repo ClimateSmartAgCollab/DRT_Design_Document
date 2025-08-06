@@ -27,7 +27,9 @@ export function usePageNavigation(
   setCurrentChildId?: (id: string | null) => void,
   setCurrentChildParentId?: (id: string | null) => void,
   currentChildId?: string | null,
-  currentChildParentId?: string | null
+  currentChildParentId?: string | null,
+  deleteChild?: (childId: string, parentId: string, childStepId: string) => void,
+  isNewChild?: boolean
 ) {
   const goToNextParent = useCallback(() => {
     if (!validateCurrentPageData(
@@ -232,7 +234,13 @@ export function usePageNavigation(
   ]);
 
   const cancelHandler = useCallback(() => {
-    saveCurrentPageData();
+    // Delete the child data if this is a new child being created
+    if (currentChildId && currentChildParentId && isNewChild && deleteChild) {
+      const stepObj = parsedSteps[currentStep];
+      if (stepObj) {
+        deleteChild(currentChildId, currentChildParentId, stepObj.id);
+      }
+    }
     
     // Reset child state when canceling
     if (setCurrentChildId) {
@@ -243,7 +251,7 @@ export function usePageNavigation(
     }
     
     setCurrentStep(0);
-  }, [saveCurrentPageData, setCurrentStep, setCurrentChildId, setCurrentChildParentId]);
+  }, [currentChildId, currentChildParentId, isNewChild, deleteChild, parsedSteps, currentStep, setCurrentStep, setCurrentChildId, setCurrentChildParentId]);
 
   // Enhanced navigation function for direct step/page navigation
   const handleNavigate = useCallback(
