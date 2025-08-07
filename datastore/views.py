@@ -7,7 +7,7 @@ import csv
 import io
 from django.views.decorators.csrf import csrf_exempt
 import logging
-import threading
+from drt.tasks import refresh_data_task
 
 logger = logging.getLogger(__name__)
 
@@ -244,16 +244,8 @@ def github_webhook(request):
             cache.delete_pattern('questionnaire_json_*')
             cache.delete_pattern('license_template_*')
             
-            # Refresh data in background thread
-            def refresh_data():
-                try:
-                    load_github_data(request)
-                except Exception as e:
-                    logger.error(f"Background refresh error: {str(e)}")
-            
-            thread = threading.Thread(target=refresh_data)
-            thread.daemon = True
-            thread.start()
+            # Refresh data in background using Celery
+            refresh_data_task.delay()
             
             return JsonResponse({'status': 'Cache cleared, refresh started'}, status=200)
             

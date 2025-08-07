@@ -11,7 +11,17 @@ SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 SESSION_COOKIE_AGE = 60 * 60  # 1 hour
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
-
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/1')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://redis:6379/1')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ALWAYS_EAGER = False  # Set to True for testing without Celery
 
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",

@@ -72,10 +72,8 @@ export default function FillQuestionnairePage() {
     onSuccess: (_data, variables) => {
       if (!variables.isSubmit) {
         setStatusMessage("Questionnaire saved successfully.");
-        // Optionally refetch the data to sync with server
-        queryClient.invalidateQueries({
-          queryKey: ["fillQuestionnaire", linkId],
-        });
+        // Don't refetch data after save to avoid resetting form state
+        // The form data is already up-to-date locally
       } else {
         router.push(`/negotiation/${linkId}/fill-questionnaire/success`);
       }

@@ -11,79 +11,12 @@ from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 import datetime
 import logging
 import secrets
-import threading
+from ..tasks import send_owner_email_task, send_requestor_email_task
 
 logger = logging.getLogger(__name__)
-
-def send_owner_email_async(email, magic_link, expiry):
-    """Send owner email asynchronously"""
-    try:
-        msg = EmailMultiAlternatives(
-            subject="Access Link for Owner Verification" ,
-            body=(
-                "Hello Dear Data Owner,\n\n"
-                "Click the link below to verify your email and access the owner dashboard:\n\n"
-                f"    {magic_link}\n\n"
-                f"This link will expire at {expiry:%H:%M}.\n\n"
-                "For your security, please do not share this link with anyone. "
-                "If you did not request this link, simply ignore this message or "
-                "contact our support team at ssanavi@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[email],
-        )
-        html_content = f"""
-            <p>Hello Dear Data Owner,</p>
-            <p>Click the link below to verify your email and access the owner dashboard:</p>
-            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
-            <p>This link will expire at {expiry:%H:%M}.</p>
-            <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
-        msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
-    except Exception as e:
-        logger.error(f"Error sending owner email: {str(e)}")
-
-def send_requestor_email_async(email, magic_link, expiry):
-    """Send requestor email asynchronously"""
-    try:
-        msg = EmailMultiAlternatives(
-            subject="Access Link for Requestor Verification",
-            body=(
-                "Hello Dear Requestor,\n\n"
-                "Click the link below to verify your email and access the dashboard:\n\n"
-                f"    {magic_link}\n\n"
-                f"This link will expire at {expiry:%H:%M}.\n\n"
-                "For your security, please do not share this link with anyone. "
-                "If you did not request this link, simply ignore this message or "
-                "contact our support team at ssanavi@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[email],
-        )
-        html_content = f"""
-            <p>Hello Dear Requestor,</p>
-            <p>Click the link below to verify your email and access the dashboard:</p>
-            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
-            <p>This link will expire at {expiry:%H:%M}.</p>
-            <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
-        msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
-    except Exception as e:
-        logger.error(f"Error sending requestor email: {str(e)}")
 
 
 @csrf_exempt
@@ -131,8 +64,8 @@ def owner_email_entry(request):
         )
 
         try:
-            # Use threading to send email asynchronously
-            threading.Thread(target=send_owner_email_async, args=(email, magic_link, expiry)).start()
+            # Use Celery to send email asynchronously
+            send_owner_email_task.delay(email, magic_link, expiry)
         except Exception as email_error:
             logger.exception("Email sending failed")
             # Return the real SMTP exception to the client for now
@@ -227,8 +160,8 @@ def req_email_entry(request):
             settings.EMAIL_HOST_USER,
         )
         try:
-            # Use threading to send email asynchronously
-            threading.Thread(target=send_requestor_email_async, args=(email, magic_link, expiry)).start()
+            # Use Celery to send email asynchronously
+            send_requestor_email_task.delay(email, magic_link, expiry)
         except Exception as email_error:
             logger.exception("Email sending failed")
             # Return the real SMTP exception to the client for now

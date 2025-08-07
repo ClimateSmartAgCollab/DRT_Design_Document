@@ -1,10 +1,9 @@
 from django.core.cache import cache
-from jinja2 import Environment, FileSystemLoader, select_autoescape, Template
-from django.utils.translation import gettext_lazy as _
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
+from jinja2 import Environment, FileSystemLoader, select_autoescape, Template
+from django.utils.translation import gettext_lazy as _
 import logging
-import threading
 
 logger = logging.getLogger(__name__)
 
@@ -99,16 +98,7 @@ def generate_license_and_notify_owner(nlink):
             logger.error(f"Owner email not found for ID: {nlink.owner_id}")
             return
 
-        # Send email asynchronously
-        send_license_email_async(owner_email, nlink, attachments)
-
-    except Exception as e:
-        logger.error(f"Error in license generation: {str(e)}")
-
-
-def send_license_email_async(owner_email, nlink, attachments):
-    """Send license email asynchronously"""
-    try:
+        # Send email directly
         subject = "License Agreement for Record – " + nlink.record_label
         body = (
             f"Hello Dear Data Owner,\n\n"
@@ -133,5 +123,8 @@ def send_license_email_async(owner_email, nlink, attachments):
             email.attach(filename, content, mimetype)
 
         email.send(fail_silently=True)
+        logger.info(f"License email sent successfully to {owner_email}")
+
     except Exception as e:
-        logger.error(f"Error sending license email: {str(e)}")
+        logger.error(f"Error in license generation: {str(e)}")
+

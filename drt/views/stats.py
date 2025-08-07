@@ -15,7 +15,7 @@ from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 import json
 import logging
-import threading
+from ..tasks import handle_negotiation_archive_and_summary_task
 
 logger = logging.getLogger(__name__)
 
@@ -294,14 +294,14 @@ def archive_view(request, negotiation_id):
 def generate_summary_statistics(sender, instance, **kwargs):
     """Generate summary statistics and archive negotiation upon state change."""
     if instance.state in ['completed', 'canceled', 'rejected']:
-        threading.Thread(target=handle_negotiation_archive_and_summary_async, args=(instance,)).start()
+        handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
 
 
 @receiver(post_save, sender=Negotiation)
 def generate_summary_statistics_duplicate(sender, instance, **kwargs):
     """Auto-archive and export statistics when a negotiation is completed, canceled, or rejected."""
     if instance.state in ['completed', 'canceled', 'rejected'] and not instance.archived:
-        threading.Thread(target=handle_negotiation_archive_and_summary_async, args=(instance,)).start()
+        handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
 
 
 def handle_negotiation_archive_and_summary_async(negotiation):

@@ -6,9 +6,10 @@ WORKDIR /usr/src
 RUN pip install pipenv
 
 RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get dist-upgrade -y \
-    && apt-get install -y gcc netcat-traditional \
+    && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    netcat-traditional \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,6 +26,12 @@ RUN pip install django-cors-headers whitenoise
 COPY entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+
+WORKDIR /usr/src
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
 
 COPY . .
 

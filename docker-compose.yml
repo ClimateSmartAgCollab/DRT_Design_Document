@@ -15,6 +15,37 @@ services:
       - .:/usr/src
     depends_on:
       - postgres
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: ./docker/backend.Dockerfile
+    labels:
+      - drt_celery_worker
+    command: celery -A drt_core worker --loglevel=info --concurrency=3
+    env_file:
+      - .env
+      - .env.staging
+    volumes:
+      - .:/usr/src
+    depends_on:
+      - postgres
+      - redis
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: ./docker/backend.Dockerfile
+    labels:
+      - drt_celery_beat
+    command: celery -A drt_core beat --loglevel=info
+    env_file:
+      - .env
+      - .env.staging
+    volumes:
+      - .:/usr/src
+    depends_on:
+      - postgres
       - redis
 
   frontend:

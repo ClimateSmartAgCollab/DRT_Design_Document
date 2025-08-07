@@ -13,74 +13,17 @@ import datetime
 import logging
 import json
 import traceback
-import threading
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
-from ..services.license import generate_license_and_notify_owner
 from .utils import owner_auth_required, requestor_auth_required
+from ..tasks import (
+    send_notification_emails_task, 
+    fetch_questionnaire_task, 
+    generate_license_and_notify_owner_task,
+    send_rejection_email_task,
+    send_clarification_email_task
+)
 
 logger = logging.getLogger(__name__)
-
-def send_notification_emails_async(nlink, owner_review_url):
-    """Send notification emails asynchronously to avoid blocking the response"""
-    try:
-        msg = EmailMultiAlternatives(
-            subject="Your Data Request Has Been Received",
-            body=(
-                "Hello Dear Requestor,\n\n"
-                "Thank you for submitting your data request. We have received it successfully and will notify you as soon as the owner has reviewed it.\n\n"
-                "If you have any questions in the meantime, please reach out to our support team at ssanavi@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[nlink.requestor_email],
-            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-        )
-        msg.send(fail_silently=True)  
-
-        owner_table = cache.get("owner_table")
-        if owner_table and nlink.owner_id in owner_table:
-            owner_email = owner_table[nlink.owner_id]["owner_email"]
-            
-            msg = EmailMultiAlternatives(
-                subject = "Action Required: New Data Request for Record – " + nlink.record_label,
-                body = (
-                    "Hello Dear Data Owner,\n\n"
-                    "A new data request has been submitted and is currently awaiting your review.\n\n"
-                    f"You may review the request at the following link:\n\n"
-                    f"    {owner_review_url}\n\n"
-                    "Below are the details of the request for your reference:\n"
-                    f"  • Data Label: {nlink.data_label}\n"
-                    f"  • Tags: {nlink.tags}\n"
-                    f"  • Record Label: {nlink.record_label}\n"
-                    f"  • Requestor Email: {nlink.requestor_email}\n\n"
-                    "Please log in and provide your feedback at your earliest convenience.\n"
-                    "If you have any questions or require assistance, feel free to contact our team at ssanavi@uoguelph.ca.\n\n"
-                    "Thank you for your prompt attention.\n\n"
-                    "Best regards,\n"
-                    "The DRT System"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[owner_email],
-                headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-            )
-            html_content = f"""
-                <p>Hello Dear Owner,</p>
-                <p>A new data request has been submitted and is awaiting your review.</p>
-                <p>You can review the request here:</p>
-                <p><a href=\"{owner_review_url}\" target=\"_blank\">{owner_review_url}</a></p>
-                <p>Please log in and provide your feedback at your earliest convenience.<br>
-                If you have any questions, simply reach out to our support team at ssanavi@uoguelph.ca.</p>
-                <p>Thank you for your prompt attention.</p>
-                <p>Best regards,<br>The DRT System</p>
-            """
-            msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=True)  
-            
-    except Exception as e:
-        logger.error(f"Error sending notification emails: {str(e)}")
-
 
 @csrf_exempt
 @api_view(['GET'])
@@ -135,8 +78,8 @@ def generate_nlinks(request, link_id):
 def request_access(request, link_id):
     """Send the requestor a direct link to access the questionnaire."""
 
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
+    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
 
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
@@ -178,16 +121,12 @@ def fill_questionnaire(request, link_id):
             negotiation.state = 'owner_open'
             negotiation.save()
 
-            frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-            # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
+            # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+            frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
             owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
-            email_thread = threading.Thread(
-                target=send_notification_emails_async,
-                args=(nlink, owner_review_url)
-            )
-            email_thread.daemon = True
-            email_thread.start()
+            # Use Celery to send notification emails asynchronously
+            send_notification_emails_task.delay(nlink.link_id, owner_review_url)
 
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
 
@@ -202,16 +141,8 @@ def fill_questionnaire(request, link_id):
         if cached_json:
             questionnaire_json = cached_json
         else:
-            def fetch_questionnaire_async():
-                try:
-                    from datastore.views import fetch_questionnaire_json
-                    fetched_json = fetch_questionnaire_json(negotiation.questionnaire_SAID)
-                    if fetched_json:
-                        cache.set(cache_key, fetched_json, timeout=60*60*24)
-                except Exception as e:
-                    logger.error(f"Error fetching questionnaire asynchronously: {str(e)}")
-            
-            threading.Thread(target=fetch_questionnaire_async, daemon=True).start()
+            # Use Celery to fetch questionnaire asynchronously
+            fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
             
             questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
         
@@ -249,16 +180,8 @@ def owner_review(request, link_id):
         if cached_json:
             questionnaire_json = cached_json
         else:
-            def fetch_questionnaire_async():
-                try:
-                    from datastore.views import fetch_questionnaire_json
-                    fetched_json = fetch_questionnaire_json(negotiation.questionnaire_SAID)
-                    if fetched_json:
-                        cache.set(cache_key, fetched_json, timeout=60*60*24)
-                except Exception as e:
-                    logger.error(f"Error fetching questionnaire asynchronously: {str(e)}")
-            
-            threading.Thread(target=fetch_questionnaire_async, daemon=True).start()
+            # Use Celery to fetch questionnaire asynchronously
+            fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
             
             questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
 
@@ -284,7 +207,7 @@ def owner_review(request, link_id):
             negotiation.state = 'completed'
             negotiation.save()
             
-            threading.Thread(target=generate_license_and_notify_owner, args=(nlink,)).start()
+            generate_license_and_notify_owner_task.delay(nlink.link_id)
             
             return Response({'message': 'Request accepted, license generation started!'})
 
@@ -295,7 +218,7 @@ def owner_review(request, link_id):
             negotiation.save()
             
             if rationale.strip():
-                threading.Thread(target=send_rejection_email_with_rationale, args=(nlink.requestor_email, nlink.requestor_link, rationale)).start()
+                send_rejection_email_task.delay(nlink.requestor_email, nlink.requestor_link, rationale)
             
             return Response({'message': 'Request rejected!'})
 
@@ -305,81 +228,27 @@ def owner_review(request, link_id):
             negotiation.state = 'requestor_open'
             negotiation.save()
 
-            threading.Thread(target=send_clarification_email, args=(nlink.requestor_email, nlink.requestor_link)).start()
+            send_clarification_email_task.delay(nlink.requestor_email, nlink.requestor_link)
             
             return Response({'message': 'Clarification requested!'})
 
         elif 'resend' in data:
-            threading.Thread(target=generate_license_and_notify_owner, args=(nlink,)).start()
+            generate_license_and_notify_owner_task.delay(nlink.link_id)
             
             return Response({'message': 'Email resend started!'})
 
 
 def send_clarification_email(requestor_email, link_id):
 
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
+    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
+    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://drt-test.canadacentral.cloudapp.azure.com/')
 
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
     # Send email directly (no threading needed since called with threading from view)
-    send_clarification_email_async(requestor_email, clarification_url)
+    send_clarification_email_task(requestor_email, clarification_url)
 
 
 def send_rejection_email_with_rationale(requestor_email, requestor_link, rationale):
     # Send email directly (no threading needed since called with threading from view)
-    send_rejection_email_async(requestor_email, requestor_link, rationale)
-
-
-def send_clarification_email_async(requestor_email, clarification_url):
-    """Send clarification email asynchronously"""
-    try:
-        msg = EmailMultiAlternatives(
-            subject="Action Required: Additional Information Required",
-            body=(
-                "Hello Dear Requestor,\n\n"
-                "We need a bit more information to proceed with your request. "
-                "Please complete the necessary details by accessing your form at the link below:\n\n"
-                f"    {clarification_url}\n\n"
-                "If you have any questions or need assistance, simply reach out to our support team at ssanavi@uoguelph.ca.\n\n"
-                "Thank you for your prompt attention.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[requestor_email],
-            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-        )
-        html_content = f"""
-            <p>Hello Dear Requestor,</p>
-            <p>We need a bit more information to proceed with your request. Please complete the necessary details by accessing your form at the link below:</p>
-            <p><a href=\"{clarification_url}\" target=\"_blank\">{clarification_url}</a></p>
-            <p>If you have any questions or need assistance, simply reach out to our support team at ssanavi@uoguelph.ca.</p>
-            <p>Thank you for your prompt attention.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
-        msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
-    except Exception as e:
-        logger.error(f"Error sending clarification email: {str(e)}")
-
-def send_rejection_email_async(requestor_email, requestor_link, rationale):
-    """Send rejection email asynchronously"""
-    try:
-        msg = EmailMultiAlternatives(
-            subject="Your Data Request Was Rejected",
-            body=(
-                "Hello Dear Requestor,\n\n"
-                "We regret to inform you that your data request has been rejected by the owner.\n\n"
-                f"Rationale provided by the owner:\n\n{rationale}\n\n"
-                "If you have any questions or wish to revise your request, please contact our support team at ssanavi@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[requestor_email],
-            headers={'Reply-To': settings.DEFAULT_FROM_EMAIL},
-        )
-        msg.send(fail_silently=True)
-    except Exception as e:
-        logger.error(f"Error sending rejection email: {str(e)}")
+    send_rejection_email_task(requestor_email, requestor_link, rationale)

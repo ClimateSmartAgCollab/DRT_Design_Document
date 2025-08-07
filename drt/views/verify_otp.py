@@ -6,47 +6,14 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework.response import Response
-from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from datetime import timedelta
 from ..models import Requestor, NLink
 import secrets
 import logging
-import threading
+from ..tasks import send_magic_link_resend_email_task
 
 logger = logging.getLogger(__name__)
-
-def send_magic_link_resend_email_async(requestor, magic_link):
-    """Send magic link resend email asynchronously"""
-    try:
-        msg = EmailMultiAlternatives(
-            subject="Access Link Verification (Resent)",
-            body=(
-                "Hello,\n\n"
-                "Click the link below to verify your email:\n\n"
-                f"    {magic_link}\n\n"
-                "For your security, please do not share this link with anyone. "
-                "If you did not request this link, simply ignore this message or "
-                "contact our support team at ssanavi@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[requestor.requestor_email],
-            headers={"Reply-To": settings.DEFAULT_FROM_EMAIL},
-        )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>Click the link below to verify your email:</p>
-            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
-            <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
-        msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
-    except Exception as e:
-        logger.error(f"Error sending magic link resend email: {str(e)}")
 
 
 @csrf_exempt
@@ -86,8 +53,8 @@ def verify_magic_link_view(request, link_id):
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?token={token}"
 
-        # Send email asynchronously
-        threading.Thread(target=send_magic_link_resend_email_async, args=(requestor, magic_link)).start()
+        # Send email asynchronously using Celery
+        send_magic_link_resend_email_task.delay(requestor.requestor_email, magic_link)
 
         return Response({'message': 'Access link resent successfully.'},
                         status=status.HTTP_200_OK)

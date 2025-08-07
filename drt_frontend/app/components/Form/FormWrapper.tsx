@@ -27,17 +27,7 @@ import ReviewSection from "./ReviewSection";
 import styles from "./Form.module.css";
 import Footer from "../Footer/footer";
 
-// delay the execution 
-const debounce = <T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
+
 
 interface FormWrapperProps extends FormProps {
   parsedSteps?: ParsedStep[]; 
@@ -177,58 +167,19 @@ export default function FormWrapper({
 
   const formInitialized = useRef(false);
   const lastInitialAnswers = useRef(JSON.stringify(initialAnswers));
-  const lastUserActivity = useRef(Date.now());
-
-  // Debounced user activity tracking for better performance
-  const debouncedUserActivity = useCallback(
-    debounce(() => {
-      lastUserActivity.current = Date.now();
-    }, 100),
-    []
-  );
-
-  useEffect(() => {
-    const handleUserActivity = () => {
-      debouncedUserActivity();
-    };
-
-    document.addEventListener('input', handleUserActivity);
-    document.addEventListener('change', handleUserActivity);
-    document.addEventListener('keydown', handleUserActivity);
-
-    return () => {
-      document.removeEventListener('input', handleUserActivity);
-      document.removeEventListener('change', handleUserActivity);
-      document.removeEventListener('keydown', handleUserActivity);
-    };
-  }, [debouncedUserActivity]);
 
   useEffect(() => {
     if (initialAnswers && Object.keys(initialAnswers).length > 0) {
       try {
         const currentInitialAnswers = JSON.stringify(initialAnswers);
         const hasChanged = currentInitialAnswers !== lastInitialAnswers.current;
-        const isEmptyInitialAnswers = Object.keys(initialAnswers).length === 0;
-        const userRecentlyActive = (Date.now() - lastUserActivity.current) < 2000;
         
-        if (!formInitialized.current || hasChanged || isEmptyInitialAnswers) {
-          const hasUserData = Object.values(formData).some(stepData => 
-            stepData && typeof stepData === 'object' && Object.values(stepData).some(value => 
-              value && value !== '' && value !== null && value !== undefined
-            )
-          );
-          
-          const currentStepHasData = step && formData[step.id] && 
-            Object.values(formData[step.id]).some(value => 
-              value && value !== '' && value !== null && value !== undefined
-            );
-          
-          if ((!hasUserData && !userRecentlyActive && !currentStepHasData) || isEmptyInitialAnswers) {
-            reset(initialAnswers as any);
-            setFormData(initialAnswers);
-            formInitialized.current = true;
-            lastInitialAnswers.current = currentInitialAnswers;
-          }
+        // Only reset on initial load, never after that to preserve user input
+        if (!formInitialized.current) {
+          reset(initialAnswers as any);
+          setFormData(initialAnswers);
+          formInitialized.current = true;
+          lastInitialAnswers.current = currentInitialAnswers;
         }
       } catch (error) {
         console.error('Error in form reset logic:', error);
@@ -247,6 +198,28 @@ export default function FormWrapper({
       prefillCurrentPageData();
     }
   }, [step?.id]);
+
+  // Auto-save when formData changes (but only for actual changes, not initial load)
+  const lastSavedData = useRef(JSON.stringify(formData));
+  const hasInitialized = useRef(false);
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      lastSavedData.current = JSON.stringify(formData);
+      return;
+    }
+    
+    const currentFormDataString = JSON.stringify(formData);
+    if (currentFormDataString !== lastSavedData.current && Object.keys(formData).length > 0) {
+      // Debounce the save to avoid too many API calls
+      const timeoutId = setTimeout(() => {
+        onSave(formData);
+        lastSavedData.current = JSON.stringify(formData);
+      }, 2000); // Save after 2 seconds of no changes
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formData, onSave]);
 
   // One-time init from initialAnswers
   const didInit = useRef(false);
@@ -452,7 +425,11 @@ export default function FormWrapper({
                             handleFieldChange(field, newVal);
                             methods.setValue(name, newVal);
                           }}
-                          saveCurrentPageData={() => onSave(formData)}
+                          saveCurrentPageData={() => {
+                            // This function is called on field blur, but we don't need to save immediately
+                            // The form data is already updated by handleFieldChange
+                            // We'll let the useEffect handle saving when formData changes
+                          }}
                           formData={formData}
                           stepId={step.id}
                           createNewChild={createNewChild}
