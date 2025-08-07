@@ -230,9 +230,32 @@ export default function FormWrapper({
       Object.keys(initialAnswers).length
     ) {
       didInit.current = true;
+      
+      // Clear sessionStorage to ensure we start fresh with the new data
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("formData");
+        sessionStorage.removeItem("parentFormData");
+      }
+      
       setFormData(initialAnswers);
+      
+      // Initialize parentFormData with children data from initialAnswers
+      const parentDataWithChildren: Record<string, any> = {};
+      Object.keys(initialAnswers).forEach(key => {
+        const answer = initialAnswers[key];
+        if (answer && typeof answer === 'object' && answer.childrenData) {
+          parentDataWithChildren[key] = {
+            ...answer,
+            childrenData: answer.childrenData
+          };
+        }
+      });
+      
+      if (Object.keys(parentDataWithChildren).length > 0) {
+        setParentFormData(parentDataWithChildren);
+      }
     }
-  }, [initialAnswers, setFormData]);
+  }, [initialAnswers, setFormData, setParentFormData]);
 
   if (!parsedSteps.length) {
     return (
