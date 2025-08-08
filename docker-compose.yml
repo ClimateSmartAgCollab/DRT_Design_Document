@@ -5,12 +5,12 @@ services:
       dockerfile: ./docker/backend.Dockerfile
     labels:
       - drt_backend
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python manage.py runserver
     env_file:
       - .env
       - .env.staging
     ports:
-      - 8000:8000
+      - "127.0.0.1:8000:8000"
     volumes:
       - .:/usr/src
     depends_on:
@@ -54,7 +54,7 @@ services:
       dockerfile: frontend.Dockerfile
     command: npm start
     ports:
-      - "80:3000"
+      - "127.0.0.1:3000:3000"
     # environment:
     #   - NODE_ENV=production
     # env_file:
