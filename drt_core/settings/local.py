@@ -49,12 +49,12 @@ if ENVIRONMENT == "staging":
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://drt-test.canadacentral.cloudapp.azure.com",
-    "http://drt-test.canadacentral.cloudapp.azure.com:80",
+    "https://drt-test.canadacentral.cloudapp.azure.com",
+    "https://drt-test.canadacentral.cloudapp.azure.com:80",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
-FRONTEND_BASE_URL = "http://drt-test.canadacentral.cloudapp.azure.com:80"
+FRONTEND_BASE_URL = "https://drt-test.canadacentral.cloudapp.azure.com"
 # FRONTEND_BASE_URL = "http://127.0.0.1:3000"
 
 DATABASES = {
