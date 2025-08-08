@@ -105,11 +105,11 @@ export default function RequestorHomePage() {
   // ender the dashboard
   const requestorPages = [
     { name: "Negotiation List", href: `/negotiation/list`, emoji: "📋" },
-    {
-      name: "Summary Statistics",
-      href: `/negotiation/summary?requestor=${encodeURIComponent(email)}`,
-      emoji: "📊",
-    },
+    // {
+    //   name: "Summary Statistics",
+    //   href: `/negotiation/summary?requestor=${encodeURIComponent(email)}`,
+    //   emoji: "📊",
+    // },
   ];
 
   return (

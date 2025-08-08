@@ -303,35 +303,3 @@ def refresh_data_task():
     except Exception as e:
         logger.error(f"Error refreshing data: {str(e)}")
         raise 
-
-
-    """Send license email asynchronously using Celery"""
-    try:
-        subject = "License Agreement for Record – " + nlink.record_label
-        body = (
-            f"Hello Dear Data Owner,\n\n"
-            f"We hope this message finds you well. Please find attached the license agreement documents related to the dataset for your review and negotiation.\n\n"
-            f"Below are the key details regarding this license request:\n"
-            f"  • Data Label: {nlink.data_label}\n"
-            f"  • Tags: {nlink.tags}\n"
-            f"  • Record Label: {nlink.record_label}\n"
-            f"  • Requestor Email: {nlink.requestor_email}\n\n"
-            f"Please review the attached documents at your earliest convenience. If you have any questions or require clarification, do not hesitate to contact us.\n\n"
-            f"Best regards,\n"
-            f"DART System"
-        )
-        email = EmailMultiAlternatives(
-            subject=subject,
-            body=body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[owner_email],
-        )
-
-        for filename, content, mimetype in attachments:
-            email.attach(filename, content, mimetype)
-
-        email.send(fail_silently=True)
-        logger.info(f"License email sent successfully to {owner_email}")
-    except Exception as e:
-        logger.error(f"Error sending license email: {str(e)}")
-        raise    
