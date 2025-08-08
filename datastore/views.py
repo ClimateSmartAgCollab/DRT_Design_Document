@@ -36,6 +36,7 @@ def fetch_file_from_github(file_path):
         return None
 
 # View to load GitHub data and store it only in cache
+@csrf_exempt
 def load_github_data(request):
     owner_table_csv = fetch_file_from_github('owner_table.csv')
     link_table_csv = fetch_file_from_github('linktable.csv')

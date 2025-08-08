@@ -9,19 +9,22 @@ print("▶︎ frontend base url =", os.getenv("FRONTEND_BASE_URL"))
 
 
 # We open everything on local mode
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["*", "drt-test.canadacentral.cloudapp.azure.com", "localhost", "127.0.0.1"]
 CSRF_TRUSTED_ORIGINS = ["http://*"]
 
 # during local dev over HTTP, cookies must NOT be "secure-only"
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"  # Changed from "None" for better compatibility
+CSRF_COOKIE_SAMESITE = "Lax"     # Changed from "None" for better compatibility
 
 # explicitly trust your Next.js origin(s)
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:3000",
+    "https://drt-test.canadacentral.cloudapp.azure.com",
+    "https://drt-test.canadacentral.cloudapp.azure.com:8000",
+    "http://drt-test.canadacentral.cloudapp.azure.com:8000",
 ]
 
 # allow the sessionid cookie in cross-site requests
@@ -46,17 +49,62 @@ if ENVIRONMENT == "staging":
     DEFAULT_FROM_EMAIL = "no-reply@yourapp.test"
 
 
-CORS_ORIGIN_ALLOW_ALL = True
+# CORS Configuration
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "https://drt-test.canadacentral.cloudapp.azure.com",
-    "https://drt-test.canadacentral.cloudapp.azure.com:80",
+    "https://drt-test.canadacentral.cloudapp.azure.com:8000",
+    "http://drt-test.canadacentral.cloudapp.azure.com:8000",
+    "http://drt-test.canadacentral.cloudapp.azure.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://localhost:3000",
+    "https://127.0.0.1:3000",
 ]
+
+# For development - be more restrictive in production
+CORS_ALLOW_ALL_ORIGINS = True  # Enable for debugging
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'cache-control',
+    'pragma',
+    'x-csrf-token',  # Alternative CSRF header name
+]
+
+# Additional CORS settings for better compatibility
+CORS_EXPOSE_HEADERS = [
+    'content-type',
+    'x-csrftoken',
+]
+
+# Additional CORS settings for better compatibility
+CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_ALLOW_ALL = True  # Enable for debugging
 FRONTEND_BASE_URL = "https://drt-test.canadacentral.cloudapp.azure.com"
 # FRONTEND_BASE_URL = "http://127.0.0.1:3000"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO","https")
+
+# Additional security settings for HTTPS
+SECURE_SSL_REDIRECT = False  # Set to True in production
+SECURE_HSTS_SECONDS = 0  # Set to a positive value in production
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
 
 
 DATABASES = {
