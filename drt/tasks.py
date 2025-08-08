@@ -20,7 +20,7 @@ def send_owner_email_task(email, magic_link, expiry):
                 f"This link will expire at {expiry:%H:%M}.\n\n"
                 "For your security, please do not share this link with anyone. "
                 "If you did not request this link, simply ignore this message or "
-                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "contact our support team at adc@uoguelph.ca.\n\n"
                 "Best regards,\n"
                 "The DRT System"
             ),
@@ -33,7 +33,7 @@ def send_owner_email_task(email, magic_link, expiry):
             <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
             <p>This link will expire at {expiry:%H:%M}.</p>
             <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            If you did not request this link, simply ignore this message or contact our support team at adc@uoguelph.ca.</p>
             <p>Best regards,<br>The DRT System</p>
         """
         msg.attach_alternative(html_content, "text/html")
@@ -57,7 +57,7 @@ def send_requestor_email_task(email, magic_link, expiry):
                 f"This link will expire at {expiry:%H:%M}.\n\n"
                 "For your security, please do not share this link with anyone. "
                 "If you did not request this link, simply ignore this message or "
-                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "contact our support team at adc@uoguelph.ca.\n\n"
                 "Best regards,\n"
                 "The DRT System"
             ),
@@ -70,7 +70,7 @@ def send_requestor_email_task(email, magic_link, expiry):
             <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
             <p>This link will expire at {expiry:%H:%M}.</p>
             <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            If you did not request this link, simply ignore this message or contact our support team at adc@uoguelph.ca.</p>
             <p>Best regards,<br>The DRT System</p>
         """
         msg.attach_alternative(html_content, "text/html")
@@ -254,7 +254,7 @@ def send_requestor_verification_email_task(email, magic_link, expiry):
                 f"This link will expire at {expiry:%H:%M}.\n\n"
                 "For your security, please do not share this link with anyone. "
                 "If you did not request this link, simply ignore this message or "
-                "contact our support team at ssanavi@uoguelph.ca.\n\n"
+                "contact our support team at adc@uoguelph.ca.\n\n"
                 "Best regards,\n"
                 "The DRT System"
             ),
@@ -267,7 +267,7 @@ def send_requestor_verification_email_task(email, magic_link, expiry):
             <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
             <p>This link will expire at {expiry:%H:%M}.</p>
             <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at ssanavi@uoguelph.ca.</p>
+            If you did not request this link, simply ignore this message or contact our support team at adc@uoguelph.ca.</p>
             <p>Best regards,<br>The DRT System</p>
         """
         msg.attach_alternative(html_content, "text/html")
