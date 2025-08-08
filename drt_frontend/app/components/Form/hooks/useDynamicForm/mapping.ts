@@ -328,8 +328,8 @@ export function useSubmissionMapping(
   const handleVerifyAndSubmit = useCallback(
     async (format: 'license' ) => {
       if (!reviewOutput) return
-      // const url = `http://127.0.0.1:8000/drt/api/submission/?format=${format}`
-      const url = `https://drt-test.canadacentral.cloudapp.azure.com:8000/drt/api/submission/?format=${format}`
+      const url = `http://127.0.0.1:8000/drt/api/submission/?format=${format}`
+      // const url = `https://drt-test.canadacentral.cloudapp.azure.com:8000/drt/api/submission/?format=${format}`
       console.log('Submitting to:', url)
       try {
         const getCookie = (name: string): string | null => {
