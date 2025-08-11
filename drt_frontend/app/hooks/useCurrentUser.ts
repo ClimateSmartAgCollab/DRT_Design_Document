@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import fetchApi from "@/app/api/apiHelper";
 
 interface User {
   email: string;
@@ -8,9 +9,7 @@ interface User {
 async function fetchCurrentUser(): Promise<User | null> {
   try {
     // Try owner first
-    const ownerResponse = await fetch('/drt/api/auth/whoami/', {
-      credentials: 'include',
-    });
+    const ownerResponse = await fetchApi('/drt/api/auth/whoami/');
     
     if (ownerResponse.ok) {
       const data = await ownerResponse.json();
@@ -18,9 +17,7 @@ async function fetchCurrentUser(): Promise<User | null> {
     }
 
     // Try requestor if owner failed
-    const requestorResponse = await fetch('/drt/api/auth/req-whoami/', {
-      credentials: 'include',
-    });
+    const requestorResponse = await fetchApi('/drt/api/auth/req-whoami/');
     
     if (requestorResponse.ok) {
       const data = await requestorResponse.json();
@@ -47,9 +44,7 @@ export function useOwnerUser() {
   return useQuery({
     queryKey: ['ownerUser'],
     queryFn: async () => {
-      const response = await fetch('/drt/api/auth/whoami/', {
-        credentials: 'include',
-      });
+      const response = await fetchApi('/drt/api/auth/whoami/');
       if (response.ok) {
         const data = await response.json();
         return data.email ? { email: data.email } : null;
@@ -65,9 +60,7 @@ export function useRequestorUser() {
   return useQuery({
     queryKey: ['requestorUser'],
     queryFn: async () => {
-      const response = await fetch('/drt/api/auth/req-whoami/', {
-        credentials: 'include',
-      });
+      const response = await fetchApi('/drt/api/auth/req-whoami/');
       if (response.ok) {
         const data = await response.json();
         return data.email ? { email: data.email } : null;

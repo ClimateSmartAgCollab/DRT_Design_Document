@@ -5,6 +5,7 @@ import { getParentSteps } from '../../utils/steps'
 import { useFormData } from '../../context/FormDataContext'
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import fetchApi from '@/app/api/apiHelper'
 
 type MappingFunction = (q: Question) => Partial<Submission['data']['attributes']>
 
@@ -328,30 +329,13 @@ export function useSubmissionMapping(
   const handleVerifyAndSubmit = useCallback(
     async (format: 'license' ) => {
       if (!reviewOutput) return
-      const url = `http://127.0.0.1:8000/drt/api/submission/?format=${format}`
-      // const url = `https://drt-test.canadacentral.cloudapp.azure.com:8000/drt/api/submission/?format=${format}`
-      console.log('Submitting to:', url)
+      const endpoint = `/drt/api/submission/?format=${format}`
+      console.log('Submitting to:', endpoint)
       try {
-        const getCookie = (name: string): string | null => {
-          let cookieValue: string | null = null
-          if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';')
-            for (let cookie of cookies) {
-              cookie = cookie.trim()
-              if (cookie.startsWith(name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1))
-                break
-              }
-            }
-          }
-          return cookieValue
-        }
-
-        const response = await fetch(url, {
+        const response = await fetchApi(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken') || '',
           },
           body: JSON.stringify(reviewOutput),
         })
