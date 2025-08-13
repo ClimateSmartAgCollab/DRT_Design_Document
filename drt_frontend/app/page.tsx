@@ -302,148 +302,154 @@ export default function HomePage() {
     return <span dangerouslySetInnerHTML={{ __html: text }} />;
   };
   return (
-    <main className="min-h-screen bg-white flex flex-col">
+    <main className="min-h-dvh bg-white flex flex-col">
       {/* Testing Environment Banner */}
-      <div className="w-full bg-white text-red-700 text-center py-2 font-bold text-lg tracking-widest sticky top-0 z-50">
+      <div className="w-full bg-white text-red-700 text-center py-1 sm:py-2 font-bold text-sm sm:text-lg tracking-widest sticky top-0 z-50">
         {t.testingBanner}
       </div>
       {/* Header Bar */}
-      <div className="bg-[#216b96] w-full px-6 pt-8 pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
-        {/* Title Block */}
-        <div>
-          <div>
-            <span className="block text-white font-sans font-bold text-3xl leading-tight">
-              {t.headerTitle}
-            </span>
-            <span className="block text-white font-sans font-light text-2xl mt-1 ml-1">
-              {t.headerSubtitle}
-            </span>
-          </div>
-          <div className="mt-10 pl-10">
-            <h2 className="text-white font-bold text-2xl font-sans">
-              {t.headerHelp}
-            </h2>
-            <p className="text-white font-sans text-base mt-2">
-              {t.headerDesc}
-            </p>
-          </div>
-        </div>
-        <div className="absolute top-8 right-6 flex flex-row items-start gap-4 z-10">
-          {/* Language Dropdown */}
-          <div className="relative group">
-            <button
-              className="flex items-center px-4 py-2 bg-[#216b96] text-white font-sans text-lg rounded hover:bg-[#50809cd7] focus:outline-none"
-              aria-haspopup="listbox"
-              aria-expanded={false}
-              tabIndex={0}
-            >
-              {lang}
-              <svg
-                className="ml-2 w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-            <div className="absolute left-0 mt-1 w-full bg-[#216b96] border-gray-200 rounded shadow-[0_4px_24px_rgba(0,0,0,0.35)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
-              <ul className="py-1">
-                <li>
-                  <button
-                    className="block w-full text-left px-4 py-2 text-white rounded hover:bg-[#50809cd7] font-sans"
-                    onClick={() => setLang("EN")}
-                  >
-                    EN
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="block w-full text-left px-4 py-2 text-white rounded hover:bg-[#50809cd7] font-sans"
-                    onClick={() => setLang("FR")}
-                  >
-                    FR
-                  </button>
-                </li>
-              </ul>
+      <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
+        <div className="container-default section-y w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+            {/* Title / Help */}
+            <div className="lg:col-span-8">
+              <div>
+                <span className="block text-white font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight">
+                  {t.headerTitle}
+                </span>
+                <span className="block text-white font-sans font-light text-lg sm:text-xl md:text-2xl mt-1 ml-1">
+                  {t.headerSubtitle}
+                </span>
+              </div>
+
+              <div className="mt-4 sm:mt-6 md:mt-8 lg:mt-10 md:pl-6 lg:pl-10">
+                <h2 className="text-white font-bold text-lg sm:text-xl md:text-2xl font-sans">
+                  {t.headerHelp}
+                </h2>
+                <p className="text-white font-sans text-sm sm:text-base mt-2">
+                  {t.headerDesc}
+                </p>
+              </div>
             </div>
-          </div>
-          {/* Logo */}
-          <div className="w-60 h-60">
-            <a
-              href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Image
-                src="/CS-DCC_Logo-EN_Colour.png"
-                alt="Logo"
-                width={240}
-                height={240}
-                className="rounded-full bg-blue-200 object-contain"
-              />
-            </a>
+            <aside className="lg:col-start-9 lg:col-span-4 lg:justify-self-end flex items-start gap-2 sm:gap-4 min-w-0">
+              {/* Language Dropdown */}
+              <div className="relative group">
+                <button
+                  className="flex items-center px-2 sm:px-4 py-1 sm:py-2 bg-[#216b96] text-white font-sans text-sm sm:text-lg rounded hover:bg-[#50809cd7] focus:outline-none"
+                  aria-haspopup="listbox"
+                  aria-expanded={false}
+                  tabIndex={0}
+                >
+                  {lang}
+                  <svg
+                    className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+                <div className="absolute left-0 mt-1 w-full bg-[#216b96] border-gray-200 rounded shadow-[0_4px_24px_rgba(0,0,0,0.35)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
+                  <ul className="py-1">
+                    <li>
+                      <button
+                        className="block w-full text-left px-2 sm:px-4 py-1 sm:py-2 text-white rounded hover:bg-[#50809cd7] font-sans text-sm sm:text-base"
+                        onClick={() => setLang("EN")}
+                      >
+                        EN
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        className="block w-full text-left px-2 sm:px-4 py-1 sm:py-2 text-white rounded hover:bg-[#50809cd7] font-sans text-sm sm:text-base"
+                        onClick={() => setLang("FR")}
+                      >
+                        FR
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              {/* Logo */}
+              <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-60 lg:h-60">
+                <a
+                  href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0"
+                >
+                  <Image
+                    src="/CS-DCC_Logo-EN_Colour.png"
+                    alt="Logo"
+                    width={240}
+                    height={240}
+                    className="rounded-full bg-blue-200 object-contain"
+                  />
+                </a>
+              </div>
+            </aside>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col items-center w-full px-4 py-10">
+      </header>
+      <div className="flex flex-col items-center w-full px-2 sm:px-4 py-6 sm:py-8 md:py-10">
         <div className="max-w-3xl w-full">
           {/* Attention Testers Card */}
 
-          <h1 className="text-[#216b96] font-sans text-2xl mb-4">
+          <h1 className="text-[#216b96] font-sans text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4">
             {t.csdccTitle}
           </h1>
-          <p className="text-gray-700 font-serif text-base mb-4">
+          <p className="text-gray-700 font-serif text-sm sm:text-base mb-3 sm:mb-4">
             {t.csdccBody1}
           </p>
-          <p className="text-gray-700 font-serif text-base mb-8">
+          <p className="text-gray-700 font-serif text-sm sm:text-base mb-6 sm:mb-8">
             {t.csdccBody2}
           </p>
 
-          <div className="bg-red-200 rounded-md p-6 mb-8">
-            <h2 className="text-black font-bold text-xl mb-2">
+          <div className="bg-red-200 rounded-md p-4 sm:p-6 mb-6 sm:mb-8">
+            <h2 className="text-black font-bold text-lg sm:text-xl mb-2">
               {t.attentionCard.title}
             </h2>
-            <div className="pl-8">
-              <p className="text-black mb-2 font-medium">
+            <div className="pl-4 sm:pl-6 md:pl-8">
+              <p className="text-black mb-2 font-medium text-sm sm:text-base">
                 {t.attentionCard.intro}
               </p>
-              <div className="bg-white border border-red-300 rounded p-4 mt-2 mb-4">
-                <div className="mb-1 flex items-center flex-wrap gap-2">
-                  <span className="font-medium">
+              <div className="bg-white border border-red-300 rounded p-3 sm:p-4 mt-2 mb-4">
+                <div className="mb-1 flex items-center flex-wrap gap-1 sm:gap-2">
+                  <span className="font-medium text-sm sm:text-base">
                     {t.attentionCard.sandboxEmail}
                   </span>
                   <a
                     href="https://ethereal.email/messages"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline text-blue-700"
+                    className="underline text-blue-700 text-sm sm:text-base"
                   >
                     {t.attentionCard.etherealLabel}
                   </a>
                 </div>
-                <div className="mb-1 flex items-center flex-wrap gap-2">
-                  <span className="font-medium">
+                <div className="mb-1 flex items-center flex-wrap gap-1 sm:gap-2">
+                  <span className="font-medium text-sm sm:text-base">
                     {t.attentionCard.username}
                   </span>
-                  <span className="font-mono select-all">
+                  <span className="font-mono select-all text-sm sm:text-base">
                     aditya.nienow@ethereal.email
                   </span>
                   <button
                     onClick={() =>
                       handleCopy("aditya.nienow@ethereal.email", "username")
                     }
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                    className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
                     title={t.copy}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4"
+                      className="w-3 h-3 sm:w-4 sm:h-4"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -460,28 +466,28 @@ export default function HomePage() {
                       />
                       <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
                     </svg>
-                    <span>
+                    <span className="text-xs">
                       {copied.field === "username" && copied.status
                         ? t.copied
                         : t.copy}
                     </span>
                   </button>
                 </div>
-                <div className="flex items-center flex-wrap gap-2">
-                  <span className="font-medium">
+                <div className="flex items-center flex-wrap gap-1 sm:gap-2">
+                  <span className="font-medium text-sm sm:text-base">
                     {t.attentionCard.password}
                   </span>
-                  <span className="font-mono select-all">
+                  <span className="font-mono select-all text-sm sm:text-base">
                     AqFy19WdAnDghQQrdm
                   </span>
                   <button
                     onClick={() => handleCopy("AqFy19WdAnDghQQrdm", "password")}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                    className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
                     title={t.copy}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4"
+                      className="w-3 h-3 sm:w-4 sm:h-4"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -498,7 +504,7 @@ export default function HomePage() {
                       />
                       <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
                     </svg>
-                    <span>
+                    <span className="text-xs">
                       {copied.field === "password" && copied.status
                         ? t.copied
                         : t.copy}
@@ -506,42 +512,42 @@ export default function HomePage() {
                   </button>
                 </div>
               </div>
-              <p className="text-black mb-4">{t.attentionCard.afterLogin}</p>
-              <h3 className="text-lg font-bold text-black mt-6 mb-2">
+              <p className="text-black mb-4 text-sm sm:text-base">{t.attentionCard.afterLogin}</p>
+              <h3 className="text-base sm:text-lg font-bold text-black mt-4 sm:mt-6 mb-2">
                 {t.attentionCard.stepsTitle}
               </h3>
-              <ol className="list-decimal list-inside text-black mb-4 space-y-2">
+              <ol className="list-decimal list-inside text-black mb-4 space-y-2 text-sm sm:text-base">
                 {t.attentionCard.steps.map((step, idx) => (
                   <li key={idx}>
                     <b>{step.title}</b>
                     {step.desc && (
-                      <div className="pl-4 mt-1">
+                      <div className="pl-2 sm:pl-4 mt-1">
                         {renderFormattedText(step.desc)}
                       </div>
                     )}
                     {idx === 3 && (
-                      <div className="bg-white border border-red-300 rounded p-4 mt-2 ml-4">
-                        <div className="mb-1 flex items-center flex-wrap gap-2">
-                          <span className="font-medium">
+                      <div className="bg-white border border-red-300 rounded p-3 sm:p-4 mt-2 ml-2 sm:ml-4">
+                        <div className="mb-1 flex items-center flex-wrap gap-1 sm:gap-2">
+                          <span className="font-medium text-sm sm:text-base">
                             {lang === "EN"
                               ? "Owner Email:"
                               : "E-mail du propriétaire :"}
                           </span>
                         </div>
-                        <div className="flex items-center flex-wrap gap-2">
-                          <span className="font-mono select-all">
+                        <div className="flex items-center flex-wrap gap-1 sm:gap-2">
+                          <span className="font-mono select-all text-sm sm:text-base">
                             owner@drt.ca
                           </span>
                           <button
                             onClick={() =>
                               handleCopy("owner@drt.ca", "owner-email")
                             }
-                            className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                            className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
                             title={t.copy}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
-                              className="w-4 h-4"
+                              className="w-3 h-3 sm:w-4 sm:h-4"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -565,7 +571,7 @@ export default function HomePage() {
                                 ry="2"
                               />
                             </svg>
-                            <span>
+                            <span className="text-xs">
                               {copied.field === "owner-email" && copied.status
                                 ? t.copied
                                 : t.copy}
@@ -582,7 +588,7 @@ export default function HomePage() {
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="underline text-blue-700"
+                              className="underline text-blue-700 text-sm sm:text-base"
                             >
                               {link.label}
                             </a>
@@ -591,27 +597,27 @@ export default function HomePage() {
                       </ul>
                     )}
                     {step.options && (
-                      <ul className="list-disc list-inside pl-4 mt-1">
+                      <ul className="list-disc list-inside pl-2 sm:pl-4 mt-1">
                         {step.options.map((opt, oidx) => (
-                          <li key={oidx}>{opt}</li>
+                          <li key={oidx} className="text-sm sm:text-base">{opt}</li>
                         ))}
                       </ul>
                     )}
                   </li>
                 ))}
               </ol>
-              <h3 className="text-lg font-bold text-black mt-8 mb-2">
+              <h3 className="text-base sm:text-lg font-bold text-black mt-6 sm:mt-8 mb-2">
                 {t.attentionCard.dashboardTitle}
               </h3>
-              <ul className="list-disc list-inside text-black mb-2 pl-4 space-y-1">
+              <ul className="list-disc list-inside text-black mb-2 pl-2 sm:pl-4 space-y-1 text-sm sm:text-base">
                 {t.attentionCard.dashboardPoints.map((point, pidx) => (
                   <li key={pidx}>
                     {renderFormattedText(point)}
                     {pidx === 0 && t.attentionCard.dashboardSubPoints && (
-                      <ul className="list-disc list-inside mt-2 ml-4 space-y-1">
+                      <ul className="list-disc list-inside mt-2 ml-2 sm:ml-4 space-y-1">
                         {t.attentionCard.dashboardSubPoints.map(
                           (subPoint, spidx) => (
-                            <li key={spidx}>{renderFormattedText(subPoint)}</li>
+                            <li key={spidx} className="text-sm sm:text-base">{renderFormattedText(subPoint)}</li>
                           )
                         )}
                       </ul>
@@ -623,12 +629,12 @@ export default function HomePage() {
           </div>
 
           {/* Data Owners Card */}
-          <div className="bg-[#C7E6F6] rounded-md p-6 mb-6">
-            <h2 className="font-sans text-2xl text-black mb-4">
+          <div className="bg-[#C7E6F6] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
               {t.forOwners}
             </h2>
-            <div className="pl-8">
-              <p className="font-sans text-base text-gray-800 mb-2">
+            <div className="pl-4 sm:pl-6 md:pl-8">
+              <p className="font-sans text-sm sm:text-base text-gray-800 mb-2">
                 {t.ownersBody}
                 <a
                   href="mailto:adc@uoguelph.ca"
@@ -643,26 +649,26 @@ export default function HomePage() {
                 href="/negotiation/owner/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-[#2382A0] underline text-2xl font-sans mt-8"
+                className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.ownerDashboard}
               </Link>
             </div>
           </div>
           {/* Data Requestors Card */}
-          <div className="bg-[#C7E6F6] rounded-md p-6 mb-6">
-            <h2 className="font-sans text-2xl text-black mb-4">
+          <div className="bg-[#C7E6F6] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
               {t.forRequestors}
             </h2>
-            <div className="pl-8">
-              <p className="font-sans text-base text-gray-800 mb-4">
+            <div className="pl-4 sm:pl-6 md:pl-8">
+              <p className="font-sans text-sm sm:text-base text-gray-800 mb-4">
                 {t.requestorsBody}
               </p>
               <Link
                 href="/negotiation/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-[#2382A0] underline text-2xl font-sans mt-8"
+                className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.requestorDashboard}
               </Link>
@@ -671,11 +677,12 @@ export default function HomePage() {
         </div>
       </div>
       <hr className="w-full border-t border-gray-300 my-0" />
+
       {/* Footer Logos */}
-      <div className="w-full flex flex-row items-end justify-start px-8 py-4 mt-auto gap-16">
-        <div className="flex flex-col gap-10">
-          <div className="flex flex-col items-center">
-            <span className="text-base text-black font-sans mb-2">
+      <footer className="container-default section-y pt-4 sm:pt-6">
+        <div className="grid gap-4 sm:gap-6 md:gap-8 lg:gap-12 [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))] sm:[grid-template-columns:repeat(auto-fit,minmax(160px,1fr))] items-end">
+          <div className="flex flex-col items-center gap-3 sm:gap-4 md:gap-6">
+            <span className="text-sm sm:text-base text-black font-sans">
               {t.poweredBy}
             </span>
             <a
@@ -688,54 +695,53 @@ export default function HomePage() {
                 alt="Agri-Food Data Logo"
                 width={240}
                 height={86}
-                className="object-contain"
+                className="object-contain w-32 sm:w-40 md:w-48 lg:w-60"
               />
             </a>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-base text-black font-sans mb-2">
+
+            <span className="text-sm sm:text-base text-black font-sans">
               {t.supportedBy}
             </span>
             <Image
               src="/research-excellent-fund.png"
-              alt="Canada First Logo"
+              alt="Research Excellence Fund"
               width={140}
               height={48}
-              className="object-contain"
+              className="object-contain w-20 sm:w-28 md:w-32 lg:w-36"
             />
           </div>
-        </div>
-        <div className="flex flex-col items-center ml-2">
+
           <a
             href="https://www.genomecanada.ca/"
             target="_blank"
             rel="noopener noreferrer"
+            className="justify-self-center"
           >
             <Image
               src="/R.jpg"
-              alt="Genome Canada Logo"
+              alt="Genome Canada"
               width={140}
               height={48}
-              className="object-contain"
+              className="object-contain w-20 sm:w-28 md:w-32 lg:w-36"
             />
           </a>
-        </div>
-        <div className="flex flex-col items-center ml-2">
+
           <a
             href="https://www.ontario.ca/page/government-ontario"
             target="_blank"
             rel="noopener noreferrer"
+            className="justify-self-center"
           >
             <Image
               src="/OMAFA.PNG"
-              alt="Genome Canada Logo"
+              alt="Government of Ontario"
               width={140}
               height={48}
-              className="object-contain"
+              className="object-contain w-20 sm:w-28 md:w-32 lg:w-36"
             />
           </a>
         </div>
-      </div>
+      </footer>
     </main>
   );
 }
