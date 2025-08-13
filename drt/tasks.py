@@ -86,6 +86,7 @@ def send_notification_emails_task(nlink_id, owner_review_url):
     """Send notification emails asynchronously using Celery"""
     try:
         from .models import NLink
+        from .views.auth import generate_owner_magic_link_with_target
         nlink = NLink.objects.get(link_id=nlink_id)
         
         # Get owner email from cache
@@ -96,6 +97,9 @@ def send_notification_emails_task(nlink_id, owner_review_url):
             logger.error(f"Owner email not found for ID: {nlink.owner_id}")
             return
         
+        # Generate magic link with target URL for owner authentication
+        magic_link, expiry = generate_owner_magic_link_with_target(owner_email, owner_review_url)
+        
         # Send email to owner
         owner_msg = EmailMultiAlternatives(
             subject="New Data Access Request - Action Required",
@@ -104,13 +108,26 @@ def send_notification_emails_task(nlink_id, owner_review_url):
                 f"A new data access request has been submitted for your dataset.\n\n"
                 f"Requestor: {nlink.requestor_email}\n"
                 f"Dataset: {nlink.negotiation.questionnaire_SAID}\n\n"
-                f"Please review the request at: {owner_review_url}\n\n"
+                f"Please click the link below to verify your email and review the request:\n\n"
+                f"    {magic_link}\n\n"
+                f"This link will expire at {expiry:%H:%M}.\n\n"
                 f"Best regards,\n"
                 f"The DRT System"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[owner_email],
         )
+        html_content = f"""
+            <p>Hello,</p>
+            <p>A new data access request has been submitted for your dataset.</p>
+            <p><strong>Requestor:</strong> {nlink.requestor_email}<br>
+            <strong>Dataset:</strong> {nlink.negotiation.questionnaire_SAID}</p>
+            <p>Please click the link below to verify your email and review the request:</p>
+            <p><a href="{magic_link}" target="_blank">{magic_link}</a></p>
+            <p>This link will expire at {expiry:%H:%M}.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        owner_msg.attach_alternative(html_content, "text/html")
         owner_msg.send(fail_silently=True)
         
         # Send email to requestor

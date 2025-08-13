@@ -100,10 +100,19 @@ def verify_owner_magic_link(request):
         # Store owner_email in the Django session (signed cookie)
         request.session["owner_email"] = email
         cache.set(f"owner_logged_in:{email}", True, 3600)
+        
+        # Get target URL if it exists
+        target_url = entry.get('target_url')
+        
         cache.delete(f"magic_token:{token}")
         cache.delete(f"magic_token_for:{email}")
         logger.info(f"Access link verified for {email} at {timezone.now()}")
-        return Response({"message": "verified"}, status=200)
+        
+        response_data = {"message": "verified"}
+        if target_url:
+            response_data["target_url"] = target_url
+            
+        return Response(response_data, status=200)
 
     except Exception as e:
         logger.error(f"Error in verify_owner_magic_link: {str(e)}")
@@ -214,3 +223,23 @@ def req_whoami(request):
     if not requestor_email:
         return JsonResponse({"email": None}, status=401)
     return JsonResponse({"email": requestor_email}, status=200)
+
+
+def generate_owner_magic_link_with_target(email, target_url):
+    """Generate a magic link for owner authentication with a target URL"""
+    # Generate a secure random token for the magic link
+    token = secrets.token_urlsafe(32)
+    expiry = timezone.now() + datetime.timedelta(minutes=10)
+
+    # Invalidate previous token for this email, if any
+    old_token = cache.get(f"magic_token_for:{email}")
+    if old_token:
+        cache.delete(f"magic_token:{old_token}")
+
+    # Store the new token with target URL and a reverse mapping for easy invalidation
+    cache.set(f"magic_token:{token}", {
+              'email': email, 'expiry': expiry, 'target_url': target_url}, 600)
+    cache.set(f"magic_token_for:{email}", token, 600)
+
+    magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
+    return magic_link, expiry

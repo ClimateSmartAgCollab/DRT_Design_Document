@@ -32,10 +32,13 @@ export default function OwnerVerifyMagicLinkContent() {
         });
 
         if (response.ok) {
+          const responseData = await response.json();
           setStatus('success');
           queryClient.invalidateQueries({ queryKey: ['owner'] });
           setTimeout(() => {
-            router.push('/negotiation/owner/homepage');
+            // If there's a target URL, redirect to it, otherwise go to homepage
+            const targetUrl = responseData.target_url || '/negotiation/owner/homepage';
+            router.push(targetUrl);
           }, 1000);
         } else {
           const errorData = await response.json();
@@ -69,7 +72,7 @@ export default function OwnerVerifyMagicLinkContent() {
           <div className="text-green-600 text-6xl mb-4">✓</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Verification Successful!</h1>
           <p className="text-gray-600 mb-4">You have been successfully verified.</p>
-          <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
+          <p className="text-sm text-gray-500">Redirecting...</p>
         </div>
       </div>
     );

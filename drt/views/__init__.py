@@ -6,11 +6,12 @@ from .stats import (export_summary_to_drt_view, export_summary_to_drt, delete_ol
                     , owner_links_api, regenerate_license_view)
 from .utils import owner_otp_required, requestor_otp_required
 from .questionnaire import fill_questionnaire, request_access, generate_nlinks, owner_review
-from .auth import owner_email_entry, verify_owner_magic_link, whoami, req_whoami, verify_req_magic_link, req_email_entry, test_endpoint
+from .auth import owner_email_entry, verify_owner_magic_link, whoami, req_whoami, verify_req_magic_link, req_email_entry, test_endpoint, generate_owner_magic_link_with_target
 
 __all__ = [
     'owner_email_entry', 'verify_owner_magic_link', 'whoami',
     'req_email_entry', 'verify_req_magic_link', 'req_whoami', 'test_endpoint',
+    'generate_owner_magic_link_with_target',
     'requestor_email_entry', 'verify_magic_link_view',
     'request_access', 'fill_questionnaire', 'generate_nlinks',
     'negotiation_list_api', 'negotiation_list_api_req', 'owner_review',
