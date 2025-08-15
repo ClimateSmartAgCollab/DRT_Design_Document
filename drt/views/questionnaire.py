@@ -228,7 +228,7 @@ def owner_review(request, link_id):
             negotiation.state = 'requestor_open'
             negotiation.save()
 
-            send_clarification_email_task.delay(nlink.requestor_email, nlink.requestor_link)
+            send_clarification_email(nlink.requestor_email, nlink.requestor_link)
             
             return Response({'message': 'Clarification requested!'})
 
@@ -246,7 +246,7 @@ def send_clarification_email(requestor_email, link_id):
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
     # Send email directly (no threading needed since called with threading from view)
-    send_clarification_email_task(requestor_email, clarification_url)
+    send_clarification_email_task.delay(requestor_email, clarification_url)
 
 
 def send_rejection_email_with_rationale(requestor_email, requestor_link, rationale):

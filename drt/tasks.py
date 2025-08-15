@@ -14,8 +14,8 @@ def send_owner_email_task(email, magic_link, expiry):
         msg = EmailMultiAlternatives(
             subject="Access Link for Owner Verification",
             body=(
-                "Hello Dear Data Owner,\n\n"
-                "Click the link below to verify your email and access the owner dashboard:\n\n"
+                "Hello,\n\n"
+                "Click the link below to verify your email and access the Dashboard:\n\n"
                 f"    {magic_link}\n\n"
                 f"This link will expire at {expiry:%H:%M}.\n\n"
                 "For your security, please do not share this link with anyone. "
@@ -28,8 +28,8 @@ def send_owner_email_task(email, magic_link, expiry):
             to=[email],
         )
         html_content = f"""
-            <p>Hello Dear Data Owner,</p>
-            <p>Click the link below to verify your email and access the owner dashboard:</p>
+            <p>Hello,</p>
+            <p>Click the link below to verify your email and access the Dashboard:</p>
             <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
             <p>This link will expire at {expiry:%H:%M}.</p>
             <p>For your security, please do not share this link with anyone.<br>
@@ -51,7 +51,7 @@ def send_requestor_email_task(email, magic_link, expiry):
         msg = EmailMultiAlternatives(
             subject="Access Link for Requestor Verification",
             body=(
-                "Hello Dear Requestor,\n\n"
+                "Hello,\n\n"
                 "Click the link below to verify your email and access the dashboard:\n\n"
                 f"    {magic_link}\n\n"
                 f"This link will expire at {expiry:%H:%M}.\n\n"
@@ -65,7 +65,7 @@ def send_requestor_email_task(email, magic_link, expiry):
             to=[email],
         )
         html_content = f"""
-            <p>Hello Dear Requestor,</p>
+            <p>Hello,</p>
             <p>Click the link below to verify your email and access the dashboard:</p>
             <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
             <p>This link will expire at {expiry:%H:%M}.</p>
@@ -88,18 +88,19 @@ def send_notification_emails_task(nlink_id, owner_review_url):
         from .models import NLink
         from .views.auth import generate_owner_magic_link_with_target
         nlink = NLink.objects.get(link_id=nlink_id)
-        
+
         # Get owner email from cache
         owner_table = cache.get("owner_table", {})
         owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
-        
+
         if not owner_email:
             logger.error(f"Owner email not found for ID: {nlink.owner_id}")
             return
-        
+
         # Generate magic link with target URL for owner authentication
-        magic_link, expiry = generate_owner_magic_link_with_target(owner_email, owner_review_url)
-        
+        magic_link, expiry = generate_owner_magic_link_with_target(
+            owner_email, owner_review_url)
+
         # Send email to owner
         owner_msg = EmailMultiAlternatives(
             subject="New Data Access Request - Action Required",
@@ -111,6 +112,7 @@ def send_notification_emails_task(nlink_id, owner_review_url):
                 f"Please click the link below to verify your email and review the request:\n\n"
                 f"    {magic_link}\n\n"
                 f"This link will expire at {expiry:%H:%M}.\n\n"
+                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
                 f"Best regards,\n"
                 f"The DRT System"
             ),
@@ -129,7 +131,7 @@ def send_notification_emails_task(nlink_id, owner_review_url):
         """
         owner_msg.attach_alternative(html_content, "text/html")
         owner_msg.send(fail_silently=True)
-        
+
         # Send email to requestor
         requestor_msg = EmailMultiAlternatives(
             subject="Data Access Request Submitted Successfully",
@@ -139,14 +141,28 @@ def send_notification_emails_task(nlink_id, owner_review_url):
                 f"Dataset: {nlink.negotiation.questionnaire_SAID}\n"
                 f"Owner: {owner_email}\n\n"
                 f"We will notify you once the owner reviews your request.\n\n"
+                f"You can access your Dashboard at: https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage\n\n"
+                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
                 f"Best regards,\n"
                 f"The DRT System"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[nlink.requestor_email],
         )
-        requestor_msg.send(fail_silently=True)
         
+        html_content = f"""
+            <p>Hello,</p>
+            <p>Your data access request has been submitted successfully.</p>
+            <p><strong>Dataset:</strong> {nlink.negotiation.questionnaire_SAID}<br>
+            <strong>Owner:</strong> {owner_email}</p>
+            <p>We will notify you once the owner reviews your request.</p>
+            <p>You can access your <a href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage" target="_blank">Dashboard</a>.</p>
+            <p>If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        requestor_msg.attach_alternative(html_content, "text/html")
+        requestor_msg.send(fail_silently=True)
+
         logger.info(f"Notification emails sent for negotiation {nlink_id}")
     except Exception as e:
         logger.error(f"Error sending notification emails: {str(e)}")
@@ -162,10 +178,12 @@ def fetch_questionnaire_task(questionnaire_said):
         if fetched_json:
             cache_key = f'questionnaire_json_{questionnaire_said}'
             cache.set(cache_key, fetched_json, timeout=60*60*24)
-            logger.info(f"Questionnaire {questionnaire_said} fetched and cached successfully")
+            logger.info(
+                f"Questionnaire {questionnaire_said} fetched and cached successfully")
         return fetched_json
     except Exception as e:
-        logger.error(f"Error fetching questionnaire {questionnaire_said}: {str(e)}")
+        logger.error(
+            f"Error fetching questionnaire {questionnaire_said}: {str(e)}")
         raise
 
 
@@ -176,11 +194,12 @@ def generate_license_and_notify_owner_task(nlink_id):
         from .models import NLink
         from .services.license import generate_license_and_notify_owner
         nlink = NLink.objects.get(link_id=nlink_id)
-        
+
         # Generate license and send email
         generate_license_and_notify_owner(nlink)
-        
-        logger.info(f"License generated and owner notified for negotiation {nlink_id}")
+
+        logger.info(
+            f"License generated and owner notified for negotiation {nlink_id}")
     except Exception as e:
         logger.error(f"Error generating license and notifying owner: {str(e)}")
         raise
@@ -196,14 +215,25 @@ def send_rejection_email_task(requestor_email, requestor_link, rationale):
                 f"Hello,\n\n"
                 f"Your data access request has been rejected.\n\n"
                 f"Reason: {rationale}\n\n"
+                f"You can access your Dashboard at: https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage\n\n"
+                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
                 f"Best regards,\n"
                 f"The DRT System"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[requestor_email],
         )
+        html_content = f"""
+            <p>Hello,</p>
+            <p>Your data access request has been rejected.</p>
+            <p><strong>Reason:</strong> {rationale}</p>
+            <p>You can access your <a href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage" target="_blank">Dashboard</a>.</p>
+            <p>If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
-        
+
         logger.info(f"Rejection email sent to {requestor_email}")
     except Exception as e:
         logger.error(f"Error sending rejection email: {str(e)}")
@@ -211,23 +241,36 @@ def send_rejection_email_task(requestor_email, requestor_link, rationale):
 
 
 @shared_task
-def send_clarification_email_task(requestor_email, requestor_link):
+def send_clarification_email_task(requestor_email, clarification_url):
     """Send clarification email asynchronously using Celery"""
     try:
         msg = EmailMultiAlternatives(
             subject="Data Access Request - Clarification Required",
             body=(
-                f"Hello,\n\n"
-                f"The owner of the dataset has requested clarification on your data access request.\n\n"
-                f"Please review your request and provide additional information if needed.\n\n"
-                f"Best regards,\n"
-                f"The DRT System"
+                "Hello,\n\n"
+                "We need a bit more information to proceed with your request.\n"
+                "Please complete the necessary details by accessing your form at the link below:\n\n"
+                f"    {clarification_url}\n\n"
+                "If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
+                "Thank you for your prompt attention.\n\n"
+                "Best regards,\n"
+                "The DRT System"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[requestor_email],
         )
+        html_content = f"""
+            <p>Hello,</p>
+            <p>We need a bit more information to proceed with your request. "
+            <p>Please complete the necessary details by accessing your form at the link below:</p>
+            <p><a href="{clarification_url}" target="_blank">{clarification_url}</a></p>
+            <p>If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.</p>
+            <p>Thank you for your prompt attention.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
-        
+
         logger.info(f"Clarification email sent to {requestor_email}")
     except Exception as e:
         logger.error(f"Error sending clarification email: {str(e)}")
@@ -244,6 +287,7 @@ def send_magic_link_resend_email_task(requestor_email, magic_link):
                 f"Hello,\n\n"
                 f"Here is your access link again:\n\n"
                 f"{magic_link}\n\n"
+                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca"
                 f"Best regards,\n"
                 f"The DRT System"
             ),
@@ -251,7 +295,7 @@ def send_magic_link_resend_email_task(requestor_email, magic_link):
             to=[requestor_email],
         )
         msg.send(fail_silently=True)
-        
+
         logger.info(f"Magic link resend email sent to {requestor_email}")
     except Exception as e:
         logger.error(f"Error sending magic link resend email: {str(e)}")
@@ -265,7 +309,7 @@ def send_requestor_verification_email_task(email, magic_link, expiry):
         msg = EmailMultiAlternatives(
             subject="Access Link for Requestor Verification",
             body=(
-                "Hello Dear Requestor,\n\n"
+                "Hello,\n\n"
                 "Click the link below to verify your email and access the questionnaire:\n\n"
                 f"{magic_link}\n\n"
                 f"This link will expire at {expiry:%H:%M}.\n\n"
@@ -279,7 +323,7 @@ def send_requestor_verification_email_task(email, magic_link, expiry):
             to=[email],
         )
         html_content = f"""
-            <p>Hello Dear Requestor,</p>
+            <p>Hello,</p>
             <p>Click the link below to verify your email and access the questionnaire:</p>
             <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
             <p>This link will expire at {expiry:%H:%M}.</p>
@@ -289,7 +333,7 @@ def send_requestor_verification_email_task(email, magic_link, expiry):
         """
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
-        
+
         logger.info(f"Requestor verification email sent to {email}")
     except Exception as e:
         logger.error(f"Error sending requestor verification email: {str(e)}")
@@ -304,9 +348,11 @@ def handle_negotiation_archive_and_summary_task(negotiation_id):
         from .views.stats import handle_negotiation_archive_and_summary_async
         negotiation = Negotiation.objects.get(negotiation_id=negotiation_id)
         handle_negotiation_archive_and_summary_async(negotiation)
-        logger.info(f"Negotiation archive and summary handled for {negotiation_id}")
+        logger.info(
+            f"Negotiation archive and summary handled for {negotiation_id}")
     except Exception as e:
-        logger.error(f"Error handling negotiation archive and summary: {str(e)}")
+        logger.error(
+            f"Error handling negotiation archive and summary: {str(e)}")
         raise
 
 
@@ -319,4 +365,4 @@ def refresh_data_task():
         logger.info("Data refresh completed successfully")
     except Exception as e:
         logger.error(f"Error refreshing data: {str(e)}")
-        raise 
+        raise

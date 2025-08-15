@@ -101,23 +101,41 @@ def generate_license_and_notify_owner(nlink):
         # Send email directly
         subject = "License Agreement for Record – " + nlink.record_label
         body = (
-            f"Hello Dear Data Owner,\n\n"
+            f"Hello,\n\n"
             f"We hope this message finds you well. Please find attached the license agreement documents related to the dataset for your review and negotiation.\n\n"
             f"Below are the key details regarding this license request:\n"
             f"  • Data Label: {nlink.data_label}\n"
             f"  • Tags: {nlink.tags}\n"
             f"  • Record Label: {nlink.record_label}\n"
             f"  • Requestor Email: {nlink.requestor_email}\n\n"
-            f"Please review the attached documents at your earliest convenience. If you have any questions or require clarification, do not hesitate to contact us.\n\n"
+            f"You can access your Dashboard at: https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/homepage\n\n"
+            f"Please review the attached documents at your earliest convenience. If you have any questions or require clarification, do not hesitate to contact us at adc@uoguelph.ca.\n\n"
             f"Best regards,\n"
-            f"DART System"
+            f"DRT System"
         )
+
+        html_content = f"""
+            <p>Hello,</p>
+            <p>We hope this message finds you well. Please find attached the license agreement documents related to the dataset for your review and negotiation.</p>
+            <p>Below are the key details regarding this license request:</p>
+            <ul>
+                <li><strong>Data Label:</strong> {nlink.data_label}</li>
+                <li><strong>Tags:</strong> {nlink.tags}</li>
+                <li><strong>Record Label:</strong> {nlink.record_label}</li>
+                <li><strong>Requestor Email:</strong> {nlink.requestor_email}</li>
+            </ul>
+            <p>You can access your <a href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/homepage" target="_blank">Dashboard</a>.</p>
+            <p>Please review the attached documents at your earliest convenience. If you have any questions or require clarification, do not hesitate to contact us at adc@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+
         email = EmailMultiAlternatives(
             subject=subject,
             body=body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[owner_email],
         )
+        email.attach_alternative(html_content, "text/html")
 
         for filename, content, mimetype in attachments:
             email.attach(filename, content, mimetype)
@@ -127,4 +145,3 @@ def generate_license_and_notify_owner(nlink):
 
     except Exception as e:
         logger.error(f"Error in license generation: {str(e)}")
-
