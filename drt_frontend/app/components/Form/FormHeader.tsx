@@ -1,9 +1,8 @@
-// drt_frontend\app\components\Form\FormHeader.tsx
 "use client";
-
-import React from "react";
+import React, { useMemo } from "react";
 import { useTheme } from "./hooks/useTheme";
 import styles from "./Form.module.css";
+import { FormHeaderVM } from "./domain/form-header";
 
 interface FormHeaderProps {
   language: string;
@@ -11,16 +10,16 @@ interface FormHeaderProps {
   formTitle: Record<string, string>;
 }
 
-//Renders the form's title and a language dropdown in the sticky header.
 export default function FormHeader({
   language,
   setLanguage,
   formTitle,
 }: FormHeaderProps) {
   const theme = useTheme();
+  const vm = useMemo(() => new FormHeaderVM(formTitle), [formTitle]);
 
   return (
-    <header 
+    <header
       className={styles.header}
       style={{
         backgroundColor: theme.colors.white,
@@ -28,18 +27,15 @@ export default function FormHeader({
         fontFamily: theme.fonts.body,
       }}
     >
-      <h1 
+      <h1
         className="text-3xl font-bold"
-        style={{ 
-          color: theme.colors.primary,
-          fontFamily: theme.fonts.heading,
-        }}
+        style={{ color: theme.colors.primary, fontFamily: theme.fonts.heading }}
       >
-        {formTitle[language] || formTitle.eng}
+        {vm.title(language)}
       </h1>
       <div className="flex items-center space-x-2">
-        <label 
-          htmlFor="language" 
+        <label
+          htmlFor="language"
           className="text-sm font-medium"
           style={{ color: theme.colors.text }}
         >
@@ -57,8 +53,11 @@ export default function FormHeader({
             fontFamily: theme.fonts.body,
           }}
         >
-          <option value="eng">English</option>
-          <option value="fra">Français</option>
+          {vm.languages().map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.label}
+            </option>
+          ))}
         </select>
       </div>
     </header>

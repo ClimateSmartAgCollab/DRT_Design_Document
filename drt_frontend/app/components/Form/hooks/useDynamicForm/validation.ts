@@ -1,81 +1,85 @@
 // drt_frontend\app\components\Form\hooks\useDynamicForm\validation.ts
 
-import { Page_parsed, Field } from "../../../type";
-import { isValid__UTF8 } from "./utils";
+import type { Page_parsed, Field } from "../../../type";
+import {
+  FieldValidator,
+  Utf8Codec,
+  PageValidator,
+  type FieldErrors,
+  type FieldLike,
+  type ValueProvider,
+} from "../../domain/validation";
 
-export type FieldErrors = Record<string, string>;
 
+export type { FieldErrors };
 
-/**
- * Validate a single field’s value (string or array of strings) using:
- * - required (conformance)
- * - regex (format)
- * - entry codes (entryCodes)
- * - UTF-8 encoding test (characterEncoding)
- * - dropdown allowed values
- */
+/** Bridge: turn refs/DOM into a ValueProvider the domain can consume */
+class DomFormValueProvider implements ValueProvider {
+  constructor(
+    private readonly refs: React.MutableRefObject<
+      Record<
+        string,
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null
+      >
+    >
+  ) {}
+
+  get(field: FieldLike): string | string[] {
+    const el = this.refs.current[field.id];
+    if (!el) return "";
+
+    // Multi-select via checkboxes
+    if (
+      (field.type === "select" || field.type === "dropdown") &&
+      el instanceof HTMLInputElement &&
+      el.type === "checkbox"
+    ) {
+      const name = el.name;
+      if (typeof document !== "undefined") {
+        const checkboxes = document.querySelectorAll<HTMLInputElement>(
+          `input[type=checkbox][name='${name}']`
+        );
+        return Array.from(checkboxes)
+          .filter((cb) => cb.checked)
+          .map((cb) => cb.value);
+      }
+      return [];
+    }
+
+    // Multi-select via <select multiple>
+    if (
+      (field.type === "select" || field.type === "dropdown") &&
+      el instanceof HTMLSelectElement
+    ) {
+      const selectEl = el as HTMLSelectElement;
+      return Array.from(selectEl.selectedOptions).map((opt) => opt.value);
+    }
+
+    // Radio or regular inputs/textareas
+    if (field.type === "radio" && el instanceof HTMLInputElement) {
+      return el.value || "";
+    }
+
+    return (el as HTMLInputElement | HTMLTextAreaElement).value ?? "";
+  }
+}
+
+//Validate a single field’s value (string or array of strings).
 export function validateField(
   field: Field,
   userInput: string | string[],
   language: string
 ): string | null {
-  const { conformance, format, entryCodes, characterEncoding } = field.validation;
-
-  // Required
-  if (conformance === "M" && !userInput) {
-    return "This field is required.";
-  }
-
-  if (typeof userInput === "string") {
-    if (format && !new RegExp(format).test(userInput)) {
-      return `Please match the format: ${format}`;
-    }
-    if (entryCodes && entryCodes.length > 0 && !entryCodes.includes(userInput)) {
-      return `Value must be one of: ${entryCodes.join(", ")}`;
-    }
-    if (characterEncoding === "utf-8" && !(new TextDecoder("utf-8", { fatal: true })).decode(new TextEncoder().encode(userInput))) {
-      return "Invalid UTF-8 characters detected.";
-    }
-    if (field.options?.[language]?.[field.id]) {
-      const allowed = field.options[language][field.id];
-      if (allowed.length > 0 && !allowed.includes(userInput)) {
-        return `Value must be one of these: ${allowed.join(", ")}`;
-      }
-    }
-  } else if (Array.isArray(userInput)) {
-    for (const item of userInput) {
-      if (format && !new RegExp(format).test(item)) {
-        return `Each item must match the format: ${format}`;
-      }
-      if (entryCodes && entryCodes.length > 0 && !entryCodes.includes(item)) {
-        return `Each item must be one of: ${entryCodes.join(", ")}`;
-      }
-      if (characterEncoding === "utf-8" && !(new TextDecoder("utf-8", { fatal: true })).decode(new TextEncoder().encode(item))) {
-        return "Invalid UTF-8 characters in one or more items.";
-      }
-      if (field.options?.[language]?.[field.id]) {
-        const allowed = field.options[language][field.id];
-        if (allowed.length > 0 && !allowed.includes(item)) {
-          return `Each item must be one of these: ${allowed.join(", ")}`;
-        }
-      }
-    }
-  }
-  return null;
+  return FieldValidator.validate(
+    field as unknown as FieldLike,
+    userInput,
+    language
+  );
 }
 
-
-/**
- * Validate all fields on the current page.
- * - `parsedSteps`: full array of all steps
- * - `currentStepIdx`: index of the active step
- * - `pageIndexByStep`: mapping from stepId→current page index
- * - `language`: "eng" or other
- * - `formFieldRefs`: ref map from fieldId→HTML element
- * - `setFieldErrors`: setter function to update fieldErrors state
- */
+//Validate all fields on the current page.
 export function validateCurrentPageData(
-  parsedSteps: Page_parsed[][] | any[], 
+  parsedSteps: Page_parsed[][] | any[],
   currentStepIdx: number,
   pageIndexByStep: Record<string, number>,
   language: string,
@@ -87,73 +91,24 @@ export function validateCurrentPageData(
   >,
   setFieldErrors: (errs: FieldErrors) => void
 ): boolean {
-  const stepObj: any = parsedSteps[currentStepIdx];
-  if (!stepObj) return false;
+  // Warn for invalid UTF-8 early (non-fatal)
+  const provider = new DomFormValueProvider(formFieldRefs);
+  const validator = new PageValidator(
+    parsedSteps as any,
+    pageIndexByStep,
+    language,
+    provider
+  );
+  const { ok, errors } = validator.validateCurrentPage(currentStepIdx);
 
-  const stepId = stepObj.id;
-  const currentPageIndex = pageIndexByStep[stepId] ?? 0;
-  const currentPage: Page_parsed | undefined = stepObj.pages[currentPageIndex];
-
-
-  if (!stepObj || !stepObj.pages[currentPageIndex]) {
-    console.warn("no step or no page found");
-    // console.groupEnd();
-    return false;
-  }
-
-  if (!currentPage) return false;
-
-  let hasError = false;
-  const newErrors: FieldErrors = {};
-
-  currentPage.sections.forEach((section: any) => {
-    section.fields.forEach((field: any) => {
-      const refEl = formFieldRefs.current[field.id];
-      if (!refEl) return;
-
-      let userInput: string | string[] = "";
-
-      if (!refEl) {
-        // console.log("  → SKIPPING (no ref)");
-        return;
-      }
-
-      if (field.type === "select" || field.type === "dropdown") {
-        // Support checkboxes for multi-select
-        if (refEl instanceof HTMLInputElement && refEl.type === "checkbox") {
-          // Gather all checked checkboxes with the same name
-          const checkboxes = document.querySelectorAll<HTMLInputElement>(`input[type=checkbox][name='${refEl.name}']`);
-          userInput = Array.from(checkboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.value);
-        } else if (refEl instanceof HTMLSelectElement) {
-          // gather all selected options (legacy)
-          const selectEl = refEl as HTMLSelectElement;
-          userInput = Array.from(selectEl.selectedOptions).map(
-            (opt) => opt.value
-          );
-        }
-      } else if (field.type === "radio") {
-        userInput = (refEl as HTMLInputElement).value || "";
-      } else {
-        userInput = (refEl as HTMLInputElement | HTMLTextAreaElement).value;
-      }
-
-      if (typeof userInput === "string" && !isValid__UTF8(userInput)) {
-        // We allow invalid chars but warn
-        console.warn(`Field "${field.id}" has invalid UTF-8 characters`);
-      }
-
-      const errorMsg = validateField(field as Field, userInput, language);
-
-      if (errorMsg) {
-        hasError = true;
-        newErrors[field.id] = errorMsg;
-      }
-    });
+  Object.entries(formFieldRefs.current).forEach(([id, el]) => {
+    if (!el) return;
+    const val = (el as HTMLInputElement | HTMLTextAreaElement).value ?? "";
+    if (typeof val === "string" && !Utf8Codec.isValid(val)) {
+      console.warn(`Field "${id}" has invalid UTF-8 characters`);
+    }
   });
 
-
-  setFieldErrors(newErrors);
-  return !hasError;
+  setFieldErrors(errors);
+  return ok;
 }

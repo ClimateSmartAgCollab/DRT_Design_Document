@@ -1,10 +1,10 @@
-// drt_frontend\app\components\Form\ReviewSection.tsx
 "use client";
-
-import React from "react";
+import React, { useMemo } from "react";
 import { ParsedStep } from "./types";
 import ChildReview from "./ChildReview";
 import { useTheme } from "./hooks/useTheme";
+import { SubheadingFormatter } from "./domain/subheading";
+import { StepTreeBuilder } from "./domain/step-tree";
 
 interface ReviewSectionProps {
   parsedSteps: ParsedStep[];
@@ -18,53 +18,6 @@ interface ReviewSectionProps {
   ownerComments?: Record<string, string>;
   globalOwnerComments?: string;
 }
-
-// Helper function to format subheading text with line breaks and bullet points
-const formatSubheading = (text: string): string => {
-  if (!text) return '';
-  
-  // Split by double line breaks to separate paragraphs
-  const paragraphs = text.split('\n\n');
-  
-  // Process each paragraph
-  const formattedParagraphs = paragraphs.map(paragraph => {
-    // Check if paragraph contains bullet points
-    if (paragraph.includes('•')) {
-      // Split by single line breaks to separate bullet points
-      const lines = paragraph.split('\n');
-      const formattedLines = lines.map(line => {
-        if (line.trim().startsWith('•')) {
-          // Format bullet points
-          return `<li>${line.trim().substring(1).trim()}</li>`;
-        } else if (line.trim().includes(':')) {
-          // Format section headers (like "Role:", "Responsibilities:")
-          return `<strong>${line.trim()}</strong>`;
-        } else {
-          // Regular text
-          return line.trim();
-        }
-      });
-      
-      // Join bullet points in a list
-      const listItems = formattedLines.filter(line => line.startsWith('<li>'));
-      const otherLines = formattedLines.filter(line => !line.startsWith('<li>'));
-      
-      let result = '';
-      if (otherLines.length > 0) {
-        result += otherLines.join('<br/>');
-      }
-      if (listItems.length > 0) {
-        result += '<ul style="margin: 8px 0; padding-left: 20px;">' + listItems.join('') + '</ul>';
-      }
-      return result;
-    } else {
-      // Regular paragraph
-      return paragraph.trim().replace(/\n/g, '<br/>');
-    }
-  });
-  
-  return formattedParagraphs.join('<br/><br/>');
-};
 
 export default function ReviewSection({
   parsedSteps,
@@ -80,20 +33,9 @@ export default function ReviewSection({
 }: ReviewSectionProps) {
   const theme = useTheme();
 
-  // Identify which steps are children (referenced by other fields)
-  const childStepIds = new Set<string>();
-  parsedSteps.forEach((step) =>
-    step.pages.forEach((page) =>
-      page.sections.forEach((section) =>
-        section.fields.forEach((field) => {
-          if (field.ref) childStepIds.add(field.ref);
-        })
-      )
-    )
-  );
-  // Only display steps that are *not* children (i.e., parent/root steps)
-  const parentStepsForReview = parsedSteps.filter(
-    (step) => !childStepIds.has(step.id)
+  const parentStepsForReview = useMemo(
+    () => new StepTreeBuilder(parsedSteps).getParentSteps(),
+    [parsedSteps]
   );
 
   const buttonStyle = {
@@ -107,7 +49,7 @@ export default function ReviewSection({
     color: theme.colors.white,
     backgroundColor: theme.colors.primary,
     transition: "all 0.2s ease-in-out",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
   };
 
   return (
@@ -149,6 +91,7 @@ export default function ReviewSection({
               >
                 {step.names[language] || step.names.eng}
               </h2>
+
               {step.pages.map((page) => (
                 <div
                   key={page.pageKey}
@@ -164,6 +107,7 @@ export default function ReviewSection({
                   >
                     {page.pageLabel[language] || page.pageLabel.eng}
                   </h3>
+
                   {page.sections.map((section) => (
                     <div
                       key={section.sectionKey}
@@ -180,22 +124,25 @@ export default function ReviewSection({
                         {section.sectionLabel[language] ||
                           section.sectionLabel.eng}
                       </h4>
-                      {section.subheading && section.subheading[language] && (
+
+                      {section.subheading?.[language] && (
                         <div
                           className="text-sm mb-2 italic pl-4"
                           style={{ color: theme.colors.grey[600] }}
                           dangerouslySetInnerHTML={{
-                            __html: formatSubheading(section.subheading[language])
+                            __html: SubheadingFormatter.format(
+                              section.subheading[language]
+                            ),
                           }}
                         />
                       )}
+
                       {section.fields.map((field) => {
                         const hasChildren =
                           field.type === "reference" &&
                           field.ref &&
-                          parentFormData[field.id]?.childrenData?.[field.ref] &&
-                          parentFormData[field.id].childrenData[field.ref]
-                            .length > 0;
+                          parentFormData[field.id]?.childrenData?.[field.ref]
+                            ?.length > 0;
 
                         if (hasChildren) {
                           return (
@@ -282,70 +229,42 @@ export default function ReviewSection({
           type="button"
           onClick={() => setReviewOutput(null)}
           style={buttonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = "0.9";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = "1";
-          }}
         >
           Back to Form
         </button>
         <button
           type="button"
           onClick={() => {
-            const combinedData = { ...formData };
-
+            const combined = { ...formData };
             Object.keys(parentFormData).forEach((parentId) => {
-              if (
-                parentFormData[parentId] &&
-                parentFormData[parentId].childrenData
-              ) {
-                combinedData[parentId] = {
-                  ...combinedData[parentId],
+              if (parentFormData[parentId]?.childrenData) {
+                combined[parentId] = {
+                  ...combined[parentId],
                   childrenData: parentFormData[parentId].childrenData,
                 };
               }
             });
-
-            onSubmit(combinedData);
+            onSubmit(combined);
           }}
           style={buttonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = "0.9";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = "1";
-          }}
         >
           Submit
         </button>
         <button
           type="button"
           onClick={() => {
-            const combinedData = { ...formData };
-
+            const combined = { ...formData };
             Object.keys(parentFormData).forEach((parentId) => {
-              if (
-                parentFormData[parentId] &&
-                parentFormData[parentId].childrenData
-              ) {
-                combinedData[parentId] = {
-                  ...combinedData[parentId],
+              if (parentFormData[parentId]?.childrenData) {
+                combined[parentId] = {
+                  ...combined[parentId],
                   childrenData: parentFormData[parentId].childrenData,
                 };
               }
             });
-
-            onSave(combinedData);
+            onSave(combined);
           }}
           style={buttonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = "0.9";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = "1";
-          }}
         >
           Save
         </button>

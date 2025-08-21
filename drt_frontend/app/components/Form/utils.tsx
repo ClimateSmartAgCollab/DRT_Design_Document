@@ -1,14 +1,10 @@
-// drt_frontend\app\components\Form\utils.tsx
 "use client";
-
 import React from "react";
-import { ParsedStep} from "./types";
-
+import { ParsedStep } from "./types";
 
 export function getStepIndex(steps: ParsedStep[], stepId: string): number {
   return steps.findIndex((s) => s.id === stepId);
 }
-
 
 export function ErrorMessage({
   fieldId,
@@ -21,7 +17,6 @@ export function ErrorMessage({
   if (!msg) return null;
   return <div className="mt-1 text-sm text-red-600">{msg}</div>;
 }
-
 
 export function OwnerComment({
   fieldId,

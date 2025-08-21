@@ -1,7 +1,8 @@
-import { Step } from "../../../type";
-import { getReferencingStep } from "../../utils/steps";
+// drt_frontend/app/components/Form/hooks/useDynamicForm/usePageNavigation.ts
+import React, { useCallback, useMemo } from "react";
+import type { Step } from "../../../type";
 import { validateCurrentPageData } from "./validation";
-import React, { useCallback } from "react";
+import { NavigationService } from "../../domain/navigation";
 
 export function usePageNavigation(
   parsedSteps: Step[],
@@ -22,110 +23,35 @@ export function usePageNavigation(
   >,
   setCurrentStep: (s: number) => void,
   onNavigate: (idx: number) => void,
-  // Additional parameters for enhanced functionality
+  // optional params (child lifecycle)
   setVisitedSteps?: React.Dispatch<React.SetStateAction<Set<string>>>,
   setCurrentChildId?: (id: string | null) => void,
   setCurrentChildParentId?: (id: string | null) => void,
   currentChildId?: string | null,
   currentChildParentId?: string | null,
-  deleteChild?: (childId: string, parentId: string, childStepId: string) => void,
+  deleteChild?: (
+    childId: string,
+    parentId: string,
+    childStepId: string
+  ) => void,
   isNewChild?: boolean
 ) {
-  const goToNextParent = useCallback(() => {
-    if (!validateCurrentPageData(
-      parsedSteps,
-      currentStep,
-      pageIndexByStep,
-      language,
-      formFieldRefs,
-      setFieldErrors
-    )) {
-      console.warn("Please fix errors before continuing.");
-      // return
-    }
-
-    saveCurrentPageData();
-    const stepId = parsedSteps[currentStep]?.id;
-    const currentParentIndex = parentSteps.findIndex((p) => p.id === stepId);
-    if (
-      currentParentIndex >= 0 &&
-      currentParentIndex < parentSteps.length - 1
-    ) {
-      const nextParentId = parentSteps[currentParentIndex + 1].id;
-      const nextIndex = parsedSteps.findIndex((s) => s.id === nextParentId);
-      if (nextIndex >= 0) {
-        onNavigate(nextIndex);
-      }
-    }
-  }, [parsedSteps, currentStep, parentSteps, onNavigate, pageIndexByStep, language, formFieldRefs, setFieldErrors, saveCurrentPageData]);
-
-  const goToPreviousParent = useCallback(() => {
-    if (!validateCurrentPageData(
-      parsedSteps,
-      currentStep,
-      pageIndexByStep,
-      language,
-      formFieldRefs,
-      setFieldErrors
-    )) {
-      console.warn("Please fix errors before continuing.");
-      // return
-    }
-    
-    saveCurrentPageData();
-    const stepId = parsedSteps[currentStep]?.id;
-    const currentParentIndex = parentSteps.findIndex((p) => p.id === stepId);
-    if (currentParentIndex > 0) {
-      const prevParentId = parentSteps[currentParentIndex - 1].id;
-      const prevIndex = parsedSteps.findIndex((s) => s.id === prevParentId);
-      if (prevIndex >= 0) onNavigate(prevIndex);
-    }
-  }, [parsedSteps, currentStep, parentSteps, onNavigate, pageIndexByStep, language, formFieldRefs, setFieldErrors, saveCurrentPageData]);
-
-  const isParentStep = useCallback(
-    (step: Step) => parentSteps.some((p) => p.id === step.id),
-    [parentSteps]
+  const nav = useMemo(
+    () => new NavigationService<Step>(parsedSteps, parentSteps),
+    [parsedSteps, parentSteps]
   );
 
-  const handleNextPage = useCallback(() => {
-    if (
-      !validateCurrentPageData(
-        parsedSteps,
-        currentStep,
-        pageIndexByStep,
-        language,
-        formFieldRefs,
-        setFieldErrors
-      )
-    ) {
-      console.warn("Please fix errors before continuing.");
-      // return
-    }
-    saveCurrentPageData();
-
-    const currentStepObj = parsedSteps[currentStep];
-    const currentPageIdx = pageIndexByStep[currentStepObj.id] ?? 0;
-    const lastPageIdx = currentStepObj.pages.length - 1;
-
-    if (currentPageIdx < lastPageIdx) {
-      setPageIndexByStep((prev) => ({
-        ...prev,
-        [currentStepObj.id]: currentPageIdx + 1,
-      }));
-    } else {
-      if (isParentStep(currentStepObj)) {
-        goToNextParent();
-        const newIdx = currentStep + 1;
-        if (newIdx < parsedSteps.length) {
-          setPageIndexByStep((prev) => ({
-            ...prev,
-            [parsedSteps[newIdx].id]: 0,
-          }));
-        }
-      }
-      // If it's a child step on the last page, do nothing here
-      // (the user sees Finish/Cancel).
-    }
+  const validateGate = useCallback(() => {
+    const ok = validateCurrentPageData(
+      parsedSteps,
+      currentStep,
+      pageIndexByStep,
+      language,
+      formFieldRefs,
+      setFieldErrors
+    );
+    if (!ok) console.warn("Please fix errors before continuing.");
+    return ok;
   }, [
     parsedSteps,
     currentStep,
@@ -133,153 +59,181 @@ export function usePageNavigation(
     language,
     formFieldRefs,
     setFieldErrors,
+  ]);
+
+  const goToNextParent = useCallback(() => {
+    if (!validateGate()) return;
+    saveCurrentPageData();
+
+    const nextParentIndex = nav.nextParentIndexFrom(currentStep);
+    if (nextParentIndex >= 0) {
+      onNavigate(nextParentIndex);
+      setPageIndexByStep((prev) => ({
+        ...prev,
+        [parsedSteps[nextParentIndex].id]: 0,
+      }));
+    }
+  }, [
+    validateGate,
     saveCurrentPageData,
-    isParentStep,
-    goToNextParent,
+    nav,
+    currentStep,
+    onNavigate,
+    setPageIndexByStep,
+    parsedSteps,
+  ]);
+
+  const goToPreviousParent = useCallback(() => {
+    if (!validateGate()) return;
+    saveCurrentPageData();
+
+    const prevParentIndex = nav.prevParentIndexFrom(currentStep);
+    if (prevParentIndex >= 0) {
+      onNavigate(prevParentIndex);
+      const last = Math.max(
+        (parsedSteps[prevParentIndex].pages?.length ?? 1) - 1,
+        0
+      );
+      setPageIndexByStep((prev) => ({
+        ...prev,
+        [parsedSteps[prevParentIndex].id]: last,
+      }));
+    }
+  }, [
+    validateGate,
+    saveCurrentPageData,
+    nav,
+    currentStep,
+    onNavigate,
+    setPageIndexByStep,
+    parsedSteps,
+  ]);
+
+  const isParentStep = useCallback(
+    (step: Step) => nav.isParentStep(step),
+    [nav]
+  );
+
+  const handleNextPage = useCallback(() => {
+    if (!validateGate()) return;
+    saveCurrentPageData();
+
+    const res = nav.nextPageOrParent(currentStep, pageIndexByStep);
+    if (res) {
+      if (res.stepIndex !== currentStep) {
+        onNavigate(res.stepIndex);
+      }
+      setPageIndexByStep((prev) => ({
+        ...prev,
+        [parsedSteps[res.stepIndex].id]: res.pageIndex,
+      }));
+    }
+  }, [
+    validateGate,
+    saveCurrentPageData,
+    nav,
+    currentStep,
+    pageIndexByStep,
+    onNavigate,
+    setPageIndexByStep,
+    parsedSteps,
   ]);
 
   const handlePreviousPage = useCallback(() => {
     saveCurrentPageData();
 
-    const currentStepObj = parsedSteps[currentStep];
-    const currentPageIdx = pageIndexByStep[currentStepObj.id] ?? 0;
-
-    if (currentPageIdx > 0) {
+    const res = nav.prevPageOrParent(currentStep, pageIndexByStep);
+    if (res) {
+      if (res.stepIndex !== currentStep) {
+        onNavigate(res.stepIndex);
+      }
       setPageIndexByStep((prev) => ({
         ...prev,
-        [currentStepObj.id]: currentPageIdx - 1,
+        [parsedSteps[res.stepIndex].id]: res.pageIndex,
       }));
-    } else {
-      if (isParentStep(currentStepObj)) {
-        goToPreviousParent();
-        const newIdx = currentStep - 1;
-        if (newIdx >= 0) {
-          const prevStep = parsedSteps[newIdx];
-          setPageIndexByStep((prev) => ({
-            ...prev,
-            [prevStep.id]: prevStep.pages.length - 1 || 0,
-          }));
-        }
-      }
-      // If child step is on first page, do nothing
-      // (the user does not have a "Back" on the first child page).
     }
   }, [
-    parsedSteps,
+    saveCurrentPageData,
+    nav,
     currentStep,
     pageIndexByStep,
-    saveCurrentPageData,
-    isParentStep,
-    goToPreviousParent,
+    onNavigate,
+    setPageIndexByStep,
+    parsedSteps,
   ]);
 
   const finishHandler = useCallback(() => {
-    if (
-      !validateCurrentPageData(
-        parsedSteps,
-        currentStep,
-        pageIndexByStep,
-        language,
-        formFieldRefs,
-        setFieldErrors
-      )
-    ) {
-      console.warn("Please fix errors before continuing.");
-      // return
-    }
-
+    if (!validateGate()) return;
     saveCurrentPageData();
 
     const stepObj = parsedSteps[currentStep];
     if (!stepObj) return;
 
-    if (!isParentStep(stepObj)) {
-      // If finishing a child step, remove from visited set so sidebar collapses it
-      if (setVisitedSteps) {
-        setVisitedSteps(prev => {
-          const updated = new Set(prev);
-          updated.delete(stepObj.id);
-          return updated;
-        });
-      }
+    if (!nav.isParentStep(stepObj)) {
+      setVisitedSteps?.((prev) => {
+        const updated = new Set(prev);
+        updated.delete(stepObj.id);
+        return updated;
+      });
     }
 
-    // Reset child state when finishing
-    if (setCurrentChildId) {
-      setCurrentChildId(null);
-    }
-    if (setCurrentChildParentId) {
-      setCurrentChildParentId(null);
-    }
+    setCurrentChildId?.(null);
+    setCurrentChildParentId?.(null);
 
-    const referencingStep = getReferencingStep(stepObj.id, parsedSteps);
-    if (referencingStep) {
-      const refIdx = parsedSteps.findIndex((s) => s.id === referencingStep.id);
-      setCurrentStep(refIdx);
-    } else {
-      setCurrentStep(0);
-    }
+    const refIdx = nav.referencingStepIndex(stepObj.id);
+    setCurrentStep(refIdx >= 0 ? refIdx : 0);
   }, [
+    validateGate,
+    saveCurrentPageData,
     parsedSteps,
     currentStep,
-    pageIndexByStep,
-    language,
-    formFieldRefs,
-    setFieldErrors,
-    saveCurrentPageData,
-    isParentStep,
+    nav,
     setVisitedSteps,
+    setCurrentChildId,
+    setCurrentChildParentId,
+    setCurrentStep,
+  ]);
+
+  const cancelHandler = useCallback(() => {
+    if (currentChildId && currentChildParentId && isNewChild && deleteChild) {
+      const stepObj = parsedSteps[currentStep];
+      if (stepObj)
+        deleteChild(currentChildId, currentChildParentId, stepObj.id);
+    }
+    setCurrentChildId?.(null);
+    setCurrentChildParentId?.(null);
+    setCurrentStep(0);
+  }, [
+    currentChildId,
+    currentChildParentId,
+    isNewChild,
+    deleteChild,
+    parsedSteps,
+    currentStep,
+    setCurrentStep,
     setCurrentChildId,
     setCurrentChildParentId,
   ]);
 
-  const cancelHandler = useCallback(() => {
-    // Delete the child data if this is a new child being created
-    if (currentChildId && currentChildParentId && isNewChild && deleteChild) {
-      const stepObj = parsedSteps[currentStep];
-      if (stepObj) {
-        deleteChild(currentChildId, currentChildParentId, stepObj.id);
-      }
-    }
-    
-    // Reset child state when canceling
-    if (setCurrentChildId) {
-      setCurrentChildId(null);
-    }
-    if (setCurrentChildParentId) {
-      setCurrentChildParentId(null);
-    }
-    
-    setCurrentStep(0);
-  }, [currentChildId, currentChildParentId, isNewChild, deleteChild, parsedSteps, currentStep, setCurrentStep, setCurrentChildId, setCurrentChildParentId]);
-
-  // Enhanced navigation function for direct step/page navigation
   const handleNavigate = useCallback(
     (stepIndex: number, pageIndex: number = 0) => {
       if (stepIndex < 0 || stepIndex >= parsedSteps.length) return;
-
-      if (!validateCurrentPageData(
-        parsedSteps,
-        currentStep,
-        pageIndexByStep,
-        language,
-        formFieldRefs,
-        setFieldErrors
-      )) {
-        console.warn("Please fix errors before continuing.");
-        // return
-      }
+      if (!validateGate()) return;
 
       saveCurrentPageData();
-
-      setPageIndexByStep(prev => ({
+      setPageIndexByStep((prev) => ({
         ...prev,
-        [parsedSteps[stepIndex].id]: pageIndex
+        [parsedSteps[stepIndex].id]: pageIndex,
       }));
-
       onNavigate(stepIndex);
     },
-    [parsedSteps, currentStep, pageIndexByStep, language, formFieldRefs, setFieldErrors, saveCurrentPageData, onNavigate]
+    [
+      parsedSteps,
+      validateGate,
+      saveCurrentPageData,
+      setPageIndexByStep,
+      onNavigate,
+    ]
   );
 
   return {
@@ -292,4 +246,4 @@ export function usePageNavigation(
     goToNextParent,
     goToPreviousParent,
   };
-} 
+}

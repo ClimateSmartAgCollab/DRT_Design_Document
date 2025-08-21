@@ -6,26 +6,17 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useMemo,
+  useRef,
+  useEffect,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-export interface ChildRecord {
-  id: string;
-  parentId: string;
-  stepId: string;
-  data: { [fieldId: string]: any };
-}
-
-export interface ParentRecord {
-  [fieldId: string]: any;
-  childrenData?: {
-    [childStepId: string]: ChildRecord[];
-  };
-}
-
-export interface ParentFormData {
-  [parentId: string]: ParentRecord;
-}
+import {
+  FormDataService,
+  type ChildRecord,
+  type ParentFormData,
+} from "../domain/form-data";
 
 type ChildrenData = ChildRecord[];
 
@@ -52,13 +43,18 @@ interface FormDataContextType {
   ) => void;
 
   deleteChild: (childId: string, parentId: string, childStepId: string) => void;
-  
+
   // Additional utility functions
   getChildrenByParentId: (parentId: string) => ChildRecord[];
-  getChildrenByParentAndStep: (parentId: string, stepId: string) => ChildRecord[];
+  getChildrenByParentAndStep: (
+    parentId: string,
+    stepId: string
+  ) => ChildRecord[];
   clearParentData: (parentId: string) => void;
   clearAllData: () => void;
 }
+
+const STORAGE_KEY = "parentFormData";
 
 const FormDataContext = createContext<FormDataContextType | undefined>(
   undefined
@@ -73,221 +69,139 @@ export function FormDataProvider({
   initialParentData?: ParentFormData;
   initialChildrenData?: ChildrenData;
 }) {
-  // Load initial state from sessionStorage (or {} on server-side)
+  // Service instance (stable)
+  const serviceRef = useRef(new FormDataService(uuidv4));
+
+  // Bootstrap from sessionStorage on client, or use provided initial data on server
   const [parentFormData, setParentFormData] = useState<ParentFormData>(() => {
     if (typeof window === "undefined") return initialParentData;
-    const saved = sessionStorage.getItem("parentFormData");
-    return saved ? JSON.parse(saved) : initialParentData;
-  });
-  
-  const [childrenData, setChildrenData] =
-    useState<ChildrenData>(initialChildrenData);
-
-  // Write parentFormData back to sessionStorage on every change
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("parentFormData", JSON.stringify(parentFormData));
+    try {
+      const saved = window.sessionStorage.getItem(STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as ParentFormData) : initialParentData;
+    } catch {
+      return initialParentData;
     }
-  }, [parentFormData]);
+  });
 
-  const createNewChild = useCallback((parentId: string, stepId: string) => {
-    const newChild: ChildRecord = {
-      id: uuidv4(),
-      parentId,
-      stepId: stepId || "defaultStepId",
-      data: {},
-    };
+  // Keep a flat cache for compatibility; derive from parentFormData when it changes
+  const derivedChildren = useMemo(
+    () => serviceRef.current.listAllChildren(parentFormData),
+    [parentFormData]
+  );
 
-    setParentFormData((prev) => {
-      // Get the current parent's record (or start with an empty object)
-      const parentRecord = prev[parentId] || {};
-      // Get the current children array for the childStepId (or start with an empty array)
-      const currentChildren = parentRecord.childrenData?.[stepId] || [];
-      const updatedChildren = [...currentChildren, newChild];
+  const [childrenData, setChildrenData] = useState<ChildrenData>(
+    initialChildrenData.length ? initialChildrenData : derivedChildren
+  );
 
-      return {
-        ...prev,
-        [parentId]: {
-          ...parentRecord,
-          childrenData: {
-            // Preserve any other child groups already stored on this parent
-            ...(parentRecord.childrenData || {}),
-            [stepId]: updatedChildren,
-          },
-        },
-      };
-    });
+  // Persist on every parentFormData change + refresh childrenData cache
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(parentFormData)
+        );
+      } catch {
+        // Storage can fail (quota/private mode); fail gracefully.
+      }
+    }
+    setChildrenData(derivedChildren);
+  }, [parentFormData, derivedChildren]);
 
-    return newChild;
-  }, []);
+  /** ------------------------- Command handlers (thin wrappers) ------------------------- */
+
+  const createNewChild = useCallback(
+    (parentId: string, stepId: string) => {
+      const { next, child } = serviceRef.current.createNewChild(
+        parentFormData,
+        parentId,
+        stepId
+      );
+      setParentFormData(next);
+      return child;
+    },
+    [parentFormData]
+  );
 
   const editExistingChild = useCallback(
     (parentId: string, childId: string) => {
-      const parentRecord = parentFormData[parentId];
-      if (!parentRecord || !parentRecord.childrenData) return null;
-
-      // Search through each child group
-      for (const childStep in parentRecord.childrenData) {
-        const child = parentRecord.childrenData[childStep].find(
-          (child) => child.id === childId
-        );
-        if (child) return child;
-      }
-      return null;
+      return serviceRef.current.editExistingChild(
+        parentFormData,
+        parentId,
+        childId
+      );
     },
     [parentFormData]
   );
 
   const saveChildData = useCallback(
     (parentId: string, childId: string, newData: Record<string, any>) => {
-      setParentFormData((prev) => {
-        const parentRecord = prev[parentId];
-        if (!parentRecord || !parentRecord.childrenData) return prev;
-
-        // Create a shallow copy of the parent's childrenData to update immutably
-        const updatedChildrenData = { ...parentRecord.childrenData };
-
-        // Loop through each child group to find the child
-        for (const childStep in updatedChildrenData) {
-          const childrenArray = updatedChildrenData[childStep];
-          const index = childrenArray.findIndex((child) => child.id === childId);
-          if (index !== -1) {
-            childrenArray[index] = {
-              ...childrenArray[index],
-              data: { ...childrenArray[index].data, ...newData },
-            };
-            break;
-          }
-        }
-        return {
-          ...prev,
-          [parentId]: {
-            ...parentRecord,
-            childrenData: updatedChildrenData,
-          },
-        };
-      });
+      setParentFormData((prev) =>
+        serviceRef.current.saveChildData(prev, parentId, childId, newData)
+      );
     },
     []
   );
 
   const getChildById = useCallback(
     (parentId: string, childId: string) => {
-      const parentRecord = parentFormData[parentId];
-      if (!parentRecord || !parentRecord.childrenData) return null;
-
-      for (const childStep in parentRecord.childrenData) {
-        const child = parentRecord.childrenData[childStep].find(
-          (child) => child.id === childId
-        );
-        if (child) return child;
-      }
-      return null;
+      return serviceRef.current.getChildById(parentFormData, parentId, childId);
     },
     [parentFormData]
   );
 
   const updateChildById = useCallback(
     (parentId: string, childId: string, newData: Record<string, any>) => {
-      setParentFormData((prev) => {
-        const parentRecord = prev[parentId];
-        if (!parentRecord || !parentRecord.childrenData) return prev;
-
-        const updatedChildrenData = { ...parentRecord.childrenData };
-
-        for (const childStep in updatedChildrenData) {
-          const childrenArray = updatedChildrenData[childStep];
-          const index = childrenArray.findIndex((child) => child.id === childId);
-          if (index !== -1) {
-            childrenArray[index] = {
-              ...childrenArray[index],
-              data: { ...childrenArray[index].data, ...newData },
-            };
-            break;
-          }
-        }
-        return {
-          ...prev,
-          [parentId]: {
-            ...parentRecord,
-            childrenData: updatedChildrenData,
-          },
-        };
-      });
+      setParentFormData((prev) =>
+        serviceRef.current.updateChildById(prev, parentId, childId, newData)
+      );
     },
     []
   );
 
   const deleteChild = useCallback(
     (childId: string, parentId: string, childStepId: string) => {
-      setParentFormData((prev) => {
-        const parentRecord = prev[parentId];
-        if (
-          !parentRecord ||
-          !parentRecord.childrenData ||
-          !parentRecord.childrenData[childStepId]
-        ) {
-          return prev;
-        }
-
-        // Filter out the child with the matching ID
-        const updatedChildren = parentRecord.childrenData[childStepId].filter(
-          (child) => child.id !== childId
-        );
-
-        return {
-          ...prev,
-          [parentId]: {
-            ...parentRecord,
-            childrenData: {
-              ...parentRecord.childrenData,
-              [childStepId]: updatedChildren,
-            },
-          },
-        };
-      });
+      setParentFormData((prev) =>
+        serviceRef.current.deleteChild(prev, childId, parentId, childStepId)
+      );
     },
     []
   );
 
-  // Additional utility functions
   const getChildrenByParentId = useCallback(
     (parentId: string) => {
-      const parentRecord = parentFormData[parentId];
-      if (!parentRecord || !parentRecord.childrenData) return [];
-
-      const allChildren: ChildRecord[] = [];
-      for (const childStep in parentRecord.childrenData) {
-        allChildren.push(...parentRecord.childrenData[childStep]);
-      }
-      return allChildren;
+      return serviceRef.current.getChildrenByParentId(parentFormData, parentId);
     },
     [parentFormData]
   );
 
   const getChildrenByParentAndStep = useCallback(
     (parentId: string, stepId: string) => {
-      const parentRecord = parentFormData[parentId];
-      if (!parentRecord || !parentRecord.childrenData) return [];
-
-      return parentRecord.childrenData[stepId] || [];
+      return serviceRef.current.getChildrenByParentAndStep(
+        parentFormData,
+        parentId,
+        stepId
+      );
     },
     [parentFormData]
   );
 
-  const clearParentData = useCallback(
-    (parentId: string) => {
-      setParentFormData((prev) => {
-        const { [parentId]: removed, ...rest } = prev;
-        return rest;
-      });
-    },
-    []
-  );
+  const clearParentData = useCallback((parentId: string) => {
+    setParentFormData((prev) =>
+      serviceRef.current.clearParentData(prev, parentId)
+    );
+  }, []);
 
   const clearAllData = useCallback(() => {
-    setParentFormData({});
+    setParentFormData(serviceRef.current.clearAllData());
     setChildrenData([]);
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
   }, []);
 
   const value: FormDataContextType = {
@@ -316,8 +230,7 @@ export function FormDataProvider({
 
 export function useFormData() {
   const context = useContext(FormDataContext);
-  if (!context) {
+  if (!context)
     throw new Error("useFormData must be used within a FormDataProvider");
-  }
   return context;
 }

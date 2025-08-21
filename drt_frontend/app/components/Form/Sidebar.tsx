@@ -1,12 +1,10 @@
-// drt_frontend\app\components\Form\Sidebar.tsx
 "use client";
-
 import React from "react";
 import { ParsedStep } from "./types";
 import { NavigationItem } from "./NavigationItem";
-import { getStepIndex } from "./utils";
 import { useTheme } from "./hooks/useTheme";
 import styles from "./Form.module.css";
+import { StepIndexResolver } from "./domain/sidebar";
 
 interface SidebarProps {
   parsedSteps: ParsedStep[];
@@ -32,7 +30,7 @@ export default function Sidebar({
   const theme = useTheme();
 
   return (
-    <nav 
+    <nav
       className={styles.sidebar}
       style={{
         backgroundColor: theme.colors.blue[100],
@@ -40,12 +38,9 @@ export default function Sidebar({
         fontFamily: theme.fonts.body,
       }}
     >
-      <h2 
+      <h2
         className="mb-4 text-xl font-semibold"
-        style={{ 
-          color: theme.colors.primary,
-          fontFamily: theme.fonts.heading,
-        }}
+        style={{ color: theme.colors.primary, fontFamily: theme.fonts.heading }}
       >
         Pages / Steps
       </h2>
@@ -53,9 +48,11 @@ export default function Sidebar({
         {parsedSteps
           .filter((s) => visitedSteps.has(s.id) || s.id === parsedSteps[0].id)
           .map((stepNode) => {
-            const nodeStepIndex = getStepIndex(parsedSteps, stepNode.id);
+            const nodeStepIndex = StepIndexResolver.get(
+              parsedSteps,
+              stepNode.id
+            );
             const nodeCurrentPageIndex = pageIndexByStep[stepNode.id] ?? 0;
-
             return (
               <NavigationItem
                 key={stepNode.id}
@@ -64,7 +61,7 @@ export default function Sidebar({
                 currentPageIndex={nodeCurrentPageIndex}
                 onNavigate={onNavigate}
                 language={language}
-                getIndex={(id) => getStepIndex(parsedSteps, id)}
+                getIndex={(id) => StepIndexResolver.get(parsedSteps, id)}
                 expandedStep={expandedStep}
                 setExpandedStep={setExpandedStep}
               />

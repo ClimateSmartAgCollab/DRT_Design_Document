@@ -1,6 +1,4 @@
-// drt_frontend\app\components\Form\NavigationButtons.tsx
 "use client";
-
 import React from "react";
 import { ParsedStep } from "./types";
 import { useTheme } from "./hooks/useTheme";
@@ -16,29 +14,25 @@ interface NavigationButtonsProps {
   handlePreviousPage: () => void;
   cancelHandler: () => void;
   finishHandler: () => void;
-  handleSubmit_openAIRE: () => void;
+  handleSubmit: () => void;
 }
 
-export default function NavigationButtons({
-  step,
-  parentSteps,
-  isParentStep,
-  isVeryLastPageOfLastStep,
-  isFirstPageOfThisStep,
-  isLastPageOfThisStep,
-  handleNextPage,
-  handlePreviousPage,
-  cancelHandler,
-  finishHandler,
-  handleSubmit_openAIRE,
-}: NavigationButtonsProps) {
-  const theme = useTheme();
-  
-  const isFirstParentPage =
-    parentSteps.findIndex((p) => p.id === step.id) === 0 &&
-    isFirstPageOfThisStep;
+export default function NavigationButtons(props: NavigationButtonsProps) {
+  const {
+    step,
+    parentSteps,
+    isParentStep,
+    isVeryLastPageOfLastStep,
+    isFirstPageOfThisStep,
+    isLastPageOfThisStep,
+    handleNextPage,
+    handlePreviousPage,
+    cancelHandler,
+    finishHandler,
+    handleSubmit,
+  } = props;
 
-  // Common button styles
+  const theme = useTheme();
   const buttonBaseStyle = {
     padding: "0.75rem 1.5rem",
     borderRadius: "0.375rem",
@@ -49,31 +43,26 @@ export default function NavigationButtons({
     fontSize: "0.875rem",
     transition: "all 0.2s ease-in-out",
   };
-
   const primaryButtonStyle = {
     ...buttonBaseStyle,
     backgroundColor: theme.colors.primary,
     color: theme.colors.white,
   };
-
   const secondaryButtonStyle = {
     ...buttonBaseStyle,
     backgroundColor: theme.colors.grey[300],
     color: theme.colors.text,
   };
-
   const successButtonStyle = {
     ...buttonBaseStyle,
     backgroundColor: theme.colors.green[400],
     color: theme.colors.white,
   };
-
   const dangerButtonStyle = {
     ...buttonBaseStyle,
     backgroundColor: theme.colors.secondary,
     color: theme.colors.white,
   };
-
   const disabledButtonStyle = {
     ...buttonBaseStyle,
     backgroundColor: theme.colors.grey[200],
@@ -82,7 +71,10 @@ export default function NavigationButtons({
     opacity: 0.5,
   };
 
-  // If this is a parent step, show back to previous parent or page, and either Next or Review
+  const isFirstParentPage =
+    parentSteps.findIndex((p) => p.id === step.id) === 0 &&
+    isFirstPageOfThisStep;
+
   if (isParentStep(step)) {
     return (
       <div className="mt-8 flex items-center space-x-4">
@@ -96,16 +88,6 @@ export default function NavigationButtons({
           }}
           disabled={isFirstParentPage}
           style={isFirstParentPage ? disabledButtonStyle : secondaryButtonStyle}
-          onMouseEnter={(e) => {
-            if (!isFirstParentPage) {
-              e.currentTarget.style.opacity = "0.8";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isFirstParentPage) {
-              e.currentTarget.style.opacity = "1";
-            }
-          }}
         >
           Back
         </button>
@@ -113,16 +95,8 @@ export default function NavigationButtons({
         {isVeryLastPageOfLastStep ? (
           <button
             type="button"
-            onClick={() => {
-              handleSubmit_openAIRE();
-            }}
+            onClick={handleSubmit}
             style={primaryButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "0.9";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "1";
-            }}
           >
             Review
           </button>
@@ -134,12 +108,6 @@ export default function NavigationButtons({
               window.scrollTo(0, 0);
             }}
             style={primaryButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "0.9";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "1";
-            }}
           >
             Next
           </button>
@@ -148,12 +116,10 @@ export default function NavigationButtons({
     );
   }
 
-  // If this is a child step, show different navigation
   return (
     <>
       {!isLastPageOfThisStep ? (
         <div className="mt-8 flex items-center space-x-4">
-          {/* Back only if not first page */}
           <button
             type="button"
             onClick={() => {
@@ -161,21 +127,12 @@ export default function NavigationButtons({
               window.scrollTo(0, 0);
             }}
             disabled={isFirstPageOfThisStep}
-            style={isFirstPageOfThisStep ? disabledButtonStyle : secondaryButtonStyle}
-            onMouseEnter={(e) => {
-              if (!isFirstPageOfThisStep) {
-                e.currentTarget.style.opacity = "0.8";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isFirstPageOfThisStep) {
-                e.currentTarget.style.opacity = "1";
-              }
-            }}
+            style={
+              isFirstPageOfThisStep ? disabledButtonStyle : secondaryButtonStyle
+            }
           >
             Back
           </button>
-          {/* Next */}
           <button
             type="button"
             onClick={() => {
@@ -183,12 +140,6 @@ export default function NavigationButtons({
               window.scrollTo(0, 0);
             }}
             style={primaryButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "0.9";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "1";
-            }}
           >
             Next
           </button>
@@ -199,12 +150,6 @@ export default function NavigationButtons({
             type="button"
             onClick={cancelHandler}
             style={dangerButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "0.9";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "1";
-            }}
           >
             Cancel
           </button>
@@ -212,12 +157,6 @@ export default function NavigationButtons({
             type="button"
             onClick={finishHandler}
             style={successButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "0.9";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "1";
-            }}
           >
             Finish
           </button>

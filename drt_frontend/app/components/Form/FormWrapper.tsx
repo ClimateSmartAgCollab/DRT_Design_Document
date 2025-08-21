@@ -1,7 +1,10 @@
-// drt_frontend/app/components/Form/FormWrapper.tsx
 "use client";
-
-import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -9,10 +12,7 @@ import { motion } from "framer-motion";
 
 import { parseJsonToFormStructure } from "../parser";
 import type { ParsedStep, FormProps, UseDynamicFormReturn } from "./types";
-import {
-  useDynamicForm,
-  sortStepsByReferences,
-} from "../Form/hooks/useDynamicForm";
+import { useDynamicForm } from "../Form/hooks/useDynamicForm";
 import { useFormData } from "../Form/context/FormDataContext";
 import { buildValidationSchema } from "./hooks/useDynamicForm/validationSchema";
 import { useTheme } from "./hooks/useTheme";
@@ -23,52 +23,14 @@ import FieldRenderer from "./FieldRenderer";
 import NavigationButtons from "./NavigationButtons";
 import Sidebar from "./Sidebar";
 import ReviewSection from "./ReviewSection";
-
 import styles from "./Form.module.css";
 import Footer from "../Footer/footer";
-
-
+import { SubheadingFormatter } from "./domain/subheading";
 
 interface FormWrapperProps extends FormProps {
-  parsedSteps?: ParsedStep[]; 
-  questionnaireJson?: any; 
+  parsedSteps?: ParsedStep[];
+  questionnaireJson?: any;
 }
-
-const formatSubheading = (text: string): string => {
-  if (!text) return '';
-    const paragraphs = text.split('\n\n');
-  
-  const formattedParagraphs = paragraphs.map(paragraph => {
-    if (paragraph.includes('•')) {
-      const lines = paragraph.split('\n');
-      const formattedLines = lines.map(line => {
-        if (line.trim().startsWith('•')) {
-          return `<li>${line.trim().substring(1).trim()}</li>`;
-        } else if (line.trim().includes(':')) {
-          return `<strong>${line.trim()}</strong>`;
-        } else {
-          return line.trim();
-        }
-      });
-      
-      const listItems = formattedLines.filter(line => line.startsWith('<li>'));
-      const otherLines = formattedLines.filter(line => !line.startsWith('<li>'));
-      
-      let result = '';
-      if (otherLines.length > 0) {
-        result += otherLines.join('<br/>');
-      }
-      if (listItems.length > 0) {
-        result += '<ul style="margin: 8px 0; padding-left: 20px;">' + listItems.join('') + '</ul>';
-      }
-      return result;
-    } else {
-      return paragraph.trim().replace(/\n/g, '<br/>');
-    }
-  });
-  
-  return formattedParagraphs.join('<br/><br/>');
-};
 
 export default function FormWrapper({
   initialAnswers = {},
@@ -76,52 +38,47 @@ export default function FormWrapper({
   globalOwnerComments,
   onSave,
   onSubmit,
-  parsedSteps: providedParsedSteps, 
-  questionnaireJson, 
+  parsedSteps: providedParsedSteps,
+  questionnaireJson,
 }: FormWrapperProps) {
   const theme = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const parsedSteps = useMemo(() => {
     if (questionnaireJson) {
       try {
         return parseJsonToFormStructure(questionnaireJson);
-      } catch (err) {
-        setError('Failed to parse questionnaire structure');
+      } catch {
+        setError("Failed to parse questionnaire structure");
         return [];
       }
     }
     return providedParsedSteps || [];
   }, [questionnaireJson, providedParsedSteps]);
 
-  // Build validation schema
   const validationSchema = useMemo(() => {
     try {
       return buildValidationSchema(parsedSteps);
-    } catch (err) {
-      setError('Failed to build validation schema');
+    } catch {
+      setError("Failed to build validation schema");
       return yup.object({});
     }
   }, [parsedSteps]);
 
   type FormValues = Record<string, any>;
-
   const methods = useForm<FormValues>({
     resolver: yupResolver(validationSchema),
     mode: "onChange",
   });
-
-  const { 
-    reset, 
-    handleSubmit, 
-    register, 
-    formState: { errors, touchedFields } 
+  const {
+    reset,
+    handleSubmit,
+    register,
+    formState: { errors, touchedFields },
   } = methods;
 
-  // dynamic‐form hook
   const dynamicForm = useDynamicForm(parsedSteps);
-
   const {
     language,
     setLanguage,
@@ -153,7 +110,7 @@ export default function FormWrapper({
     deleteChild,
     reviewOutput,
     setReviewOutput,
-    handleSubmit_openAIRE,
+    handleSubmit: dynamicHandleSubmit,
     isNewChild,
     setIsNewChild,
     prefillCurrentPageData,
@@ -173,17 +130,13 @@ export default function FormWrapper({
       try {
         const currentInitialAnswers = JSON.stringify(initialAnswers);
         const hasChanged = currentInitialAnswers !== lastInitialAnswers.current;
-        
-        // Only reset on initial load, never after that to preserve user input
         if (!formInitialized.current) {
           reset(initialAnswers as any);
           setFormData(initialAnswers);
           formInitialized.current = true;
           lastInitialAnswers.current = currentInitialAnswers;
         }
-      } catch (error) {
-        console.error('Error in form reset logic:', error);
-        // Fallback: initialize form if there's an error
+      } catch {
         if (!formInitialized.current) {
           reset(initialAnswers as any);
           setFormData(initialAnswers);
@@ -199,7 +152,6 @@ export default function FormWrapper({
     }
   }, [step?.id]);
 
-  // Auto-save when formData changes (but only for actual changes, not initial load)
   const lastSavedData = useRef(JSON.stringify(formData));
   const hasInitialized = useRef(false);
   useEffect(() => {
@@ -208,20 +160,19 @@ export default function FormWrapper({
       lastSavedData.current = JSON.stringify(formData);
       return;
     }
-    
-    const currentFormDataString = JSON.stringify(formData);
-    if (currentFormDataString !== lastSavedData.current && Object.keys(formData).length > 0) {
-      // Debounce the save to avoid too many API calls
-      const timeoutId = setTimeout(() => {
+    const currentStr = JSON.stringify(formData);
+    if (
+      currentStr !== lastSavedData.current &&
+      Object.keys(formData).length > 0
+    ) {
+      const t = setTimeout(() => {
         onSave(formData);
         lastSavedData.current = JSON.stringify(formData);
-      }, 2000); // Save after 2 seconds of no changes
-      
-      return () => clearTimeout(timeoutId);
+      }, 2000);
+      return () => clearTimeout(t);
     }
   }, [formData, onSave]);
 
-  // One-time init from initialAnswers
   const didInit = useRef(false);
   useEffect(() => {
     if (
@@ -230,27 +181,21 @@ export default function FormWrapper({
       Object.keys(initialAnswers).length
     ) {
       didInit.current = true;
-      
-      // Clear sessionStorage to ensure we start fresh with the new data
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("formData");
         sessionStorage.removeItem("parentFormData");
       }
-      
       setFormData(initialAnswers);
-      
-      // Initialize parentFormData with children data from initialAnswers
       const parentDataWithChildren: Record<string, any> = {};
-      Object.keys(initialAnswers).forEach(key => {
+      Object.keys(initialAnswers).forEach((key) => {
         const answer = initialAnswers[key];
-        if (answer && typeof answer === 'object' && answer.childrenData) {
+        if (answer && typeof answer === "object" && answer.childrenData) {
           parentDataWithChildren[key] = {
             ...answer,
-            childrenData: answer.childrenData
+            childrenData: answer.childrenData,
           };
         }
       });
-      
       if (Object.keys(parentDataWithChildren).length > 0) {
         setParentFormData(parentDataWithChildren);
       }
@@ -261,9 +206,12 @@ export default function FormWrapper({
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">No Questionnaire Available</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            No Questionnaire Available
+          </h2>
           <p className="text-gray-600">
-            The questionnaire data could not be loaded. Please try refreshing the page or contact support.
+            The questionnaire data could not be loaded. Please try refreshing
+            the page or contact support.
           </p>
         </div>
       </div>
@@ -274,10 +222,12 @@ export default function FormWrapper({
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
-          <h2 className="text-xl font-semibold text-red-800 mb-4">Error Loading Form</h2>
+          <h2 className="text-xl font-semibold text-red-800 mb-4">
+            Error Loading Form
+          </h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Reload Page
@@ -291,14 +241,13 @@ export default function FormWrapper({
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4" />
           <p className="text-gray-600">Loading form...</p>
         </div>
       </div>
     );
   }
 
-  // REVIEW MODE
   if (reviewOutput) {
     return (
       <ReviewSection
@@ -316,26 +265,23 @@ export default function FormWrapper({
     );
   }
 
-  const handleFormSubmit = (formData: any) => {
-    const combinedData = { ...formData };
-    
-    Object.keys(parentFormData).forEach(parentId => {
-      if (parentFormData[parentId] && parentFormData[parentId].childrenData) {
-        combinedData[parentId] = {
-          ...combinedData[parentId],
-          childrenData: parentFormData[parentId].childrenData
+  const handleFormSubmit = (values: any) => {
+    const combined = { ...values };
+    Object.keys(parentFormData).forEach((parentId) => {
+      if (parentFormData[parentId]?.childrenData) {
+        combined[parentId] = {
+          ...combined[parentId],
+          childrenData: parentFormData[parentId].childrenData,
         };
       }
     });
-    
-    onSubmit(combinedData);
+    onSubmit(combined);
   };
 
-  // NORMAL FORM MODE
   return (
     <FormProvider {...methods}>
-      <form 
-        className={styles.formLayout} 
+      <form
+        className={styles.formLayout}
         onSubmit={handleSubmit(handleFormSubmit)}
         style={{
           fontFamily: theme.fonts.body,
@@ -361,25 +307,33 @@ export default function FormWrapper({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              {/* Page Title & Subheading */}
               {currentPage.pageLabel[language] && (
-                <h2 
+                <h2
                   className="mb-4 text-2xl font-semibold"
-                  style={{ fontFamily: theme.fonts.heading, color: theme.colors.primary }}
+                  style={{
+                    fontFamily: theme.fonts.heading,
+                    color: theme.colors.primary,
+                  }}
                 >
                   {currentPage.pageLabel[language]}
                 </h2>
               )}
               {currentPage.subheading && (
-                <p 
+                <p
                   className="text-md mb-4 italic"
                   style={{ color: theme.colors.grey[600] }}
                 >
-                  {currentPage.subheading[language]}
+                  {/* using domain formatter */}
+                  <span
+                    dangerouslySetInnerHTML={{
+                      __html: SubheadingFormatter.format(
+                        currentPage.subheading[language]
+                      ),
+                    }}
+                  />
                 </p>
               )}
 
-              {/* Sections & Fields */}
               {currentPage.sections.map((section) => (
                 <div
                   key={section.sectionKey}
@@ -387,28 +341,30 @@ export default function FormWrapper({
                   style={{ backgroundColor: theme.colors.grey[200] }}
                 >
                   {section.sectionLabel[language] && (
-                    <h3 
+                    <h3
                       className="mb-2 text-xl font-medium"
-                      style={{ fontFamily: theme.fonts.heading, color: theme.colors.primary }}
+                      style={{
+                        fontFamily: theme.fonts.heading,
+                        color: theme.colors.primary,
+                      }}
                     >
                       {section.sectionLabel[language]}
                     </h3>
                   )}
-                  {section.subheading && section.subheading[language] && (
-                    <div 
+                  {section.subheading?.[language] && (
+                    <div
                       className="text-md mb-4 italic pl-4"
                       style={{ color: theme.colors.grey[600] }}
                       dangerouslySetInnerHTML={{
-                        __html: formatSubheading(section.subheading[language])
+                        __html: SubheadingFormatter.format(
+                          section.subheading[language]
+                        ),
                       }}
                     />
                   )}
 
                   {section.fields.map((field) => {
-                    // RHF name: "stepId.fieldId"
                     const name = `${step.id}.${field.id}` as const;
-
-                    // current dynamic value
                     const value =
                       currentChildId && currentChildParentId
                         ? editExistingChild(
@@ -417,7 +373,6 @@ export default function FormWrapper({
                           )?.data[field.id] ?? ""
                         : (formData[step.id]?.[field.id] as any) ?? "";
 
-                    // RHF error & touched
                     const errorMsg = (errors as any)?.[step.id]?.[field.id]
                       ?.message as string | undefined;
                     const wasTouched = (touchedFields as any)?.[step.id]?.[
@@ -441,18 +396,12 @@ export default function FormWrapper({
                           value={value}
                           language={language}
                           registerFieldRef={registerFieldRef}
-                          // Register with RHF:
                           register={register(name as any)}
-                          // dynamic onChange + keep RHF in sync:
                           handleFieldChange={(newVal) => {
                             handleFieldChange(field, newVal);
                             methods.setValue(name, newVal);
                           }}
-                          saveCurrentPageData={() => {
-                            // This function is called on field blur, but we don't need to save immediately
-                            // The form data is already updated by handleFieldChange
-                            // We'll let the useEffect handle saving when formData changes
-                          }}
+                          saveCurrentPageData={() => {}}
                           formData={formData}
                           stepId={step.id}
                           createNewChild={createNewChild}
@@ -472,30 +421,25 @@ export default function FormWrapper({
                           clearCurrentStepFormData={clearCurrentStepFormData}
                         />
 
-                        {/* only show error if blurred */}
                         {errorMsg && wasTouched && (
-                          <p 
+                          <p
                             className="mt-1 text-sm"
                             style={{ color: theme.colors.secondary }}
                           >
                             {errorMsg}
                           </p>
                         )}
-
-                        {/* Show Validation Errors */}
                         {fieldErrors[field.id] && (
-                          <div className='mt-1 text-sm text-red-600'>
+                          <div className="mt-1 text-sm text-red-600">
                             {fieldErrors[field.id]}
                           </div>
                         )}
-
-                        {/* Owner Comment */}
                         {ownerComments[field.id] && (
-                          <div 
+                          <div
                             className="mt-2 p-2 text-sm rounded"
-                            style={{ 
+                            style={{
                               backgroundColor: theme.colors.pink[200],
-                              color: theme.colors.dark 
+                              color: theme.colors.dark,
                             }}
                           >
                             <strong>Owner Comment:</strong>{" "}
@@ -508,7 +452,6 @@ export default function FormWrapper({
                 </div>
               ))}
 
-              {/* Navigation */}
               <NavigationButtons
                 step={step}
                 parentSteps={parentSteps}
@@ -526,20 +469,19 @@ export default function FormWrapper({
                 }}
                 cancelHandler={cancelHandler}
                 finishHandler={finishHandler}
-                handleSubmit_openAIRE={() => {
-                  handleSubmit_openAIRE();
-                  const combinedData = { ...formData };
-                  
-                  Object.keys(parentFormData).forEach(parentId => {
-                    if (parentFormData[parentId] && parentFormData[parentId].childrenData) {
-                      combinedData[parentId] = {
-                        ...combinedData[parentId],
-                        childrenData: parentFormData[parentId].childrenData
+                handleSubmit={() => {
+                  // Use dynamic form's review trigger if you want; otherwise keep this
+                  dynamicHandleSubmit();
+                  const combined = { ...formData };
+                  Object.keys(parentFormData).forEach((parentId) => {
+                    if (parentFormData[parentId]?.childrenData) {
+                      combined[parentId] = {
+                        ...combined[parentId],
+                        childrenData: parentFormData[parentId].childrenData,
                       };
                     }
                   });
-                  
-                  onSave(combinedData);
+                  onSave(combined);
                 }}
               />
             </motion.div>
@@ -548,7 +490,6 @@ export default function FormWrapper({
           )}
         </div>
 
-        {/* Sidebar & Footer */}
         <Sidebar
           parsedSteps={parsedSteps}
           visitedSteps={visitedSteps}

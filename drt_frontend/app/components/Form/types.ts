@@ -1,18 +1,11 @@
 // drt_frontend\app\components\Form\types.ts
 
+import { Step, Page_parsed, Field } from "../type";
 
-import {
-  Step,
-  Page_parsed,
-  Field,
-} from "../type";
-
-import { ChildRecord, ParentFormData } from "../Form/context/FormDataContext";
-
+import type { ChildRecord, ParentFormData } from "./domain/form-data";
 
 export type ParsedStep = Step;
 export type ParsedPage = Page_parsed;
-
 
 export interface ParsedSection {
   sectionKey: string;
@@ -21,9 +14,7 @@ export interface ParsedSection {
   fields: Field[];
 }
 
-
 export type ParsedField = Field;
-
 
 export interface UseDynamicFormReturn {
   language: string;
@@ -33,7 +24,9 @@ export interface UseDynamicFormReturn {
   visitedSteps: Set<string>;
 
   formData: Record<string, Record<string, any>>;
-  setFormData: React.Dispatch<React.SetStateAction<Record<string, Record<string, any>>>>;
+  setFormData: React.Dispatch<
+    React.SetStateAction<Record<string, Record<string, any>>>
+  >;
 
   parentSteps: ParsedStep[];
   onNavigate: (index: number) => void;
@@ -41,14 +34,22 @@ export interface UseDynamicFormReturn {
   cancelHandler: () => void;
   isParentStep: (step: ParsedStep) => boolean;
 
+  // These two track the "active" child being edited
   setCurrentChildId: (id: string | null) => void;
   currentChildId: string | null;
   setCurrentChildParentId: (id: string | null) => void;
   currentChildParentId: string | null;
 
   createNewChild: (parentFieldId: string, childStepId: string) => ChildRecord;
-  editExistingChild: (parentFieldId: string, childId: string) => ChildRecord | null;
-  deleteChild: (childId: string, parentFieldId: string, childStepId: string) => void;
+  editExistingChild: (
+    parentFieldId: string,
+    childId: string
+  ) => ChildRecord | null;
+  deleteChild: (
+    childId: string,
+    parentFieldId: string,
+    childStepId: string
+  ) => void;
 
   pageIndexByStep: Record<string, number>;
   expandedStep: string | null;
@@ -72,10 +73,9 @@ export interface UseDynamicFormReturn {
     el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null
   ) => void;
 
-
   reviewOutput: { title?: string; questions: any[] } | null;
   setReviewOutput: (v: { title?: string; questions: any[] } | null) => void;
-  handleSubmit_openAIRE: () => void;
+  handleSubmit: () => void;
   handleVerifyAndSubmit: (format: "json" | "license" | "odrl") => void;
 
   isNewChild: boolean;
@@ -85,7 +85,6 @@ export interface UseDynamicFormReturn {
   clearCurrentStepFormData: () => void;
 }
 
-
 export interface FormProps {
   initialAnswers?: Record<string, Record<string, any>>;
   ownerComments?: Record<string, string>;
@@ -93,3 +92,6 @@ export interface FormProps {
   onSave: (answers: Record<string, Record<string, any>>) => void;
   onSubmit: (answers: Record<string, Record<string, any>>) => void;
 }
+
+// Re-export so consumers can continue importing from "types"
+export type { ChildRecord, ParentFormData };

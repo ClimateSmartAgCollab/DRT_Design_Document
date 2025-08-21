@@ -1,4 +1,3 @@
-// drt_frontend\app\components\Form\NavigationItem.tsx
 import React from "react";
 import { motion } from "framer-motion";
 import { ParsedStep } from "./types";
@@ -27,16 +26,11 @@ export const NavigationItem = React.memo(function NavigationItem({
   setExpandedStep,
 }: NavigationItemProps) {
   const theme = useTheme();
-  
   const stepIndex = getIndex(step.id);
   const isExpanded = expandedStep === step.id;
   const isActiveStep = currentStep === stepIndex;
 
-  const toggleExpand = () => {
-    setExpandedStep(isExpanded ? null : step.id);
-  };
-
-  const stepButtonStyle = isExpanded 
+  const stepButtonStyle = isExpanded
     ? {
         backgroundColor: theme.colors.primary,
         color: theme.colors.white,
@@ -59,24 +53,13 @@ export const NavigationItem = React.memo(function NavigationItem({
 
   return (
     <li className="mb-2">
-      {/* STEP BUTTON */}
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         type="button"
-        onClick={toggleExpand}
+        onClick={() => setExpandedStep(isExpanded ? null : step.id)}
         className="flex w-full items-center justify-between rounded px-4 py-2 text-left transition-all"
         style={stepButtonStyle}
-        onMouseEnter={(e) => {
-          if (!isExpanded) {
-            e.currentTarget.style.backgroundColor = theme.colors.grey[300];
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isExpanded) {
-            e.currentTarget.style.backgroundColor = theme.colors.grey[200];
-          }
-        }}
       >
         <span>
           {step.sidebar_label?.[language] ||
@@ -88,17 +71,19 @@ export const NavigationItem = React.memo(function NavigationItem({
             animate={{ rotate: isExpanded ? 1 : 0 }}
             transition={{ duration: 0.2 }}
           >
-            {isExpanded ? <FiChevronDown size={18} /> : <FiChevronRight size={18} />}
+            {isExpanded ? (
+              <FiChevronDown size={18} />
+            ) : (
+              <FiChevronRight size={18} />
+            )}
           </motion.div>
         )}
       </motion.button>
 
-      {/* PAGES (only visible if expanded) */}
       {isExpanded && (
         <ul className="ml-4 mt-2 space-y-1">
           {step.pages.map((page, pageIndex) => {
             const isActivePage = isActiveStep && currentPageIndex === pageIndex;
-
             return (
               <motion.li
                 key={page.pageKey}
@@ -110,18 +95,10 @@ export const NavigationItem = React.memo(function NavigationItem({
                   onClick={() => onNavigate(stepIndex, pageIndex)}
                   className="w-full rounded px-4 py-2 text-left transition-all"
                   style={pageButtonStyle(isActivePage)}
-                  onMouseEnter={(e) => {
-                    if (!isActivePage) {
-                      e.currentTarget.style.backgroundColor = theme.colors.grey[200];
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActivePage) {
-                      e.currentTarget.style.backgroundColor = isActivePage ? theme.colors.primary : theme.colors.white;
-                    }
-                  }}
                 >
-                  {page.sidebar_label?.[language] ?? page.sidebar_label?.["eng"] ?? ""}
+                  {page.sidebar_label?.[language] ??
+                    page.sidebar_label?.["eng"] ??
+                    ""}
                 </button>
               </motion.li>
             );
