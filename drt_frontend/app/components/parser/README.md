@@ -1,48 +1,52 @@
 # OCA Parser Module
 
 A clean, modular TypeScript parser for OCA metadata that transforms JSON into structured, render-ready form steps.
-Now with a testable OOP design.
+Built with a **Layered Architecture** pattern following Clean Architecture principles.
 
 ---
-## ✨ Highlights
 
-- OOP core (extractors, builders, parsers) with **dependency injection**
-- **Backward-compatible** procedural functions for gradual migration
-- Small, pure, **unit-testable** modules (no React in the core)
+## Layer Responsibilities
+
+### **Facade Layer**
+- **FormStructureParser**: Single entry point orchestrating the entire parsing workflow
+- Public API for external consumers
+- Coordinates all parsing operations
+
+### **Domain Services Layer**
+- **PresentationsExtractor**: Parses ADC (old/new) layouts and extracts presentation data
+- **PresentationParser**: Converts pages/sections from a single AdcForm
+- **OverlayExtractor**: Gathers labels, options, types, and metadata
+- **RelationshipGraphBuilder**: Builds capture_base → children relationship graph
+
+### **Construction Layer**
+- **FieldFactory**: Creates Field objects from OverlaySnapshot data
+- **FieldValidator**: Validates field integrity and references
+- **FieldDefaults**: Provides default field configurations
+
+### **Value Objects Layer**
+- **OverlaySnapshot**: Immutable overlay DTO with helper methods (labelsFor, getFieldType, etc.)
+- **LanguageMap**: Language-keyed lookups via Lang utility
+
+### **Infrastructure / Ports Layer**
+- **EntityLocator**: Pluggable lookup strategy for entities
+- **DefaultEntityLocator**: Concrete implementation
+
+### **Compatibility Layer**
+- **Legacy functions**: parseJsonToFormStructure and other procedural wrappers
+- Backward compatibility for existing code
+- Delegates to new layered architecture
+
 ---
 
-## Architecture
+## 🎯 Design Patterns Used
 
-The parser is organized into logical modules for maintainability and testability:
+- **Layered Architecture**: Clear separation of concerns with dependency direction
+- **Facade Pattern**: Single entry point hiding complexity
+- **Factory Pattern**: FieldFactory for object creation
+- **Builder Pattern**: RelationshipGraphBuilder for complex object construction
+- **Strategy Pattern**: Pluggable EntityLocator implementations
+- **Snapshot Pattern**: Immutable OverlaySnapshot data
+- **Pipeline Pattern**: Sequential data transformation
+- **Dependency Injection**: Constructor-based dependency management
 
-```
-parser/
-├─ index.ts                         # Orchestrator + legacy shim
-├─ fields/
-│  └─ field-factory.ts             # FieldFactory / FieldValidator / FieldDefaults
-├─ overlays/
-│  └─ overlay-extractor.ts         # OverlayExtractor / OverlaySnapshot
-├─ relationships/
-│  └─ relationship-parser.ts       # RelationshipGraphBuilder / RelationshipGraph
-├─ parsers/
-│  ├─ presentation-parser.ts       # PresentationParser / PresentationsExtractor / Validator
-│  └─ (legacy) field-builder.ts    # Thin wrappers → FieldFactory
-├─ utils/
-│  ├─ helpers.ts                   # Arrays, Numbers, Lang/LanguageMap, Normalizers, asRoot
-│  └─ entity-lookup.ts             # EntityLocator, DefaultEntityLocator + shims
-├─ types/
-│  └─ parser-types.ts              # DTOs (OverlayData, StepMeta, RelationshipMap, …)
-```
-
-## 🚀 Quick Start
-
-```typescript
-import { FormStructureParser } from './parser';
-
-const parser = new FormStructureParser({ debug: true, defaultLanguage: 'eng' });
-const steps = parser.parse(metadataJson);
-
-steps.forEach(step => {
-  console.log(step.id, step.pages.length);
-});
-```
+---
