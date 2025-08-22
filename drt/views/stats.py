@@ -340,6 +340,22 @@ def negotiation_list_api_req(request):
     data = []
     for n in qs:
         requestor_link = getattr(n, 'link', None)
+        
+        # Fetch questionnaire JSON like the owner side does
+        questionnaire_json = None
+        try:
+            cache_key = f'questionnaire_json_{n.questionnaire_SAID}'
+            cached_json = cache.get(cache_key)
+            
+            if cached_json:
+                questionnaire_json = cached_json
+            else:
+                from datastore.views import fetch_questionnaire_json
+                questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
+        except Exception as e:
+            print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
+            questionnaire_json = None
+        
         data.append({
             'negotiation_id': str(n.negotiation_id),
             'conversation_id': str(n.conversation_id),
@@ -353,6 +369,7 @@ def negotiation_list_api_req(request):
             # 'archived': n.archived,
             'requestor_link': str(requestor_link.requestor_link) if requestor_link else None,
             'rationale': n.rationale,
+            'questionnaire': questionnaire_json,  # Add questionnaire JSON
         })
 
     return JsonResponse(data, safe=False)

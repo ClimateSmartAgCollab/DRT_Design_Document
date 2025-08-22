@@ -11,6 +11,7 @@ export interface Negotiation {
   archived: boolean;
   requestor_link: string | null;
   rationale?: string | null;
+  questionnaire?: any;
 }
 
 export const ALL_STATUSES = [
