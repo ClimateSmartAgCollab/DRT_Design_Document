@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 import { Providers } from "@/app/providers";
 import React from "react";
+import NegotiationLayout from "@/app/components/NegotiationLayout";
 
 type WhoamiResponse = {
   email: string;
@@ -116,12 +117,13 @@ export default function OwnerHomePage() {
 
   return (
     <Providers>
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <NegotiationLayout
+        userType="owner"
+        userEmail={email}
+        isLoading={whoamiQuery.isLoading}
+        pageTitle="Owner Dashboard"
+      >
         <div className="max-w-3xl w-full space-y-10">
-          <h1 className="text-4xl font-extrabold text-center text-gray-800">
-            Owner Dashboard
-          </h1>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             {ownerPages.map(({ name, href, emoji }) => (
               <Link key={href} href={href} className="group">
@@ -149,7 +151,7 @@ export default function OwnerHomePage() {
             ))}
           </div>
         </div>
-      </main>
+      </NegotiationLayout>
     </Providers>
   );
 }

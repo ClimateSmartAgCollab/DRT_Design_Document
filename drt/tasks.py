@@ -15,7 +15,7 @@ def send_owner_email_task(email, magic_link, expiry):
             subject="Access Link for Owner Verification",
             body=(
                 "Hello,\n\n"
-                "Click the link below to verify your email and access the Dashboard:\n\n"
+                "Click the link below to verify your email:\n\n"
                 f"    {magic_link}\n\n"
                 f"This link will expire at {expiry:%H:%M}.\n\n"
                 "For your security, please do not share this link with anyone. "
@@ -29,7 +29,7 @@ def send_owner_email_task(email, magic_link, expiry):
         )
         html_content = f"""
             <p>Hello,</p>
-            <p>Click the link below to verify your email and access the Dashboard:</p>
+            <p>Click the link below to verify your email:</p>
             <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
             <p>This link will expire at {expiry:%H:%M}.</p>
             <p>For your security, please do not share this link with anyone.<br>
@@ -52,7 +52,7 @@ def send_requestor_email_task(email, magic_link, expiry):
             subject="Access Link for Requestor Verification",
             body=(
                 "Hello,\n\n"
-                "Click the link below to verify your email and access the dashboard:\n\n"
+                "Click the link below to verify your email:\n\n"
                 f"    {magic_link}\n\n"
                 f"This link will expire at {expiry:%H:%M}.\n\n"
                 "For your security, please do not share this link with anyone. "
@@ -66,7 +66,7 @@ def send_requestor_email_task(email, magic_link, expiry):
         )
         html_content = f"""
             <p>Hello,</p>
-            <p>Click the link below to verify your email and access the dashboard:</p>
+            <p>Click the link below to verify your email:</p>
             <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
             <p>This link will expire at {expiry:%H:%M}.</p>
             <p>For your security, please do not share this link with anyone.<br>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 import { Providers } from "@/app/providers";
+import NegotiationLayout from "@/app/components/NegotiationLayout";
 
 type LinkEntry = {
   url: string;
@@ -33,6 +34,18 @@ async function fetchOwnerLinks(): Promise<LinkEntry[]> {
 
 export default function OwnerLinks() {
   const router = useRouter();
+  
+  // Authentication check
+  const whoamiQuery = useQuery({
+    queryKey: ["owner", "whoami"],
+    queryFn: async () => {
+      const res = await fetchApi("/drt/owner/whoami/");
+      if (!res.ok) throw new Error("Not authenticated");
+      return res.json();
+    },
+    retry: false,
+  });
+
   const {
     data: links,
     error,
@@ -43,7 +56,14 @@ export default function OwnerLinks() {
     queryFn: fetchOwnerLinks,
     retry: 0,
     staleTime: Infinity,
+    enabled: !!whoamiQuery.data, // Only fetch links if authenticated
   });
+
+  useEffect(() => {
+    if (whoamiQuery.isError) {
+      router.replace("/negotiation/owner/email-entry");
+    }
+  }, [whoamiQuery.isError, router]);
 
   useEffect(() => {
     if (isError && error?.message === "Not authenticated") {
@@ -51,36 +71,67 @@ export default function OwnerLinks() {
     }
   }, [isError, error, router]);
 
+  if (whoamiQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-600">
+        Loading owner…
+      </div>
+    );
+  }
+
+  if (whoamiQuery.isError || !whoamiQuery.data) {
+    return null;
+  }
+
   if (isLoading) {
     return (
-      <main className="p-6 max-w-md mx-auto">
-        <p>Loading your links…</p>
-      </main>
+      <NegotiationLayout
+        userType="owner"
+        userEmail={whoamiQuery.data.email}
+        isLoading={false}
+        pageTitle="My Links"
+      >
+        <div className="max-w-md mx-auto">
+          <p>Loading your links…</p>
+        </div>
+      </NegotiationLayout>
     );
   }
 
   if (isError) {
     return (
-      <main className="p-6 max-w-md mx-auto">
-        <p className="text-red-500">{error?.message}</p>
-      </main>
+      <NegotiationLayout
+        userType="owner"
+        userEmail={whoamiQuery.data.email}
+        isLoading={false}
+        pageTitle="My Links"
+      >
+        <div className="max-w-md mx-auto">
+          <p className="text-red-500">{error?.message}</p>
+        </div>
+      </NegotiationLayout>
     );
   }
 
   return (
     <Providers>
-      <main className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <button
+      <NegotiationLayout
+        userType="owner"
+        userEmail={whoamiQuery.data.email}
+        isLoading={false}
+        pageTitle="My Links"
+      >
+        <div className="max-w-4xl w-full space-y-6">
+          {/* <button
             onClick={() => router.push("/negotiation/owner/homepage")}
             className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
           >
             ← Back to homepage
-          </button>
+          </button> */}
 
-          <h1 className="text-3xl font-bold text-gray-800">
+          {/* <h1 className="text-3xl font-bold text-gray-800">
             Your Link Library
-          </h1>
+          </h1> */}
 
           {links && links.length === 0 ? (
             <p>No links found for your account.</p>
@@ -147,7 +198,7 @@ export default function OwnerLinks() {
             </div>
           )}
         </div>
-      </main>
+      </NegotiationLayout>
     </Providers>
   );
 }

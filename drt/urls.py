@@ -5,7 +5,7 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
                     req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint,
-                    regenerate_license_view
+                    regenerate_license_view, requestor_logout, owner_logout
                     )
 
 urlpatterns = [
@@ -43,11 +43,13 @@ urlpatterns = [
          req_whoami,
          name="req-whoami"),
 
+    path("requestor/logout/",
+         requestor_logout,
+         name="requestor-logout"),
 
     path('request_access/<str:link_id>/',
          request_access,
          name='request_access'),
-
 
     path('fill_questionnaire/<str:link_id>/',
          fill_questionnaire,
@@ -70,6 +72,10 @@ urlpatterns = [
     path("owner/whoami/",
          whoami,
          name="owner-whoami"),
+
+    path("owner/logout/",
+         owner_logout,
+         name="owner-logout"),
 
     path('owner_review/<str:link_id>/',
          owner_review,
@@ -102,7 +108,6 @@ urlpatterns = [
     #     path('negotiations/<uuid:negotiation_id>/resend/',
     #          views.resend_requester_reminder,
     #          name='resend_requester_reminder'),
-
 
     path('summary-statistics/',
          summary_statistics_view,

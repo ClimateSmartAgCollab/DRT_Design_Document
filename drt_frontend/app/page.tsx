@@ -57,19 +57,19 @@ const content = {
           links: [
             // {
             //   label: "Questionnaire_prototype1-23-A-cow",
-            //   url: "http://localhost:3000/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
+            //   url: "http://127.0.0.1:3000/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
             // },
             // {
             //   label: "Questionnaire_prototype1-23-B-pig",
-            //   url: "http://localhost:3000/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
+            //   url: "http://127.0.0.1:3000/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
             // },
             // {
             //   label: "Questionnaire_prototype2-23-A-cow",
-            //   url: "http://localhost:3000/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
+            //   url: "http://127.0.0.1:3000/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
             // },
             // {
             //   label: "Questionnaire_prototype2-23-B-pig",
-            //   url: "http://localhost:3000/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
+            //   url: "http://127.0.0.1:3000/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
             // },
 
             {
@@ -310,9 +310,9 @@ export default function HomePage() {
       {/* Header Bar */}
       <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
         <div className="container-default section-y w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+          <div className="flex items-start justify-between gap-4 min-w-0">
             {/* Title / Help */}
-            <div className="lg:col-span-8">
+            <div className="flex-1 min-w-0">
               <div>
                 <span className="block text-white font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight">
                   {t.headerTitle}
@@ -331,9 +331,9 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            <aside className="lg:col-start-9 lg:col-span-4 lg:justify-self-end flex items-start gap-2 sm:gap-4 min-w-0">
+            <div className="flex items-start gap-2 sm:gap-4 min-w-0 flex-shrink-0">
               {/* Language Dropdown */}
-              <div className="relative group">
+              <div className="relative group flex-shrink-0">
                 <button
                   className="flex items-center px-2 sm:px-4 py-1 sm:py-2 bg-[#216b96] text-white font-sans text-sm sm:text-lg rounded hover:bg-[#50809cd7] focus:outline-none"
                   aria-haspopup="listbox"
@@ -377,7 +377,7 @@ export default function HomePage() {
                 </div>
               </div>
               {/* Logo */}
-              <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-60 lg:h-60">
+              <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-60 lg:h-60 flex-shrink-0">
                 <a
                   href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
                   target="_blank"
@@ -393,7 +393,7 @@ export default function HomePage() {
                   />
                 </a>
               </div>
-            </aside>
+            </div>
           </div>
         </div>
       </header>

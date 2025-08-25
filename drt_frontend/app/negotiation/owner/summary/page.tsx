@@ -19,6 +19,7 @@ import {
   Legend,
 } from "chart.js";
 import { SummarySidebar } from "./components/SummarySidebar";
+import NegotiationLayout from "@/app/components/NegotiationLayout";
 
 ChartJS.register(
   CategoryScale,
@@ -75,6 +76,7 @@ export default function OwnerSummaryPage() {
     queryFn: fetchSummaryStats,
     staleTime: 1000 * 60 * 5, // 5m
     retry: 1,
+    enabled: !!whoamiQuery.data, // Only fetch if authenticated
   });
 
   // ——— filter state ———
@@ -189,110 +191,145 @@ export default function OwnerSummaryPage() {
     [groupedData]
   );
 
+  if (whoamiQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-600">
+        Loading owner…
+      </div>
+    );
+  }
+
+  if (whoamiQuery.isError || !whoamiQuery.data) {
+    return null;
+  }
+
   if (summaryQuery.isLoading) {
-    return <div className="p-6 text-center text-gray-600">Loading…</div>;
+    return (
+      <NegotiationLayout
+        userType="owner"
+        userEmail={whoamiQuery.data.email}
+        isLoading={false}
+        pageTitle="Summary Statistics"
+      >
+        <div className="text-center text-gray-600">Loading…</div>
+      </NegotiationLayout>
+    );
   }
   if (summaryQuery.isError) {
     return (
-      <div className="p-6">
+      <NegotiationLayout
+        userType="owner"
+        userEmail={whoamiQuery.data.email}
+        isLoading={false}
+        pageTitle="Summary Statistics"
+      >
         <div className="bg-red-50 border-l-4 border-red-400 p-4 text-red-700">
           ⚠️ {summaryQuery.error.message}
         </div>
-      </div>
+      </NegotiationLayout>
     );
   }
 
   return (
     <Providers>
-      <main className="flex">
-        <SummarySidebar
-          dataLabelOptions={dataLabelOptions}
-          selectedDataLabel={dataLabel}
-          onDataLabelChange={setDataLabel}
-          tagOptions={tagOptions}
-          selectedTag={tag}
-          onTagChange={(v: string[]) => setTag(v)}
-          recordLabelOptions={recordLabelOptions}
-          selectedRecordLabel={recordLabel}
-          onRecordLabelChange={(v: string[]) => setRecordLabel(v)}
-          startDate={startDate}
-          endDate={endDate}
-          onDateChange={(field, v) =>
-            field === "start" ? setStartDate(v) : setEndDate(v)
-          }
-          onReset={() => {
-            setDataLabel("");
-            setTag([]);
-            setRecordLabel([]);
-            setStartDate("");
-            setEndDate("");
-          }}
-        />
-
-        <div className="flex-1 p-6 space-y-8">
-          <button
-            onClick={() => router.push("/negotiation/owner/homepage")}
-            className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
-          >
-            Back to homepage
-          </button>
-          <h1 className="text-3xl font-bold">Summary Statistics</h1>
-
-          <section className="bg-white p-4 rounded shadow">
-            <Bar
-              data={chartData}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: { position: "top" },
-                  title: { display: true, text: "Requests Overview" },
-                },
+      <NegotiationLayout
+        userType="owner"
+        userEmail={whoamiQuery.data.email}
+        isLoading={false}
+        pageTitle="Summary Statistics"
+      >
+        <div className="w-full">
+          <div className="flex">
+            <SummarySidebar
+              dataLabelOptions={dataLabelOptions}
+              selectedDataLabel={dataLabel}
+              onDataLabelChange={setDataLabel}
+              tagOptions={tagOptions}
+              selectedTag={tag}
+              onTagChange={(v: string[]) => setTag(v)}
+              recordLabelOptions={recordLabelOptions}
+              selectedRecordLabel={recordLabel}
+              onRecordLabelChange={(v: string[]) => setRecordLabel(v)}
+              startDate={startDate}
+              endDate={endDate}
+              onDateChange={(field, v) =>
+                field === "start" ? setStartDate(v) : setEndDate(v)
+              }
+              onReset={() => {
+                setDataLabel("");
+                setTag([]);
+                setRecordLabel([]);
+                setStartDate("");
+                setEndDate("");
               }}
             />
-          </section>
 
-          <section className="overflow-x-auto">
-            <table className="min-w-full bg-white border">
-              <thead>
-                <tr className="bg-gray-100">
-                  {[
-                    "Record Label",
-                    "Data Label",
-                    "Tag",
-                    "Total",
-                    "Accepted",
-                    "Rejected",
-                    "Req. Open",
-                    "Own. Open",
-                    "Generated At",
-                  ].map((h) => (
-                    <th key={h} className="border px-4 py-2">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {groupedData.map((d) => (
-                  <tr key={`${d.record_label}-${d.data_label}-${d.generated_at}`}>
-                    <td className="border px-4 py-2">{d.record_label || "All"}</td>
-                    <td className="border px-4 py-2">{d.data_label}</td>
-                    <td className="border px-4 py-2">{d.tags || "All"}</td>
-                    <td className="border px-4 py-2">{d.total_requests}</td>
-                    <td className="border px-4 py-2">{d.accepted_requests}</td>
-                    <td className="border px-4 py-2">{d.rejected_requests}</td>
-                    <td className="border px-4 py-2">{d.requestor_open}</td>
-                    <td className="border px-4 py-2">{d.owner_open}</td>
-                    <td className="border px-4 py-2">
-                      {new Date(d.generated_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+            <div className="flex-1 space-y-8">
+              {/* <button
+                onClick={() => router.push("/negotiation/owner/homepage")}
+                className="mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+              >
+                Back to homepage
+              </button> */}
+              <h1 className="text-3xl font-bold">Summary Statistics</h1>
+
+              <section className="bg-white p-4 rounded shadow">
+                <Bar
+                  data={chartData}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { position: "top" },
+                      title: { display: true, text: "Requests Overview" },
+                    },
+                  }}
+                />
+              </section>
+
+              <section className="overflow-x-auto">
+                <table className="min-w-full bg-white border">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      {[
+                        "Record Label",
+                        "Data Label",
+                        "Tag",
+                        "Total",
+                        "Accepted",
+                        "Rejected",
+                        "Req. Open",
+                        "Own. Open",
+                        "Generated At",
+                      ].map((h) => (
+                        <th key={h} className="border px-4 py-2">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedData.map((d) => (
+                      <tr key={`${d.record_label}-${d.data_label}-${d.generated_at}`}>
+                        <td className="border px-4 py-2">{d.record_label || "All"}</td>
+                        <td className="border px-4 py-2">{d.data_label}</td>
+                        <td className="border px-4 py-2">{d.tags || "All"}</td>
+                        <td className="border px-4 py-2">{d.total_requests}</td>
+                        <td className="border px-4 py-2">{d.accepted_requests}</td>
+                        <td className="border px-4 py-2">{d.rejected_requests}</td>
+                        <td className="border px-4 py-2">{d.requestor_open}</td>
+                        <td className="border px-4 py-2">{d.owner_open}</td>
+                        <td className="border px-4 py-2">
+                          {new Date(d.generated_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            </div>
+          </div>
         </div>
-      </main>
+      </NegotiationLayout>
     </Providers>
   );
 }

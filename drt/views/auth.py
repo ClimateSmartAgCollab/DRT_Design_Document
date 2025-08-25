@@ -243,3 +243,41 @@ def generate_owner_magic_link_with_target(email, target_url):
 
     magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
     return magic_link, expiry
+
+
+@csrf_exempt
+@api_view(['POST'])
+def owner_logout(request):
+    """Logout endpoint for owner users"""
+    try:
+        owner_email = request.session.get("owner_email")
+        if owner_email:
+            # Clear session data
+            request.session.pop("owner_email", None)
+            # Clear cache entry
+            cache.delete(f"owner_logged_in:{owner_email}")
+            logger.info(f"Owner logged out: {owner_email}")
+        
+        return Response({'message': 'Logged out successfully'}, status=200)
+    except Exception as e:
+        logger.error(f"Error in owner_logout: {str(e)}")
+        return Response({'error': 'Internal server error'}, status=500)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def requestor_logout(request):
+    """Logout endpoint for requestor users"""
+    try:
+        requestor_email = request.session.get("requestor_email")
+        if requestor_email:
+            # Clear session data
+            request.session.pop("requestor_email", None)
+            # Clear cache entry
+            cache.delete(f"req_logged_in:{requestor_email}")
+            logger.info(f"Requestor logged out: {requestor_email}")
+        
+        return Response({'message': 'Logged out successfully'}, status=200)
+    except Exception as e:
+        logger.error(f"Error in requestor_logout: {str(e)}")
+        return Response({'error': 'Internal server error'}, status=500)
