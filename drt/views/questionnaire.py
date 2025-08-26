@@ -157,7 +157,6 @@ def fill_questionnaire(request, link_id):
             'comments':          global_comments,
         })
 
-@owner_auth_required
 @api_view(['GET', 'POST'])
 def owner_review(request, link_id):
     nlink = get_object_or_404(NLink, owner_link=link_id)
@@ -198,44 +197,58 @@ def owner_review(request, link_id):
         data = request.data
 
         if 'save' in data:
+            # Save action doesn't require authentication
             negotiation.owner_responses = data.get('owner_responses', '')
             negotiation.comments = data.get('comments', '')
             negotiation.save()
             return Response({'message': 'Review saved successfully!'})
 
-        elif 'accept' in data:
-            negotiation.state = 'completed'
-            negotiation.save()
+        # For restricted actions, check authentication
+        restricted_actions = ['accept', 'reject', 'request_clarification', 'resend']
+        action_found = None
+        for action in restricted_actions:
+            if action in data:
+                action_found = action
+                break
+        
+        if action_found:
+            owner_email = request.session.get("owner_email")
+            if not owner_email:
+                return Response({'error': 'Owner authentication required for this action'}, status=401)
             
-            generate_license_and_notify_owner_task.delay(nlink.link_id)
-            
-            return Response({'message': 'Request accepted, license generation started!'})
+            if action_found == 'accept':
+                negotiation.state = 'completed'
+                negotiation.save()
+                
+                generate_license_and_notify_owner_task.delay(nlink.link_id)
+                
+                return Response({'message': 'Request accepted, license generation started!'})
 
-        elif 'reject' in data:
-            rationale = data.get('rationale', '')
-            negotiation.rationale = rationale
-            negotiation.state = 'rejected'
-            negotiation.save()
-            
-            if rationale.strip():
-                send_rejection_email_task.delay(nlink.requestor_email, nlink.requestor_link, rationale)
-            
-            return Response({'message': 'Request rejected!'})
+            elif action_found == 'reject':
+                rationale = data.get('rationale', '')
+                negotiation.rationale = rationale
+                negotiation.state = 'rejected'
+                negotiation.save()
+                
+                if rationale.strip():
+                    send_rejection_email_task.delay(nlink.requestor_email, nlink.requestor_link, rationale)
+                
+                return Response({'message': 'Request rejected!'})
 
-        elif 'request_clarification' in data:
-            negotiation.owner_responses = data.get('owner_responses', '')
-            negotiation.comments = data.get('comments', '')
-            negotiation.state = 'requestor_open'
-            negotiation.save()
+            elif action_found == 'request_clarification':
+                negotiation.owner_responses = data.get('owner_responses', '')
+                negotiation.comments = data.get('comments', '')
+                negotiation.state = 'requestor_open'
+                negotiation.save()
 
-            send_clarification_email(nlink.requestor_email, nlink.requestor_link)
-            
-            return Response({'message': 'Clarification requested!'})
+                send_clarification_email(nlink.requestor_email, nlink.requestor_link)
+                
+                return Response({'message': 'Clarification requested!'})
 
-        elif 'resend' in data:
-            generate_license_and_notify_owner_task.delay(nlink.link_id)
-            
-            return Response({'message': 'Email resend started!'})
+            elif action_found == 'resend':
+                generate_license_and_notify_owner_task.delay(nlink.link_id)
+                
+                return Response({'message': 'Email resend started!'})
 
 
 def send_clarification_email(requestor_email, link_id):

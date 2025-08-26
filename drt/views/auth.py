@@ -31,6 +31,8 @@ def test_endpoint(request):
 def owner_email_entry(request):
     try:
         email = request.data.get('email')
+        target_url = request.data.get('target_url')  # Optional target URL
+        
         if not email:
             return Response({'error': 'Email is required'}, status=400)
         try:
@@ -47,9 +49,12 @@ def owner_email_entry(request):
         if old_token:
             cache.delete(f"magic_token:{old_token}")
 
-        # Store the new token and a reverse mapping for easy invalidation
-        cache.set(f"magic_token:{token}", {
-                  'email': email, 'expiry': expiry}, 600)
+        # Store the new token with target URL and a reverse mapping for easy invalidation
+        token_data = {'email': email, 'expiry': expiry}
+        if target_url:
+            token_data['target_url'] = target_url
+            
+        cache.set(f"magic_token:{token}", token_data, 600)
         cache.set(f"magic_token_for:{email}", token, 600)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
