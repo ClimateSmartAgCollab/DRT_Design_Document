@@ -31,7 +31,7 @@ def delete_old_negotiations():
     with transaction.atomic():
         negotiations = Negotiation.objects.filter(
             timestamps__lt=cutoff_date,
-            state__in=['completed', 'canceled', 'rejected'],
+            state__in=['accepted', 'canceled', 'rejected'],
             archived=True
         )
         count = negotiations.count()

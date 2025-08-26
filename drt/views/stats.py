@@ -44,8 +44,8 @@ def export_summary_to_drt():
         .values('owner_id', 'dataset_ID', 'data_label', 'record_label')
         .annotate(
             total_requests=Count('negotiation'),
-            completed_requests=Count('negotiation', filter=Q(
-                negotiation__state='completed')),
+            accepted_requests=Count('negotiation', filter=Q(
+                negotiation__state='accepted')),
             rejected_requests=Count('negotiation',  filter=Q(
                 negotiation__state='rejected')),
             requestor_open=Count('negotiation',    filter=Q(
@@ -89,7 +89,7 @@ def export_summary_to_drt():
 
         overall_stat = {
             'total_requests':    grp['total_requests'],
-            'accepted_requests': grp['completed_requests'],
+            'accepted_requests': grp['accepted_requests'],
             'rejected_requests': grp['rejected_requests'],
             'requestor_open':    grp['requestor_open'],
             'owner_open':        grp['owner_open'],
@@ -122,8 +122,8 @@ def export_summary_to_drt():
                 tags__contains=[t],
             ).aggregate(
                 total_requests=Count('negotiation'),
-                completed_requests=Count('negotiation', filter=Q(
-                    negotiation__state='completed')),
+                accepted_requests=Count('negotiation', filter=Q(
+                    negotiation__state='accepted')),
                 rejected_requests=Count('negotiation',  filter=Q(
                     negotiation__state='rejected')),
                 requestor_open=Count('negotiation',    filter=Q(
@@ -134,7 +134,7 @@ def export_summary_to_drt():
 
             tag_stat_payload = {
                 'total_requests':    tag_stats['total_requests'],
-                'accepted_requests': tag_stats['completed_requests'],
+                'accepted_requests': tag_stats['accepted_requests'],
                 'rejected_requests': tag_stats['rejected_requests'],
                 'requestor_open':    tag_stats['requestor_open'],
                 'owner_open':        tag_stats['owner_open'],
@@ -282,25 +282,25 @@ def archive_negotiation(negotiation):
 def archive_view(request, negotiation_id):
     """Manually archive a negotiation if it meets the required state."""
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
-    if negotiation.state in ['completed', 'canceled', 'rejected']:
+    if negotiation.state in ['accepted', 'canceled', 'rejected']:
         return handle_negotiation_archive_and_summary(negotiation)
     else:
         return JsonResponse(
-            {'message': _('Only completed, canceled, or rejected negotiations can be archived')}, status=400
+            {'message': _('Only accepted, canceled, or rejected negotiations can be archived')}, status=400
         )
 
 
 @receiver(post_save, sender=Negotiation)
 def generate_summary_statistics(sender, instance, **kwargs):
     """Generate summary statistics and archive negotiation upon state change."""
-    if instance.state in ['completed', 'canceled', 'rejected']:
+    if instance.state in ['accepted', 'canceled', 'rejected']:
         handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
 
 
 @receiver(post_save, sender=Negotiation)
 def generate_summary_statistics_duplicate(sender, instance, **kwargs):
-    """Auto-archive and export statistics when a negotiation is completed, canceled, or rejected."""
-    if instance.state in ['completed', 'canceled', 'rejected'] and not instance.archived:
+    """Auto-archive and export statistics when a negotiation is accepted, canceled, or rejected."""
+    if instance.state in ['accepted', 'canceled', 'rejected'] and not instance.archived:
         handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
 
 

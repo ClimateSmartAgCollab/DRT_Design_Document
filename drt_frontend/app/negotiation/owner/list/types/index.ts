@@ -13,17 +13,25 @@ export interface Negotiation {
   rationale?: string | null;
   tags?: string[];
   record_label?: string;
-  questionnaire?: any; // The questionnaire JSON data
+  questionnaire?: any; 
 }
 
 export const ALL_STATUSES = [
-  "requestor_open",
-  "completed",
-  "canceled",
-  "rejected",
   "owner_open",
+  "requestor_open", 
+  "accepted",
+  "rejected",
+  "abandoned",
 ] as const;
 export type Status = typeof ALL_STATUSES[number];
+
+export const STATUS_DISPLAY_NAMES: Record<Status, string> = {
+  owner_open: "Owner Open",
+  requestor_open: "Requester Open",
+  accepted: "Accepted",
+  rejected: "Rejected",
+  abandoned: "Abandoned",
+};
 
 export type ArchivedFilter = "all" | "archived" | "active";
 
@@ -31,7 +39,5 @@ export type SortOption =
   | "created_asc"
   | "created_desc"
   | "status_asc"
-  | "status_desc"
-  | "archived_first"
-  | "archived_last";
+  | "status_desc";
 

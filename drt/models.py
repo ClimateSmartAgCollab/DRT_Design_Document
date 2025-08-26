@@ -46,7 +46,7 @@ class Negotiation(models.Model):
     STATE_CHOICES = [
         ('requestor_open', 'Requestor Open'),
         ('owner_open', 'Owner Open'),
-        ('completed', 'Completed'),
+        ('accepted', 'Accepted'),
         ('archived', 'Archived'),
         ('canceled', 'Canceled'),
         ('rejected', 'Rejected'),

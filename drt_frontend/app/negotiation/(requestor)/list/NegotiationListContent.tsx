@@ -76,10 +76,6 @@ export default function NegotiationListContent() {
           return a.state.localeCompare(b.state);
         case "status_desc":
           return b.state.localeCompare(a.state);
-        case "archived_first":
-          return (b.archived ? 1 : 0) - (a.archived ? 1 : 0);
-        case "archived_last":
-          return (a.archived ? 1 : 0) - (b.archived ? 1 : 0);
         default:
           return 0;
       }

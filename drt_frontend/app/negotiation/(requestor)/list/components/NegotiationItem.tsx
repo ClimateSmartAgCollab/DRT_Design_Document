@@ -1,7 +1,8 @@
-// drt_frontend\app\negotiation\owner\list\components\NegotiationItem.tsx
+// drt_frontend\app\negotiation\(requestor)\list\components\NegotiationItem.tsx
 import React, { useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { Negotiation } from "../types";
+import { STATUS_DISPLAY_NAMES } from "../types";
 import {
   archiveNegotiation,
   deleteNegotiation,
@@ -240,7 +241,7 @@ export function NegotiationItem({
   const shouldReduce = useReducedMotion();
   const [expanded, setExpanded] = React.useState(false);
   const canArchive =
-    !n.archived && ["completed", "canceled", "rejected"].includes(n.state);
+    !n.archived && ["accepted", "abandoned", "rejected"].includes(n.state);
 
   const payload = useMemo(() => {
     if (!n.requestor_responses) return "";
@@ -277,7 +278,7 @@ export function NegotiationItem({
           <span className="font-semibold text-gray-800">
             ID: {n.negotiation_id}
           </span>
-          <span className="text-gray-600">State: {n.state}</span>
+          <span className="text-gray-600">State: {STATUS_DISPLAY_NAMES[n.state as keyof typeof STATUS_DISPLAY_NAMES] || n.state}</span>
           <span className="text-gray-600">
             Created: {new Date(n.timestamps).toLocaleDateString()}
           </span>
@@ -327,6 +328,7 @@ export function NegotiationItem({
       <AnimatePresence initial={false}>
         {expanded && (
           <motion.div
+            id={`negotiation-details-${n.negotiation_id}`}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -339,11 +341,7 @@ export function NegotiationItem({
                   <h4 className="font-semibold text-gray-700 mb-2">
                     Requestor Responses
                   </h4>
-                  {/* Extract mainKey and render user-friendly table */}
-                  {(() => {
-                    const { save, submit, ...reqData } = n.requestor_responses || {};
-                    return <ResponseTable data={reqData} questionnaireJson={n.questionnaire} />;
-                  })()}
+                  <ResponseTable data={n.requestor_responses || {}} questionnaireJson={n.questionnaire} />
                 </div>
               </div>
               <div>
@@ -351,7 +349,6 @@ export function NegotiationItem({
                   <h4 className="font-semibold text-gray-700 mb-2">
                     Owner Responses
                   </h4>
-                  {/* Parse owner responses if string */}
                   {(() => {
                     let ownerData = {};
                     try {
@@ -374,9 +371,9 @@ export function NegotiationItem({
                       <h5 className="font-semibold text-gray-700 mb-2">
                         Rationale for Rejection
                       </h5>
-                      <pre className="text-gray-800 whitespace-pre-line border border-gray-200">
+                      <div className="text-gray-800 whitespace-pre-line border border-gray-200">
                         {n.rationale}
-                      </pre>
+                      </div>
                     </div>
                   )}
               </div>

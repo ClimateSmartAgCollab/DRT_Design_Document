@@ -1,5 +1,5 @@
 import React from "react";
-import { ALL_STATUSES, Status, ArchivedFilter, SortOption } from "../types";
+import { ALL_STATUSES, Status, ArchivedFilter, SortOption, STATUS_DISPLAY_NAMES } from "../types";
 
 interface SidebarProps {
   searchTerm: string;
@@ -57,7 +57,9 @@ export function Sidebar({
               onChange={() => onToggleStatus(status)}
               className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400"
             />
-            <span className="capitalize text-gray-800">{status}</span>
+            <span className={`text-gray-800`}>
+              {STATUS_DISPLAY_NAMES[status]}
+            </span>
           </label>
         ))}
       </div>

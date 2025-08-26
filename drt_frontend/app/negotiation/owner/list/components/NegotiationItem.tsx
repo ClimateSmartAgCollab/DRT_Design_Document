@@ -2,6 +2,7 @@
 import React from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { Negotiation } from "../types";
+import { STATUS_DISPLAY_NAMES } from "../types";
 import {
   archiveNegotiation,
   deleteNegotiation,
@@ -192,15 +193,15 @@ export function NegotiationItem({
 
   const [expanded, setExpanded] = React.useState(false);
   const [isRegenerating, setIsRegenerating] = React.useState(false);
-  const canArchive =
-    !n.archived && ["completed", "canceled", "rejected"].includes(n.state);
+  // const canArchive =
+  //   !n.archived && ["accepted", "abandoned", "rejected"].includes(n.state);
 
 
 
-  const handleArchive = async () => {
-    await archiveNegotiation(n.negotiation_id);
-    onReload();
-  };
+  // const handleArchive = async () => {
+  //   await archiveNegotiation(n.negotiation_id);
+  //   onReload();
+  // };
 
   const handleDelete = async () => {
     await deleteNegotiation(n.negotiation_id);
@@ -245,13 +246,13 @@ export function NegotiationItem({
           <span className="font-semibold text-gray-800">
             ID: {n.negotiation_id}
           </span>
-          <span className="text-gray-600">State: {n.state}</span>
+          <span className="text-gray-600">State: {STATUS_DISPLAY_NAMES[n.state as keyof typeof STATUS_DISPLAY_NAMES] || n.state}</span>
           <span className="text-gray-600">
             Created: {new Date(n.timestamps).toLocaleDateString()}
           </span>
-          <span className="text-gray-600">
+          {/* <span className="text-gray-600">
             Archived: {n.archived ? "Yes" : "No"}
-          </span>
+          </span> */}
           {n.tags && n.tags.length > 0 && (
             <span className="flex items-center gap-1">
               {Array.isArray(n.tags)
@@ -368,15 +369,15 @@ export function NegotiationItem({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {canArchive && (
+              {/* {canArchive && (
                 <button
                   onClick={handleArchive}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                 >
                   Archive
                 </button>
-              )}
-              {n.state === "completed" && (
+              )} */}
+              {n.state === "accepted" && (
                 <button
                   onClick={handleRegenerateLicense}
                   disabled={isRegenerating}

@@ -1,6 +1,6 @@
 // drt_frontend\app\negotiation\owner\list\components\Sidebar.tsx
 import React from "react";
-import { ALL_STATUSES, Status, ArchivedFilter, SortOption } from "../types";
+import { ALL_STATUSES, Status, ArchivedFilter, SortOption, STATUS_DISPLAY_NAMES } from "../types";
 
 interface SidebarProps {
   searchTerm: string;
@@ -81,26 +81,8 @@ export function Sidebar({
               onChange={() => onToggleStatus(status)}
               className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400"
             />
-            <span className="capitalize text-gray-800">{status}</span>
-          </label>
-        ))}
-      </div>
-
-      {/* Archived */}
-      <div className="mb-6">
-        <h3 className="mb-2 text-sm font-medium text-gray-700">Archived</h3>
-        {(["all", "archived", "active"] as ArchivedFilter[]).map((opt) => (
-          <label key={opt} className="inline-flex items-center mr-4 text-sm  text-gray-700">
-            <input
-              type="radio"
-              name="archived"
-              value={opt}
-              checked={archivedFilter === opt}
-              onChange={() => onArchivedChange(opt)}
-              className="mr-1"
-            />
-            <span>
-              {opt === "all" ? "All" : opt === "archived" ? "Yes" : "No"}
+            <span className={`text-gray-800`}>
+              {STATUS_DISPLAY_NAMES[status]}
             </span>
           </label>
         ))}
@@ -149,12 +131,6 @@ export function Sidebar({
           </option>
           <option className="font-sans text-sm" value="status_desc">
             Status Z→A
-          </option>
-          <option className="font-sans text-sm" value="archived_first">
-            Archived first
-          </option>
-          <option className="font-sans text-sm" value="archived_last">
-            Archived last
           </option>
         </select>
       </div>

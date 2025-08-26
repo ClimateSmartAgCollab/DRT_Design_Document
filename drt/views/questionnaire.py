@@ -94,10 +94,10 @@ def fill_questionnaire(request, link_id):
     negotiation = nlink.negotiation
 
     # Handle questionnaire submission state checks
-    if negotiation.state in ['owner_open', 'completed', 'rejected']:
+    if negotiation.state in ['owner_open', 'accepted', 'rejected']:
         state_messages = {
             'owner_open': 'The questionnaire is submitted and cannot be edited.',
-            'completed': 'The negotiation is completed and cannot be edited.',
+            'accepted': 'The negotiation is accepted and cannot be edited.',
             'rejected': 'The negotiation is rejected and cannot be edited.'
         }
         return JsonResponse({'error': state_messages[negotiation.state]}, status=400)
@@ -163,13 +163,13 @@ def owner_review(request, link_id):
     negotiation = nlink.negotiation
 
     if request.method == 'GET':
-        bypass_completed = request.query_params.get('success') == 'true'
+        bypass_accepted = request.query_params.get('success') == 'true'
 
         if negotiation.state == 'requestor_open':
             return Response({'error': 'The questionnaire is requestor_open and cannot be edited by the owner.'}, status=403)
 
-        if negotiation.state == 'completed' and not bypass_completed:
-            return Response({'error': 'The negotiation is completed and cannot be edited.'}, status=403)
+        if negotiation.state == 'accepted' and not bypass_accepted:
+            return Response({'error': 'The negotiation is accepted and cannot be edited.'}, status=403)
 
         questionnaire_json = None
         
@@ -217,7 +217,7 @@ def owner_review(request, link_id):
                 return Response({'error': 'Owner authentication required for this action'}, status=401)
             
             if action_found == 'accept':
-                negotiation.state = 'completed'
+                negotiation.state = 'accepted'
                 negotiation.save()
                 
                 generate_license_and_notify_owner_task.delay(nlink.link_id)
