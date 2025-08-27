@@ -10,6 +10,7 @@ import {
 } from "../services/negotiationApi";
 import Link from "next/link";
 import { parseJsonToFormStructure } from "@/app/components/parser";
+import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 
 interface NegotiationItemProps {
   negotiation: Negotiation;
@@ -193,6 +194,8 @@ export function NegotiationItem({
 
   const [expanded, setExpanded] = React.useState(false);
   const [isRegenerating, setIsRegenerating] = React.useState(false);
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
   // const canArchive =
   //   !n.archived && ["accepted", "abandoned", "rejected"].includes(n.state);
 
@@ -203,9 +206,22 @@ export function NegotiationItem({
   //   onReload();
   // };
 
-  const handleDelete = async () => {
-    await deleteNegotiation(n.negotiation_id);
-    onReload();
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      setIsDeleting(true);
+      await deleteNegotiation(n.negotiation_id);
+      onReload();
+    } catch (error) {
+      console.error('Error deleting negotiation:', error);
+      alert('Failed to delete negotiation. Please try again.');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
   };
 
   const handleRegenerateLicense = async () => {
@@ -387,7 +403,7 @@ export function NegotiationItem({
                 </button>
               )}
               <button
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
               >
                 Delete
@@ -396,6 +412,16 @@ export function NegotiationItem({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Negotiation"
+        message={`Are you sure you want to delete negotiation "${n.negotiation_id}"?`}
+        isLoading={isDeleting}
+      />
     </li>
   );
 }

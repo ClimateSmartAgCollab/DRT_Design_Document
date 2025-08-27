@@ -9,7 +9,6 @@ import { Sidebar } from "./components/Sidebar";
 import { BulkActionBar } from "./components/BulkActionBar";
 import { NegotiationItem } from "./components/NegotiationItem";
 import {
-  deleteOldNegotiations,
   deleteNegotiation,
 } from "./services/negotiationApi";
 import fetchApi from "@/app/api/apiHelper";
@@ -55,10 +54,10 @@ export default function OwnerNegotiationListContent() {
     mutationFn: (id: string) => deleteNegotiation(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["negotiations"] }),
   });
-  const deleteOld = useMutation({
-    mutationFn: deleteOldNegotiations,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["negotiations"] }),
-  });
+  // const deleteOld = useMutation({
+  //   mutationFn: deleteOldNegotiations,
+  //   onSuccess: () => qc.invalidateQueries({ queryKey: ["negotiations"] }),
+  // });
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -68,12 +67,22 @@ export default function OwnerNegotiationListContent() {
     });
   }, []);
 
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   const deleteSelected = async () => {
     if (!selected.size) return;
-    await Promise.all(
-      Array.from(selected).map((id) => deleteOne.mutateAsync(id))
-    );
-    setSelected(new Set());
+    try {
+      setIsBulkDeleting(true);
+      await Promise.all(
+        Array.from(selected).map((id) => deleteOne.mutateAsync(id))
+      );
+      setSelected(new Set());
+    } catch (error) {
+      console.error('Error deleting negotiations:', error);
+      alert('Failed to delete some negotiations. Please try again.');
+    } finally {
+      setIsBulkDeleting(false);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -129,10 +138,10 @@ export default function OwnerNegotiationListContent() {
     return arr;
   }, [filtered, filters.sortOption]);
 
-  const hasOld = negs.some(
-    (n) =>
-      Date.now() - new Date(n.timestamps).getTime() > 30 * 24 * 60 * 60 * 1000
-  );
+  // const hasOld = negs.some(
+  //   (n) =>
+  //     Date.now() - new Date(n.timestamps).getTime() > 30 * 24 * 60 * 60 * 1000
+  // );
 
   const whoamiQuery = useQuery({
     queryKey: ["owner", "whoami"],
@@ -223,7 +232,8 @@ export default function OwnerNegotiationListContent() {
               </div>
             )}
 
-            {hasOld && (
+            {/* Removed auto-delete functionality - keeping completed items for stats */}
+            {/* {hasOld && (
               <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
                 <p className="text-gray-700">
                   There are negotiations older than 30 days.
@@ -235,11 +245,12 @@ export default function OwnerNegotiationListContent() {
                   </button>
                 </p>
               </div>
-            )}
+            )} */}
 
             <BulkActionBar
               selectedCount={selected.size}
               onDeleteSelected={deleteSelected}
+              isDeleting={isBulkDeleting}
             />
 
             <ul className="space-y-4">
