@@ -68,14 +68,36 @@ class Negotiation(models.Model):
 
 
 class Archive(models.Model):
-    negotiation = models.OneToOneField(Negotiation, on_delete=models.CASCADE)
+    # Now a many-to-one history store
+    negotiation = models.ForeignKey(
+        Negotiation,
+        on_delete=models.CASCADE,
+        related_name='archives'
+    )
     archived_timestamp = models.DateTimeField(auto_now_add=True)
+
+    # A full snapshot (optional catch-all)
     archived_data = models.JSONField()
+
+    # Snapshot fields for targeted reads
+    requestor_responses = models.JSONField(null=True, blank=True)
+    owner_responses = models.JSONField(null=True, blank=True)
+    comments = models.TextField(blank=True, null=True)
+    state = models.CharField(
+        max_length=50, choices=Negotiation.STATE_CHOICES, null=True, blank=True)
+
+    # Metadata
+    changed_by = models.CharField(max_length=255, blank=True, default='')
+    change_description = models.TextField(blank=True)
+
     questionnaire_SAID = models.CharField(
         max_length=255, null=True, blank=True)
 
+    class Meta:
+        ordering = ['archived_timestamp']
+
     def __str__(self):
-        return f"Archived Negotiation: {self.negotiation}"
+        return f"Archive for {self.negotiation.negotiation_id} at {self.archived_timestamp}"
 
 
 class SummaryStatistic(models.Model):

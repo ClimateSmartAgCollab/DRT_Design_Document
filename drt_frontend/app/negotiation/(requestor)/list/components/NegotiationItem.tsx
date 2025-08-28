@@ -275,9 +275,20 @@ export function NegotiationItem({
           onClick={(e) => e.stopPropagation()}
         />
         <div className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center">
-          <span className="font-semibold text-gray-800">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (n.requestor_link) {
+                window.open(`/negotiation/history/${n.requestor_link}`, '_blank');
+              } else {
+                alert('History not available for this negotiation');
+              }
+            }}
+            className="font-semibold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+            title="View negotiation history"
+          >
             ID: {n.negotiation_id}
-          </span>
+          </button>
           <span className="text-gray-600">State: {STATUS_DISPLAY_NAMES[n.state as keyof typeof STATUS_DISPLAY_NAMES] || n.state}</span>
           <span className="text-gray-600">
             Created: {new Date(n.timestamps).toLocaleDateString()}

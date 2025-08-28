@@ -16,6 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 import logging
 from ..tasks import handle_negotiation_archive_and_summary_task
+from drt.services.history import get_archive_history, map_archives_to_versions
 
 logger = logging.getLogger(__name__)
 
@@ -569,3 +570,50 @@ def regenerate_license_view(request, negotiation_id):
     except Exception as e:
         logger.error(f"Error regenerating license for negotiation {negotiation_id}: {str(e)}")
         return JsonResponse({"error": "Failed to regenerate license"}, status=500)
+
+
+@owner_auth_required
+def negotiation_history_view(request, negotiation_id):
+    """Fetch negotiation history using Archive snapshots."""
+    try:
+        from drt.models import Negotiation
+        negotiation = get_object_or_404(Negotiation, negotiation_id=negotiation_id)
+
+        # Questionnaire JSON for labels
+        questionnaire_json = None
+        try:
+            cache_key = f'questionnaire_json_{negotiation.questionnaire_SAID}'
+            cached_json = cache.get(cache_key)
+            if cached_json:
+                questionnaire_json = cached_json
+            else:
+                from datastore.views import fetch_questionnaire_json
+                questionnaire_json = fetch_questionnaire_json(negotiation.questionnaire_SAID)
+        except Exception as e:
+            logger.error(f"Error fetching questionnaire for {negotiation.questionnaire_SAID}: {e}")
+            questionnaire_json = None
+
+        # Build version_history from Archive
+        archives = get_archive_history(negotiation)
+        version_history = map_archives_to_versions(archives)
+
+        response_data = {
+            'negotiation_id': str(negotiation.negotiation_id),
+            'conversation_id': str(negotiation.conversation_id),
+            'state': negotiation.state,
+            'timestamps': negotiation.timestamps.isoformat(),
+            'requestor_responses': negotiation.requestor_responses,
+            'owner_responses': negotiation.owner_responses,
+            'comments': negotiation.comments,
+            'rationale': negotiation.rationale,
+            'questionnaire': questionnaire_json,
+            'commentCycles': [],  # superseded by version_history
+            'version_history': version_history,
+            'is_legacy': False,
+        }
+
+        return JsonResponse(response_data)
+
+    except Exception as e:
+        logger.error(f"Error fetching history for negotiation {negotiation_id}: {str(e)}")
+        return JsonResponse({"error": "Failed to fetch negotiation history"}, status=500)

@@ -22,6 +22,7 @@ from ..tasks import (
     send_rejection_email_task,
     send_clarification_email_task
 )
+from drt.services.history import create_archive_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +118,22 @@ def fill_questionnaire(request, link_id):
 
         elif data.get('submit'):
             # print(f"🔍 SUBMITTING DATA: {json.dumps(data, indent=2)}")
+            old_state = negotiation.state
             negotiation.requestor_responses = data
             negotiation.state = 'owner_open'
             negotiation.save()
+            
+            # Archive the requestor submission
+            try:
+                create_archive_snapshot(
+                    negotiation,
+                    changed_by=nlink.requestor_email or "requestor",
+                    change_description='Requestor submitted questionnaire responses',
+                    requestor_responses=data,
+                    state='owner_open'
+                )
+            except Exception as e:
+                logger.error(f"Failed to archive requestor submission: {e}")
 
             # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
             frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-test.canadacentral.cloudapp.azure.com/')
@@ -219,6 +233,15 @@ def owner_review(request, link_id):
             if action_found == 'accept':
                 negotiation.state = 'accepted'
                 negotiation.save()
+                try:
+                    create_archive_snapshot(
+                        negotiation,
+                        changed_by=owner_email or "owner",
+                        change_description="Owner accepted",
+                        state='accepted',
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to archive accept action: {e}")
                 
                 generate_license_and_notify_owner_task.delay(nlink.link_id)
                 
@@ -229,6 +252,16 @@ def owner_review(request, link_id):
                 negotiation.rationale = rationale
                 negotiation.state = 'rejected'
                 negotiation.save()
+                try:
+                    create_archive_snapshot(
+                        negotiation,
+                        changed_by=owner_email or "owner",
+                        change_description="Owner rejected",
+                        comments=rationale,
+                        state='rejected',
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to archive reject action: {e}")
                 
                 if rationale.strip():
                     send_rejection_email_task.delay(nlink.requestor_email, nlink.requestor_link, rationale)
@@ -236,10 +269,22 @@ def owner_review(request, link_id):
                 return Response({'message': 'Request rejected!'})
 
             elif action_found == 'request_clarification':
+                old_state = negotiation.state
                 negotiation.owner_responses = data.get('owner_responses', '')
                 negotiation.comments = data.get('comments', '')
                 negotiation.state = 'requestor_open'
                 negotiation.save()
+                try:
+                    create_archive_snapshot(
+                        negotiation,
+                        changed_by=owner_email or "owner",
+                        change_description="Owner requested clarification",
+                        owner_responses=negotiation.owner_responses,
+                        comments=negotiation.comments,
+                        state='requestor_open',
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to archive clarification action: {e}")
 
                 send_clarification_email(nlink.requestor_email, nlink.requestor_link)
                 
