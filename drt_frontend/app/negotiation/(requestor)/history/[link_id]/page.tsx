@@ -625,7 +625,7 @@ export default function NegotiationHistoryPage() {
 
             <div className="flex space-x-3">
               <button
-                onClick={() => router.push("/negotiation/requestor/list")}
+                onClick={() => router.push("/negotiation/list")}
                 className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
               >
                 Back to List
