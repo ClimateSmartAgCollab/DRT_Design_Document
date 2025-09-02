@@ -25,9 +25,7 @@ export function parseSortOption(sortParam: string | null): SortOption {
     'created_asc',
     'created_desc', 
     'status_asc',
-    'status_desc',
-    'archived_first',
-    'archived_last'
+    'status_desc'
   ];
   
   return validOptions.includes(sortParam as SortOption)
