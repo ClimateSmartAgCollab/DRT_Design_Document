@@ -50,6 +50,7 @@ class Negotiation(models.Model):
         ('archived', 'Archived'),
         ('canceled', 'Canceled'),
         ('rejected', 'Rejected'),
+        ('abandoned', 'Abandoned'),
     ]
 
     negotiation_id = models.UUIDField(

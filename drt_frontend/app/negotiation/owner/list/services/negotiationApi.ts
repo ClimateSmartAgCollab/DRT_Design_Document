@@ -28,3 +28,8 @@ export async function regenerateLicense(negotiationId: string): Promise<Blob> {
   if (!res.ok) throw new Error(res.statusText);
   return res.blob();
 }
+
+export async function reopenNegotiation(id: string): Promise<void> {
+  const res = await fetchApi(`/drt/negotiations/reopen/${id}/`);
+  if (!res.ok) throw new Error(res.statusText);
+}

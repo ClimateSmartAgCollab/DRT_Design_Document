@@ -366,3 +366,56 @@ def refresh_data_task():
     except Exception as e:
         logger.error(f"Error refreshing data: {str(e)}")
         raise
+
+
+@shared_task
+def send_reopen_notification_email_task(requestor_email, requestor_link, previous_state):
+    """Send reopen notification email asynchronously using Celery"""
+    try:
+        # Debug: Log email configuration
+        logger.info(f"Email config - BACKEND: {settings.EMAIL_BACKEND}, HOST: {settings.EMAIL_HOST}, USER: {settings.EMAIL_HOST_USER}")
+        
+        state_display = {
+            'accepted': 'Accepted',
+            'rejected': 'Rejected', 
+            'abandoned': 'Abandoned'
+        }.get(previous_state, previous_state)
+        
+        msg = EmailMultiAlternatives(
+            subject="Data Access Request Reopened",
+            body=(
+                f"Hello,\n\n"
+                f"Your data access request has been reopened by the data owner.\n\n"
+                f"Previous Status: {state_display}\n\n"
+                f"You can now continue with your request by accessing your Dashboard at: "
+                f"https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage\n\n"
+                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
+                f"Best regards,\n"
+                f"The DRT System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[requestor_email],
+        )
+        html_content = f"""
+            <p>Hello,</p>
+            <p>Your data access request has been reopened by the data owner.</p>
+            <p><strong>Previous Status:</strong> {state_display}</p>
+            <p>You can now continue with your request by accessing your <a href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage" target="_blank">Dashboard</a>.</p>
+            <p>If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
+        
+        # Try to send email and log the result
+        try:
+            result = msg.send(fail_silently=False)
+            logger.info(f"Email send result: {result}")
+            logger.info(f"Reopen notification email sent to {requestor_email}")
+        except Exception as send_error:
+            logger.error(f"SMTP send error: {str(send_error)}")
+            raise
+            
+    except Exception as e:
+        logger.error(f"Error sending reopen notification email: {str(e)}")
+        logger.exception("Full traceback:")
+        raise

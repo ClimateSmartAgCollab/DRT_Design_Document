@@ -617,3 +617,52 @@ def negotiation_history_view(request, negotiation_id):
     except Exception as e:
         logger.error(f"Error fetching history for negotiation {negotiation_id}: {str(e)}")
         return JsonResponse({"error": "Failed to fetch negotiation history"}, status=500)
+
+
+@owner_auth_required
+def reopen_negotiation_view(request, negotiation_id):
+    """Reopen a previously Accepted/Rejected/Abandoned negotiation"""
+    try:
+        negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+        
+        if negotiation.state not in ['accepted', 'rejected', 'abandoned']:
+            return JsonResponse({
+                'error': 'Only Accepted, Rejected, or Abandoned negotiations can be reopened'
+            }, status=400)
+        
+        previous_state = negotiation.state
+        
+        new_state = 'owner_open'
+        
+        # Create archive snapshot before changing state
+        from .questionnaire import create_archive_snapshot
+        create_archive_snapshot(
+            negotiation,
+            changed_by=request.owner_email or "owner",
+            change_description=f"Owner reopened negotiation from {previous_state} state"
+        )
+        
+        negotiation.state = new_state
+        negotiation.save()
+        
+        # Send email notification to requestor
+        from ..tasks import send_reopen_notification_email_task
+        if hasattr(negotiation, 'link') and negotiation.link:
+            requestor_email = negotiation.link.requestor_email
+            if requestor_email:
+                send_reopen_notification_email_task.delay(
+                    requestor_email, 
+                    str(negotiation.link.requestor_link), 
+                    previous_state
+                )
+        
+        return JsonResponse({
+            'message': f'Negotiation reopened successfully from {previous_state} to {new_state}',
+            'new_state': new_state
+        })
+        
+    except Exception as e:
+        logger.error(f"Error reopening negotiation {negotiation_id}: {str(e)}")
+        return JsonResponse({
+            'error': 'An error occurred while reopening the negotiation'
+        }, status=500)

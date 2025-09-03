@@ -7,6 +7,7 @@ import {
   archiveNegotiation,
   deleteNegotiation,
   regenerateLicense,
+  reopenNegotiation,
 } from "../services/negotiationApi";
 import Link from "next/link";
 import { parseJsonToFormStructure } from "@/app/components/parser";
@@ -196,6 +197,7 @@ export function NegotiationItem({
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isReopening, setIsReopening] = React.useState(false);
   // const canArchive =
   //   !n.archived && ["accepted", "abandoned", "rejected"].includes(n.state);
 
@@ -243,6 +245,20 @@ export function NegotiationItem({
       alert('Failed to regenerate license. Please try again.');
     } finally {
       setIsRegenerating(false);
+    }
+  };
+
+  const handleReopen = async () => {
+    try {
+      setIsReopening(true);
+      await reopenNegotiation(n.negotiation_id);
+      alert('Negotiation reopened successfully!');
+      onReload(); // Refresh the list to show updated state
+    } catch (error) {
+      console.error('Error reopening negotiation:', error);
+      alert('Failed to reopen negotiation. Please try again.');
+    } finally {
+      setIsReopening(false);
     }
   };
 
@@ -411,6 +427,15 @@ export function NegotiationItem({
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isRegenerating ? "Generating..." : "Regenerate License"}
+                </button>
+              )}
+              {(n.state === "accepted" || n.state === "rejected" || n.state === "abandoned") && (
+                <button
+                  onClick={handleReopen}
+                  disabled={isReopening}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isReopening ? "Reopening..." : "Reopen"}
                 </button>
               )}
               <button
