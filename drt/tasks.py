@@ -419,3 +419,131 @@ def send_reopen_notification_email_task(requestor_email, requestor_link, previou
         logger.error(f"Error sending reopen notification email: {str(e)}")
         logger.exception("Full traceback:")
         raise
+
+
+@shared_task
+def send_abandonment_reminder_email_task(recipient_email, link_id, questionnaire_said, recipient_type):
+    """Send abandonment reminder email asynchronously using Celery"""
+    try:
+        if recipient_type == 'requestor':
+            subject = "Data Access Request - Action Required"
+            dashboard_url = "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/{link_id}/fill-questionnaire"
+            action_text = "complete your questionnaire or take action"
+            body_text = (
+                f"Hello,\n\n"
+                f"We noticed that your data access request has been inactive for over 30 days.\n\n"
+                f"Dataset: {questionnaire_said}\n\n"
+                f"To keep your request active, please {action_text} by accessing your Dashboard at: "
+                f"{dashboard_url}\n\n"
+                f"You have 3 days to take action. If no action is taken within this period, your request will be automatically marked as abandoned.\n\n"
+                f"If you no longer need this data or have any questions, please contact our support team at adc@uoguelph.ca.\n\n"
+                f"Best regards,\n"
+                f"The DRT System"
+            )
+            html_content = f"""
+                <p>Hello,</p>
+                <p>We noticed that your data access request has been inactive for over 30 days.</p>
+                <p><strong>Dataset:</strong> {questionnaire_said}</p>
+                <p>To keep your request active, please {action_text} by accessing your <a href="{dashboard_url}" target="_blank">Dashboard</a>.</p>
+                <p><strong>Important:</strong> You have 3 days to take action. If no action is taken within this period, your request will be automatically marked as abandoned.</p>
+                <p>If you no longer need this data or have any questions, please contact our support team at adc@uoguelph.ca.</p>
+                <p>Best regards,<br>The DRT System</p>
+            """
+        else:  # owner
+            subject = "Data Access Request Review - Action Required"
+            dashboard_url = f"https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/{link_id}/owner-review"
+            action_text = "review and respond to the request"
+            body_text = (
+                f"Hello,\n\n"
+                f"We noticed that a data access request has been waiting for your review for over 30 days.\n\n"
+                f"Dataset: {questionnaire_said}\n\n"
+                f"To keep this request active, please {action_text} by accessing your review page at: "
+                f"{dashboard_url}\n\n"
+                f"You have 3 days to take action. If no action is taken within this period, the request will be automatically marked as abandoned.\n\n"
+                f"If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.\n\n"
+                f"Best regards,\n"
+                f"The DRT System"
+            )
+            html_content = f"""
+                <p>Hello,</p>
+                <p>We noticed that a data access request has been waiting for your review for over 30 days.</p>
+                <p><strong>Dataset:</strong> {questionnaire_said}</p>
+                <p>To keep this request active, please {action_text} by accessing your <a href="{dashboard_url}" target="_blank">Review Page</a>.</p>
+                <p><strong>Important:</strong> You have 3 days to take action. If no action is taken within this period, the request will be automatically marked as abandoned.</p>
+                <p>If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.</p>
+                <p>Best regards,<br>The DRT System</p>
+            """
+        
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=body_text,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient_email],
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+
+        logger.info(f"Abandonment reminder email sent to {recipient_type} at {recipient_email}")
+    except Exception as e:
+        logger.error(f"Error sending abandonment reminder email: {str(e)}")
+        raise
+
+
+@shared_task
+def send_abandonment_notification_email_task(requestor_email, requestor_link, questionnaire_said):
+    """Send abandonment notification email to requestor asynchronously using Celery"""
+    try:
+        # Create the specific questionnaire link
+        questionnaire_url = f"https://drt-test.canadacentral.cloudapp.azure.com/negotiation/{requestor_link}/fill-questionnaire"
+        dashboard_url = "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage"
+        
+        msg = EmailMultiAlternatives(
+            subject="Data Access Request - Abandoned",
+            body=(
+                f"Hello,\n\n"
+                f"Your data access request has been automatically marked as abandoned due to inactivity.\n\n"
+                f"Dataset: {questionnaire_said}\n\n"
+                f"Reason: No activity was detected for over 33 days (30 days initial + 3 days grace period).\n\n"
+                f"If you still need access to this data, you can:\n"
+                f"1. Continue with this specific request: {questionnaire_url}\n"
+                f"2. Access your Dashboard for all requests: {dashboard_url}\n\n"
+                f"If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.\n\n"
+                f"Best regards,\n"
+                f"The DRT System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[requestor_email],
+        )
+        html_content = f"""
+            <p>Hello,</p>
+            <p>Your data access request has been automatically marked as abandoned due to inactivity.</p>
+            <p><strong>Dataset:</strong> {questionnaire_said}</p>
+            <p><strong>Reason:</strong> No activity was detected for over 33 days (30 days initial + 3 days grace period).</p>
+            <p>If you still need access to this data, you can:</p>
+            <ol>
+                <li>Continue with this specific request: <a href="{questionnaire_url}" target="_blank">Access Questionnaire</a></li>
+                <li>Access your <a href="{dashboard_url}" target="_blank">Dashboard</a> for all requests</li>
+            </ol>
+            <p>If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.</p>
+            <p>Best regards,<br>The DRT System</p>
+        """
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+
+        logger.info(f"Abandonment notification email sent to {requestor_email}")
+    except Exception as e:
+        logger.error(f"Error sending abandonment notification email: {str(e)}")
+        raise
+
+
+@shared_task
+def process_abandonment_policy_task():
+    """Process abandonment policy asynchronously using Celery"""
+    try:
+        from .services.negotiation import process_abandonment_policy
+        result = process_abandonment_policy()
+        logger.info(f"Abandonment policy processed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error processing abandonment policy: {str(e)}")
+        raise

@@ -62,6 +62,7 @@ class Negotiation(models.Model):
     state = models.CharField(
         max_length=50, choices=STATE_CHOICES, default='requestor_open')
     reminder_sent = models.BooleanField(default=False)
+    reminder_sent_date = models.DateTimeField(null=True, blank=True)
     questionnaire_SAID = models.CharField(max_length=255)
     timestamps = models.DateTimeField(auto_now_add=True)
     archived = models.BooleanField(default=False)

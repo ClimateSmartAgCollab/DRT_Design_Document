@@ -114,6 +114,8 @@ def fill_questionnaire(request, link_id):
             # print(f"🔍 SAVING DATA: {json.dumps(data, indent=2)}")
             negotiation.requestor_responses = data
             negotiation.save()
+            # Update last_activity on NLink when requestor saves
+            nlink.save(update_fields=['last_activity'])
             return JsonResponse({'message': 'Questionnaire saved successfully!'})
 
         elif data.get('submit'):
@@ -122,6 +124,8 @@ def fill_questionnaire(request, link_id):
             negotiation.requestor_responses = data
             negotiation.state = 'owner_open'
             negotiation.save()
+            # Update last_activity on NLink when requestor submits
+            nlink.save(update_fields=['last_activity'])
             
             # Archive the requestor submission
             try:
@@ -215,6 +219,8 @@ def owner_review(request, link_id):
             negotiation.owner_responses = data.get('owner_responses', '')
             negotiation.comments = data.get('comments', '')
             negotiation.save()
+            # Update last_activity on NLink when owner saves
+            nlink.save(update_fields=['last_activity'])
             return Response({'message': 'Review saved successfully!'})
 
         # For restricted actions, check authentication
@@ -233,6 +239,8 @@ def owner_review(request, link_id):
             if action_found == 'accept':
                 negotiation.state = 'accepted'
                 negotiation.save()
+                # Update last_activity on NLink when owner accepts
+                nlink.save(update_fields=['last_activity'])
                 try:
                     create_archive_snapshot(
                         negotiation,
@@ -252,6 +260,8 @@ def owner_review(request, link_id):
                 negotiation.rationale = rationale
                 negotiation.state = 'rejected'
                 negotiation.save()
+                # Update last_activity on NLink when owner rejects
+                nlink.save(update_fields=['last_activity'])
                 try:
                     create_archive_snapshot(
                         negotiation,
@@ -274,6 +284,8 @@ def owner_review(request, link_id):
                 negotiation.comments = data.get('comments', '')
                 negotiation.state = 'requestor_open'
                 negotiation.save()
+                # Update last_activity on NLink when owner requests clarification
+                nlink.save(update_fields=['last_activity'])
                 try:
                     create_archive_snapshot(
                         negotiation,

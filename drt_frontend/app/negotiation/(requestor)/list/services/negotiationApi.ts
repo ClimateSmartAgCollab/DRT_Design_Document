@@ -22,3 +22,10 @@ export async function deleteOldNegotiations(): Promise<void> {
   const res = await fetchApi("/drt/negotiations/delete_old/");
   if (!res.ok) throw new Error(res.statusText);
 }
+
+export async function abandonNegotiation(id: string): Promise<void> {
+  const res = await fetchApi(`/drt/negotiations/abandon/${id}/`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(res.statusText);
+}

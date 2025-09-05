@@ -8,15 +8,20 @@ from ..models import NLink, Archive, SummaryStatistic, Negotiation
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from ..services.negotiation import delete_old_negotiations, handle_negotiation_archive_and_summary
+from ..services.negotiation import delete_old_negotiations, handle_negotiation_archive_and_summary, process_abandonment_policy, abandon_negotiation_by_requestor
 from django.shortcuts import get_object_or_404
 from .utils import owner_auth_required, requestor_auth_required
 from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 import json
 import logging
-from ..tasks import handle_negotiation_archive_and_summary_task
+from ..tasks import handle_negotiation_archive_and_summary_task, send_reopen_notification_email_task
 from drt.services.history import get_archive_history, map_archives_to_versions
+from datastore.views import fetch_questionnaire_json, fetch_license_template
+from jinja2 import Template, Environment, FileSystemLoader, select_autoescape
+from drt.services.license import flatten_form_data        
+from .questionnaire import create_archive_snapshot
+
 
 logger = logging.getLogger(__name__)
 
@@ -351,7 +356,6 @@ def negotiation_list_api_req(request):
             if cached_json:
                 questionnaire_json = cached_json
             else:
-                from datastore.views import fetch_questionnaire_json
                 questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
         except Exception as e:
             print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
@@ -407,7 +411,7 @@ def negotiation_list_api(request):
             if cached_json:
                 questionnaire_json = cached_json
             else:
-                from datastore.views import fetch_questionnaire_json
+                
                 questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
         except Exception as e:
             print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
@@ -464,19 +468,16 @@ def submission_view(request):
         cache_key = f'license_template_{license_id}'
         license_template_content = cache.get(cache_key)
         if not license_template_content:
-            from datastore.views import fetch_license_template
             license_template_content = fetch_license_template(license_id)
         
         if license_template_content:
             # Create template from string content and render it as human-readable text
-            from jinja2 import Template
             template = Template(license_template_content)
             content_type = "text/plain"
             filename = "license.txt"
             owner_table = cache.get("owner_table")
             
             # Import the flatten function from license service
-            from drt.services.license import flatten_form_data
             details = flatten_form_data(submission)
             
             context = {"submission": details, "owner_table": owner_table}
@@ -484,7 +485,6 @@ def submission_view(request):
         else:
             # Fallback to hardcoded template if GitHub fetch fails
             print(f"⚠️ License template not found for {license_id}, using fallback template")
-            from jinja2 import Environment, FileSystemLoader, select_autoescape
             env = Environment(
                 loader=FileSystemLoader("drt/templates"),
                 autoescape=select_autoescape(["html", "xml", "json"])
@@ -494,8 +494,6 @@ def submission_view(request):
             filename = "license.txt"
             owner_table = cache.get("owner_table")
             
-            # Import the flatten function from license service
-            from drt.services.license import flatten_form_data
             details = flatten_form_data(submission)
             
             context = {"submission": details, "owner_table": owner_table}
@@ -524,8 +522,7 @@ def submission_view(request):
 def regenerate_license_view(request, negotiation_id):
     """Regenerate license for a specific negotiation and return it for download"""
     try:
-        from drt.models import Negotiation, NLink
-        from drt.services.license import flatten_form_data
+        
         
         negotiation = get_object_or_404(Negotiation, negotiation_id=negotiation_id)
         nlink = get_object_or_404(NLink, negotiation=negotiation)
@@ -547,15 +544,13 @@ def regenerate_license_view(request, negotiation_id):
         license_template_content = cache.get(cache_key)
         
         if not license_template_content:
-            from datastore.views import fetch_license_template
+            
             license_template_content = fetch_license_template(license_id)
             
         if license_template_content:
-            from jinja2 import Template
             template = Template(license_template_content)
             rendered = template.render(submission=details, owner_table=owner_table)
         else:
-            from jinja2 import Environment, FileSystemLoader, select_autoescape
             env = Environment(
                 loader=FileSystemLoader("drt/templates"),
                 autoescape=select_autoescape(['html', 'xml', 'json'])
@@ -576,7 +571,6 @@ def regenerate_license_view(request, negotiation_id):
 def negotiation_history_view(request, negotiation_id):
     """Fetch negotiation history using Archive snapshots."""
     try:
-        from drt.models import Negotiation
         negotiation = get_object_or_404(Negotiation, negotiation_id=negotiation_id)
 
         # Questionnaire JSON for labels
@@ -587,7 +581,6 @@ def negotiation_history_view(request, negotiation_id):
             if cached_json:
                 questionnaire_json = cached_json
             else:
-                from datastore.views import fetch_questionnaire_json
                 questionnaire_json = fetch_questionnaire_json(negotiation.questionnaire_SAID)
         except Exception as e:
             logger.error(f"Error fetching questionnaire for {negotiation.questionnaire_SAID}: {e}")
@@ -635,7 +628,6 @@ def reopen_negotiation_view(request, negotiation_id):
         new_state = 'owner_open'
         
         # Create archive snapshot before changing state
-        from .questionnaire import create_archive_snapshot
         create_archive_snapshot(
             negotiation,
             changed_by=request.owner_email or "owner",
@@ -646,7 +638,6 @@ def reopen_negotiation_view(request, negotiation_id):
         negotiation.save()
         
         # Send email notification to requestor
-        from ..tasks import send_reopen_notification_email_task
         if hasattr(negotiation, 'link') and negotiation.link:
             requestor_email = negotiation.link.requestor_email
             if requestor_email:
@@ -665,4 +656,51 @@ def reopen_negotiation_view(request, negotiation_id):
         logger.error(f"Error reopening negotiation {negotiation_id}: {str(e)}")
         return JsonResponse({
             'error': 'An error occurred while reopening the negotiation'
+        }, status=500)
+
+
+@csrf_exempt
+def process_abandonment_policy_view(request):
+    """Manually trigger the abandonment policy processing."""
+    try:
+        result = process_abandonment_policy()
+        return JsonResponse(result)
+    except Exception as e:
+        logger.error(f"Error processing abandonment policy: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@requestor_auth_required
+def abandon_negotiation_view(request, negotiation_id):
+    """Allow requestor to abandon their own negotiation."""
+    try:
+        negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+        
+        if not hasattr(negotiation, 'link') or not negotiation.link:
+            return JsonResponse({'error': 'Negotiation link not found'}, status=404)
+            
+        if negotiation.link.requestor_email != request.requestor_email:
+            return JsonResponse({'error': 'Unauthorized access to this negotiation'}, status=403)
+        
+        if negotiation.state not in ['requestor_open', 'owner_open']:
+            return JsonResponse({
+                'error': 'Only active negotiations can be abandoned'
+            }, status=400)
+        
+        
+        if abandon_negotiation_by_requestor(negotiation):
+            return JsonResponse({
+                'message': 'Negotiation abandoned successfully',
+                'new_state': 'abandoned'
+            })
+        else:
+            return JsonResponse({
+                'error': 'Failed to abandon negotiation'
+            }, status=500)
+        
+    except Exception as e:
+        logger.error(f"Error abandoning negotiation {negotiation_id}: {str(e)}")
+        return JsonResponse({
+            'error': 'An error occurred while abandoning the negotiation'
         }, status=500)

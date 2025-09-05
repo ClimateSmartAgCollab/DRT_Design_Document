@@ -6,7 +6,7 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
                     req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint,
                     regenerate_license_view, negotiation_history_view, requestor_logout, owner_logout,
-                    reopen_negotiation_view
+                    reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view
                     )
 
 urlpatterns = [
@@ -98,6 +98,10 @@ urlpatterns = [
          reopen_negotiation_view,
          name='reopen_negotiation'),  # Reopen a negotiation
 
+    path('negotiations/abandon/<uuid:negotiation_id>/',
+         abandon_negotiation_view,
+         name='abandon_negotiation'),  # Abandon a negotiation (requestor)
+
     path('negotiations/<uuid:negotiation_id>/history/',
          negotiation_history_view,
          name='negotiation_history'),  # Get negotiation history
@@ -105,6 +109,10 @@ urlpatterns = [
     path('negotiations/delete-old/',
          delete_old_negotiations_view,
          name='delete_old_negotiations'),
+
+    path('negotiations/process-abandonment-policy/',
+         process_abandonment_policy_view,
+         name='process_abandonment_policy'),  # Process abandonment policy
 
     path('negotiations/',
          negotiation_list_api,

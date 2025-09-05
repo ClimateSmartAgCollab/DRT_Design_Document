@@ -1,6 +1,7 @@
 # drt_core\settings\local.py
 from .base import *  # noqa
 import os
+from celery.schedules import crontab
 # import dj_database_url
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # "development" | "staging" | "production"
@@ -131,3 +132,15 @@ STATIC_URL = "/static/"
 STATIC_ROOT = "/usr/src/static/"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = "/usr/src/media/"
+
+# Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+    'process-abandonment-policy': {
+        'task': 'drt.tasks.process_abandonment_policy_task',
+        'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM
+        'options': {
+            'expires': 3600,  # Task expires after 1 hour if not picked up
+        }
+    },
+}
+

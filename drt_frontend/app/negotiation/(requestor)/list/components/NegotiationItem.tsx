@@ -4,11 +4,11 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { Negotiation } from "../types";
 import { STATUS_DISPLAY_NAMES } from "../types";
 import {
-  archiveNegotiation,
-  deleteNegotiation,
+  abandonNegotiation,
 } from "../services/negotiationApi";
 import Link from "next/link";
 import { parseJsonToFormStructure } from "@/app/components/parser";
+import { useMutation } from "@tanstack/react-query";
 
 interface NegotiationItemProps {
   negotiation: Negotiation;
@@ -242,6 +242,19 @@ export function NegotiationItem({
   const [expanded, setExpanded] = React.useState(false);
   const canArchive =
     !n.archived && ["accepted", "abandoned", "rejected"].includes(n.state);
+  
+  const canAbandon = !n.archived && ["requestor_open", "owner_open"].includes(n.state);
+  
+  const abandonMutation = useMutation({
+    mutationFn: () => abandonNegotiation(n.negotiation_id),
+    onSuccess: () => {
+      onReload();
+    },
+    onError: (error) => {
+      console.error("Failed to abandon negotiation:", error);
+      alert("Failed to abandon negotiation. Please try again.");
+    },
+  });
 
   const payload = useMemo(() => {
     if (!n.requestor_responses) return "";
@@ -390,6 +403,19 @@ export function NegotiationItem({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              {canAbandon && (
+                <button
+                  onClick={() => {
+                    if (confirm("Are you sure you want to cancel this negotiation? This action cannot be undone.")) {
+                      abandonMutation.mutate();
+                    }
+                  }}
+                  disabled={abandonMutation.isPending}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {abandonMutation.isPending ? "Canceling..." : "Cancel Request"}
+                </button>
+              )}
               {/* <button
                 onClick={handleDelete}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
