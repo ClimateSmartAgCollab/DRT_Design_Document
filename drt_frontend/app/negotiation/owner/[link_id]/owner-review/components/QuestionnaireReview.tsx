@@ -127,7 +127,9 @@ export function QuestionnaireReview({
                           )}
                         </div>
                         {/* Owner comments for child data */}
-                        {isViewingHistory && ownerCommentVersions && ownerCommentVersions.length > 0 ? (
+                        {isViewingHistory &&
+                        ownerCommentVersions &&
+                        ownerCommentVersions.length > 0 ? (
                           <OwnerCommentVersions
                             fieldId={field.id}
                             ownerCommentVersions={ownerCommentVersions}
@@ -188,7 +190,9 @@ export function QuestionnaireReview({
                           : String(answer ?? "—")}
                       </div>
                       {/* Owner comments for regular fields */}
-                      {isViewingHistory && ownerCommentVersions && ownerCommentVersions.length > 0 ? (
+                      {isViewingHistory &&
+                      ownerCommentVersions &&
+                      ownerCommentVersions.length > 0 ? (
                         <OwnerCommentVersions
                           fieldId={field.id}
                           ownerCommentVersions={ownerCommentVersions}
