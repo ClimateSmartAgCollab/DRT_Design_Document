@@ -12,6 +12,7 @@ import {
   PermissionInfo,
   QuestionnaireReview,
   LoadingStates,
+  OverallCommentVersions,
 } from "./components";
 
 import { NegotiationData, NegotiationHistory } from "./types";
@@ -357,19 +358,28 @@ export default function OwnerReviewPage() {
                 fieldComments={fieldComments}
                 setFieldComments={setFieldComments}
                 isViewingHistory={isViewingHistory}
+                ownerCommentVersions={historyEntries[currentHistoryIndex]?.ownerCommentVersions}
               />
 
-              <div>
-                <label className="block font-medium mb-1">Comments</label>
-                <textarea
-                  value={globalComments}
-                  onChange={(e) => setGlobalComments(e.target.value)}
-                  disabled={isViewingHistory}
-                  className={`w-full border rounded p-2 ${
-                    isViewingHistory ? "bg-gray-100 cursor-not-allowed" : ""
-                  }`}
+              {/* Overall Comments Section */}
+              {isViewingHistory && historyEntries[currentHistoryIndex]?.ownerCommentVersions && 
+               historyEntries[currentHistoryIndex].ownerCommentVersions.length > 0 ? (
+                <OverallCommentVersions
+                  ownerCommentVersions={historyEntries[currentHistoryIndex].ownerCommentVersions}
                 />
-              </div>
+              ) : (
+                <div>
+                  <label className="block font-medium mb-1">Comments</label>
+                  <textarea
+                    value={globalComments}
+                    onChange={(e) => setGlobalComments(e.target.value)}
+                    disabled={isViewingHistory}
+                    className={`w-full border rounded p-2 ${
+                      isViewingHistory ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center py-8 text-gray-500">

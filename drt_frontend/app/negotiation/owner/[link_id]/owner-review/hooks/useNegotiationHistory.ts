@@ -1,5 +1,9 @@
 import { useMemo } from "react";
-import { NegotiationHistory, HistoryEntry } from "../types";
+import {
+  NegotiationHistory,
+  HistoryEntry,
+  OwnerCommentVersion,
+} from "../types";
 
 export function useNegotiationHistory(history: NegotiationHistory | undefined) {
   const historyEntries = useMemo((): HistoryEntry[] => {
@@ -19,53 +23,65 @@ export function useNegotiationHistory(history: NegotiationHistory | undefined) {
         archiveEntry.owner_responses || archiveEntry.comments;
 
       if (hasRequestorData) {
-        if (
-          currentEntry &&
-          (currentEntry.owner_responses || currentEntry.comments)
-        ) {
+        if (currentEntry) {
           entries.push({
             data: {
               questionnaire: history.questionnaire,
               requestor_responses: currentEntry.requestor_responses || {},
-              owner_responses: currentEntry.owner_responses
-                ? JSON.stringify(currentEntry.owner_responses)
-                : null,
-              comments: currentEntry.comments || "",
-              state: currentEntry.state,
+              owner_responses:
+                currentEntry.ownerCommentVersions &&
+                currentEntry.ownerCommentVersions.length > 0
+                  ? currentEntry.ownerCommentVersions[
+                      currentEntry.ownerCommentVersions.length - 1
+                    ].owner_responses
+                    ? JSON.stringify(
+                        currentEntry.ownerCommentVersions[
+                          currentEntry.ownerCommentVersions.length - 1
+                        ].owner_responses
+                      )
+                    : null
+                  : null,
+              comments:
+                currentEntry.ownerCommentVersions &&
+                currentEntry.ownerCommentVersions.length > 0
+                  ? currentEntry.ownerCommentVersions[
+                      currentEntry.ownerCommentVersions.length - 1
+                    ].comments || ""
+                  : "",
+              state:
+                currentEntry.ownerCommentVersions &&
+                currentEntry.ownerCommentVersions.length > 0
+                  ? currentEntry.ownerCommentVersions[
+                      currentEntry.ownerCommentVersions.length - 1
+                    ].state
+                  : currentEntry.state,
               rationale: history.rationale,
             },
             timestamp: currentEntry.timestamp,
             changeDescription: currentEntry.change_description,
+            ownerCommentVersions: currentEntry.ownerCommentVersions || [],
           });
         }
 
         currentEntry = {
           requestor_responses: archiveEntry.requestor_responses,
-          owner_responses: null,
-          comments: "",
+          ownerCommentVersions: [],
           state: archiveEntry.state,
           timestamp: archiveEntry.timestamp,
           change_description: archiveEntry.change_description,
         };
       }
 
-      if (hasOwnerData) {
-        if (currentEntry) {
-          currentEntry.owner_responses = archiveEntry.owner_responses;
-          currentEntry.comments = archiveEntry.comments;
-          currentEntry.state = archiveEntry.state;
-          currentEntry.timestamp = archiveEntry.timestamp;
-          currentEntry.change_description = archiveEntry.change_description;
-        } else {
-          currentEntry = {
-            requestor_responses: {},
-            owner_responses: archiveEntry.owner_responses,
-            comments: archiveEntry.comments,
-            state: archiveEntry.state,
-            timestamp: archiveEntry.timestamp,
-            change_description: archiveEntry.change_description,
-          };
-        }
+      if (hasOwnerData && currentEntry) {
+        const ownerVersion: OwnerCommentVersion = {
+          timestamp: archiveEntry.timestamp,
+          owner_responses: archiveEntry.owner_responses,
+          comments: archiveEntry.comments,
+          state: archiveEntry.state,
+          change_description: archiveEntry.change_description,
+        };
+
+        currentEntry.ownerCommentVersions.push(ownerVersion);
       }
     });
 
@@ -74,15 +90,38 @@ export function useNegotiationHistory(history: NegotiationHistory | undefined) {
         data: {
           questionnaire: history.questionnaire,
           requestor_responses: currentEntry.requestor_responses || {},
-          owner_responses: currentEntry.owner_responses
-            ? JSON.stringify(currentEntry.owner_responses)
-            : null,
-          comments: currentEntry.comments || "",
-          state: currentEntry.state,
+          owner_responses:
+            currentEntry.ownerCommentVersions &&
+            currentEntry.ownerCommentVersions.length > 0
+              ? currentEntry.ownerCommentVersions[
+                  currentEntry.ownerCommentVersions.length - 1
+                ].owner_responses
+                ? JSON.stringify(
+                    currentEntry.ownerCommentVersions[
+                      currentEntry.ownerCommentVersions.length - 1
+                    ].owner_responses
+                  )
+                : null
+              : null,
+          comments:
+            currentEntry.ownerCommentVersions &&
+            currentEntry.ownerCommentVersions.length > 0
+              ? currentEntry.ownerCommentVersions[
+                  currentEntry.ownerCommentVersions.length - 1
+                ].comments || ""
+              : "",
+          state:
+            currentEntry.ownerCommentVersions &&
+            currentEntry.ownerCommentVersions.length > 0
+              ? currentEntry.ownerCommentVersions[
+                  currentEntry.ownerCommentVersions.length - 1
+                ].state
+              : currentEntry.state,
           rationale: history.rationale,
         },
         timestamp: currentEntry.timestamp,
         changeDescription: currentEntry.change_description,
+        ownerCommentVersions: currentEntry.ownerCommentVersions || [],
       });
     }
 

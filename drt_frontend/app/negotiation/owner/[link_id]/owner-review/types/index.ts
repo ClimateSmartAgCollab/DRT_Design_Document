@@ -33,8 +33,17 @@ export type NegotiationHistory = {
   is_legacy: boolean;
 };
 
+export type OwnerCommentVersion = {
+  timestamp: string;
+  owner_responses: Record<string, any> | null;
+  comments: string | null;
+  state: string;
+  change_description: string;
+};
+
 export type HistoryEntry = {
   data: any;
   timestamp: string;
   changeDescription?: string;
+  ownerCommentVersions?: OwnerCommentVersion[];
 };

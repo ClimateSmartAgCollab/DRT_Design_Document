@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
@@ -45,6 +45,21 @@ interface NegotiationHistory {
   is_legacy: boolean;
 }
 
+interface HistoryEntry {
+  data: any;
+  timestamp: string;
+  changeDescription?: string;
+  ownerCommentVersions?: OwnerCommentVersion[];
+}
+
+interface OwnerCommentVersion {
+  timestamp: string;
+  owner_responses: Record<string, any> | null;
+  comments: string | null;
+  state: string;
+  change_description: string;
+}
+
 async function fetchNegotiationHistory(
   linkId: string
 ): Promise<NegotiationHistory> {
@@ -85,356 +100,449 @@ async function fetchNegotiationHistory(
   } as NegotiationHistory;
 }
 
-function ResponseDisplay({
-  responses,
-  questionnaire,
-  title,
-}: {
-  responses: Record<string, any>;
-  questionnaire?: any;
-  title: string;
-}) {
-  const fieldMeta = React.useMemo(() => {
-    if (!questionnaire) return {};
-    try {
-      const steps = parseJsonToFormStructure(questionnaire);
-      const fieldMeta: Record<
-        string,
-        { label: string; options?: Record<string, string> }
-      > = {};
-      steps.forEach((step: any) => {
-        step.pages.forEach((page: any) => {
-          page.sections.forEach((section: any) => {
-            section.fields.forEach((field: any) => {
-              fieldMeta[field.id] = {
-                label: field.labels?.eng?.[field.id] || field.id,
-                options: field.options?.eng?.[field.id] || undefined,
-              };
-            });
-          });
-        });
-      });
-      return fieldMeta;
-    } catch (error) {
-      console.error("Error parsing questionnaire:", error);
-      return {};
+// Hook to process negotiation history with preserved owner comment versions
+function useNegotiationHistory(history: NegotiationHistory | undefined) {
+  const historyEntries = React.useMemo((): HistoryEntry[] => {
+    if (!history?.archive_history || history.archive_history.length === 0) {
+      return [];
     }
-  }, [questionnaire]);
 
-  const flatData = Object.entries(responses).reduce((acc, [k, v]) => {
+    const entries: HistoryEntry[] = [];
+
+    let currentEntry: any = null;
+
+    history.archive_history.forEach((archiveEntry) => {
+      const hasRequestorData =
+        archiveEntry.requestor_responses &&
+        Object.keys(archiveEntry.requestor_responses).length > 0;
+      const hasOwnerData =
+        archiveEntry.owner_responses || archiveEntry.comments;
+
+      if (hasRequestorData) {
+        if (
+          currentEntry &&
+          currentEntry.ownerCommentVersions &&
+          currentEntry.ownerCommentVersions.length > 0
+        ) {
+          entries.push({
+            data: {
+              questionnaire: history.questionnaire,
+              requestor_responses: currentEntry.requestor_responses || {},
+              owner_responses: currentEntry.ownerCommentVersions[
+                currentEntry.ownerCommentVersions.length - 1
+              ].owner_responses
+                ? JSON.stringify(
+                    currentEntry.ownerCommentVersions[
+                      currentEntry.ownerCommentVersions.length - 1
+                    ].owner_responses
+                  )
+                : null,
+              comments:
+                currentEntry.ownerCommentVersions[
+                  currentEntry.ownerCommentVersions.length - 1
+                ].comments || "",
+              state:
+                currentEntry.ownerCommentVersions[
+                  currentEntry.ownerCommentVersions.length - 1
+                ].state,
+              rationale: history.rationale,
+            },
+            timestamp: currentEntry.timestamp,
+            changeDescription: currentEntry.change_description,
+            ownerCommentVersions: currentEntry.ownerCommentVersions,
+          });
+        }
+
+        currentEntry = {
+          requestor_responses: archiveEntry.requestor_responses,
+          ownerCommentVersions: [],
+          state: archiveEntry.state,
+          timestamp: archiveEntry.timestamp,
+          change_description: archiveEntry.change_description,
+        };
+      }
+
+      if (hasOwnerData && currentEntry) {
+        const ownerVersion: OwnerCommentVersion = {
+          timestamp: archiveEntry.timestamp,
+          owner_responses: archiveEntry.owner_responses,
+          comments: archiveEntry.comments,
+          state: archiveEntry.state,
+          change_description: archiveEntry.change_description,
+        };
+
+        currentEntry.ownerCommentVersions.push(ownerVersion);
+      }
+    });
+
     if (
-      v &&
-      typeof v === "object" &&
-      !Array.isArray(v) &&
-      !(v as any).childrenData
+      currentEntry &&
+      currentEntry.ownerCommentVersions &&
+      currentEntry.ownerCommentVersions.length > 0
     ) {
-      return { ...acc, ...v };
-    }
-    (acc as any)[k] = v;
-    return acc;
-  }, {} as Record<string, any>);
-
-  const orderedFields: Array<{ fieldId: string; value: any; meta: any }> = [];
-  const addedFieldIds = new Set<string>();
-
-  if (questionnaire) {
-    try {
-      const steps = parseJsonToFormStructure(questionnaire);
-      steps.forEach((step: any) => {
-        step.pages.forEach((page: any) => {
-          page.sections.forEach((section: any) => {
-            section.fields.forEach((field: any) => {
-              const fieldId = field.id;
-              const value = (flatData as any)[fieldId];
-              if (
-                value !== undefined &&
-                fieldId !== "save" &&
-                fieldId !== "submit" &&
-                !addedFieldIds.has(fieldId)
-              ) {
-                const meta = (fieldMeta as any)[fieldId] || { label: fieldId };
-                orderedFields.push({ fieldId, value, meta });
-                addedFieldIds.add(fieldId);
-              }
-            });
-          });
-        });
-      });
-    } catch (error) {
-      console.error("Error parsing form structure:", error);
-    }
-  }
-
-  if (orderedFields.length === 0) {
-    return (
-      <div className="mb-4">
-        <h4 className="font-semibold text-gray-700 mb-2">{title}</h4>
-        <div className="bg-gray-50 p-4 rounded border">
-          <pre className="whitespace-pre-wrap text-sm text-gray-800">
-            {JSON.stringify(responses, null, 2)}
-          </pre>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mb-4">
-      <h4 className="font-semibold text-gray-700 mb-2">{title}</h4>
-      <div className="space-y-3">
-        {orderedFields.map(({ fieldId, value, meta }) => {
-          const hasChildrenData =
-            value && typeof value === "object" && (value as any).childrenData;
-          if (hasChildrenData) {
-            return (
-              <div key={fieldId} className="space-y-2">
-                <div className="font-medium text-gray-700">{meta.label}</div>
-                <div className="ml-4 border-l-4 border-blue-500 pl-4">
-                  <div className="text-md font-semibold text-blue-600 mb-2">
-                    Child Entries for "{meta.label}"
-                  </div>
-                  {Object.entries(
-                    (value as any).childrenData as Record<string, any>
-                  ).map(([childStepId, children]) => {
-                    if (Array.isArray(children)) {
-                      return children.map((child: any, index: number) => (
-                        <div
-                          key={`${fieldId}-${childStepId}-${index}`}
-                          className="mb-4 p-2 bg-blue-50 rounded"
-                        >
-                          <div className="text-sm font-medium text-gray-700 mb-2">
-                            Entry {index + 1}
-                          </div>
-                          {child.data && typeof child.data === "object" ? (
-                            <div className="space-y-1 ml-4">
-                              {Object.entries(
-                                child.data as Record<string, any>
-                              ).map(([childFieldId, childValue]) => {
-                                const childMeta = (fieldMeta as any)[
-                                  childFieldId
-                                ] || { label: childFieldId };
-                                let displayChildValue = childValue;
-                                if (Array.isArray(childValue)) {
-                                  displayChildValue = childValue
-                                    .map((v) =>
-                                      childMeta.options &&
-                                      childMeta.options[v as string]
-                                        ? childMeta.options[v as string]
-                                        : v
-                                    )
-                                    .join(", ");
-                                } else if (
-                                  childMeta.options &&
-                                  childMeta.options[childValue as string]
-                                ) {
-                                  displayChildValue =
-                                    childMeta.options[childValue as string];
-                                }
-                                return (
-                                  <div key={childFieldId} className="text-sm">
-                                    <strong>{childMeta.label}: </strong>
-                                    <span className="text-gray-600">
-                                      {displayChildValue || (
-                                        <span className="text-gray-400">—</span>
-                                      )}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="ml-4 text-gray-400">No data</div>
-                          )}
-                        </div>
-                      ));
-                    }
-                    return null;
-                  })}
-                </div>
-              </div>
-            );
-          }
-
-          let displayValue = value as any;
-          if (Array.isArray(value)) {
-            displayValue = (value as any[])
-              .map((v) =>
-                meta.options && meta.options[v] ? meta.options[v] : v
+      entries.push({
+        data: {
+          questionnaire: history.questionnaire,
+          requestor_responses: currentEntry.requestor_responses || {},
+          owner_responses: currentEntry.ownerCommentVersions[
+            currentEntry.ownerCommentVersions.length - 1
+          ].owner_responses
+            ? JSON.stringify(
+                currentEntry.ownerCommentVersions[
+                  currentEntry.ownerCommentVersions.length - 1
+                ].owner_responses
               )
-              .join(", ");
-          } else if (meta.options && meta.options[value]) {
-            displayValue = meta.options[value];
-          } else if (value && typeof value === "object") {
-            displayValue = JSON.stringify(value);
-          }
+            : null,
+          comments:
+            currentEntry.ownerCommentVersions[
+              currentEntry.ownerCommentVersions.length - 1
+            ].comments || "",
+          state:
+            currentEntry.ownerCommentVersions[
+              currentEntry.ownerCommentVersions.length - 1
+            ].state,
+          rationale: history.rationale,
+        },
+        timestamp: currentEntry.timestamp,
+        changeDescription: currentEntry.change_description,
+        ownerCommentVersions: currentEntry.ownerCommentVersions,
+      });
+    }
 
-          return (
-            <div key={fieldId} className="space-y-1">
-              <div className="font-medium text-gray-700">{meta.label}</div>
-              <div className="text-gray-600 break-words">
-                {displayValue ? (
-                  String(displayValue)
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+    return entries;
+  }, [history]);
+
+  return { historyEntries };
 }
 
-function ArchiveEntryView({
-  entry,
-  questionnaire,
-  isActive,
-}: {
-  entry: ArchiveEntry;
-  questionnaire?: any;
-  isActive: boolean;
-}) {
-  if (!isActive) return null;
+function parseOwnerResponses(
+  ownerResponses: string | null
+): Record<string, string> {
+  if (!ownerResponses) return {};
 
-  // Normalize owner_responses to an object if it arrives as a JSON string
-  let ownerObj: Record<string, any> | null = null;
-  if (entry.owner_responses) {
-    if (typeof (entry.owner_responses as any) === "string") {
-      try {
-        ownerObj = JSON.parse(entry.owner_responses as unknown as string);
-      } catch {
-        ownerObj = { _raw: entry.owner_responses } as any;
+  try {
+    let parsedComments;
+    if (typeof ownerResponses === "string") {
+      parsedComments = JSON.parse(ownerResponses);
+
+      if (typeof parsedComments === "string") {
+        parsedComments = JSON.parse(parsedComments);
       }
     } else {
-      ownerObj = entry.owner_responses;
+      parsedComments = ownerResponses;
     }
+
+    if (typeof parsedComments === "object" && !Array.isArray(parsedComments)) {
+      return parsedComments;
+    } else {
+      return {};
+    }
+  } catch (error) {
+    console.error("Error parsing owner responses:", error);
+    return {};
+  }
+}
+
+function OwnerCommentVersions({
+  fieldId,
+  ownerCommentVersions,
+}: {
+  fieldId: string;
+  ownerCommentVersions: OwnerCommentVersion[];
+}) {
+  if (!ownerCommentVersions || ownerCommentVersions.length === 0) {
+    return null;
+  }
+
+  const relevantVersions = ownerCommentVersions
+    .map((version) => {
+      const fieldComments = parseOwnerResponses(
+        typeof version.owner_responses === "string"
+          ? version.owner_responses
+          : version.owner_responses
+          ? JSON.stringify(version.owner_responses)
+          : null
+      );
+      return {
+        ...version,
+        fieldComment: fieldComments[fieldId],
+      };
+    })
+    .filter((version) => version.fieldComment);
+
+  if (relevantVersions.length === 0) {
+    return null;
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="text-sm font-medium text-gray-700">
-            Entry {entry.entry_number}
+    <div className="mt-2 space-y-2">
+      {relevantVersions.map((version, index) => (
+        <div
+          key={`${version.timestamp}-${index}`}
+          className="bg-gray-50 p-3 rounded border"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <div className="font-medium text-sm text-gray-700">
+              Owner Comments (Version {index + 1})
+            </div>
+            <div className="text-xs text-gray-500">
+              {new Date(version.timestamp).toLocaleString()}
+            </div>
           </div>
-          <span className="text-sm text-gray-500">
-            {new Date(entry.timestamp).toLocaleString()}
-          </span>
-        </div>
-        <div className="text-sm text-gray-600">
-          {entry.changed_by ? `by ${entry.changed_by}` : ""}
-        </div>
-      </div>
-
-      {entry.change_description && (
-        <div className="mb-4">
-          <h4 className="font-semibold text-gray-700 mb-2">
-            Change Description
-          </h4>
-          <div className="bg-gray-50 p-3 rounded border">
-            <p className="text-sm text-gray-800">{entry.change_description}</p>
+          <div className="text-sm text-gray-800 mb-1">
+            {version.fieldComment}
           </div>
         </div>
-      )}
-
-      {entry.requestor_responses && (
-        <ResponseDisplay
-          responses={entry.requestor_responses}
-          questionnaire={questionnaire}
-          title="Requestor Responses"
-        />
-      )}
-
-      {ownerObj && Object.keys(ownerObj).length > 0 && (
-        <ResponseDisplay
-          responses={ownerObj}
-          questionnaire={questionnaire}
-          title="Owner Field Comments"
-        />
-      )}
-
-      {entry.comments && (
-        <div className="mb-4">
-          <h4 className="font-semibold text-gray-700 mb-2">Overall Comments</h4>
-          <div className="bg-gray-50 p-4 rounded border">
-            <p className="whitespace-pre-wrap text-sm text-gray-800">
-              {entry.comments}
-            </p>
-          </div>
-        </div>
-      )}
+      ))}
     </div>
   );
 }
 
-function CommentCycleView({
-  cycle,
-  isActive,
+function OverallCommentVersions({
+  ownerCommentVersions,
 }: {
-  cycle: CommentCycle;
-  isActive: boolean;
+  ownerCommentVersions: OwnerCommentVersion[];
 }) {
-  if (!isActive) return null;
+  if (!ownerCommentVersions || ownerCommentVersions.length === 0) {
+    return null;
+  }
+
+  const relevantVersions = ownerCommentVersions.filter(
+    (version) => version.comments && version.comments.trim()
+  );
+
+  if (relevantVersions.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div
-            className={`px-3 py-1 rounded-full text-sm font-medium ${
-              cycle.type === "requestor"
-                ? "bg-blue-100 text-blue-800"
-                : "bg-green-100 text-green-800"
-            }`}
-          >
-            {cycle.type === "requestor" ? "Requestor" : "Owner"}
-          </div>
-          <span className="text-sm text-gray-500">
-            {new Date(cycle.timestamp).toLocaleString()}
-          </span>
-        </div>
-      </div>
-
-      {cycle.type === "requestor" && cycle.content && (
-        <ResponseDisplay
-          responses={JSON.parse(cycle.content)}
-          questionnaire={cycle.questionnaire}
-          title="Requestor Responses"
-        />
-      )}
-
-      {cycle.type === "owner" && cycle.globalComments && (
-        <div className="mb-4">
-          <h4 className="font-semibold text-gray-700 mb-2">Owner Comments</h4>
-          <div className="bg-gray-50 p-4 rounded border">
-            <pre className="whitespace-pre-wrap text-sm text-gray-800">
-              {cycle.globalComments}
-            </pre>
-          </div>
-        </div>
-      )}
-
-      {cycle.type === "owner" &&
-        cycle.fieldComments &&
-        Object.keys(cycle.fieldComments).length > 0 && (
-          <div className="mb-4">
-            <h4 className="font-semibold text-gray-700 mb-2">
-              Field-Specific Comments
-            </h4>
-            <div className="space-y-2">
-              {Object.entries(cycle.fieldComments).map(([fieldId, comment]) => (
-                <div key={fieldId} className="bg-gray-50 p-3 rounded border">
-                  <div className="font-medium text-sm text-gray-700 mb-1">
-                    {fieldId}:
-                  </div>
-                  <div className="text-sm text-gray-800">{comment}</div>
-                </div>
-              ))}
+    <div className="mt-6 space-y-3">
+      <h4 className="font-semibold text-gray-700">Overall Comments History</h4>
+      {relevantVersions.map((version, index) => (
+        <div
+          key={`overall-${version.timestamp}-${index}`}
+          className="bg-gray-50 p-4 rounded border"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-medium text-sm text-gray-700">
+              Overall Comments (Version {index + 1})
+            </div>
+            <div className="text-xs text-gray-500">
+              {new Date(version.timestamp).toLocaleString()}
             </div>
           </div>
-        )}
+          <div className="text-sm text-gray-800 whitespace-pre-wrap">
+            {version.comments}
+          </div>
+        </div>
+      ))}
     </div>
+  );
+}
+
+function parseQuestionnaire(questionnaire: any) {
+  if (!questionnaire) return [];
+  try {
+    return parseJsonToFormStructure(questionnaire);
+  } catch (error) {
+    console.error("Error parsing questionnaire:", error);
+    return [];
+  }
+}
+
+function getParentSteps(steps: any[]) {
+  return steps.filter((step) => !step.ref);
+}
+
+function QuestionnaireReview({
+  parentSteps,
+  currentData,
+  isViewingHistory,
+  ownerCommentVersions,
+}: {
+  parentSteps: any[];
+  currentData: any;
+  isViewingHistory: boolean;
+  ownerCommentVersions?: OwnerCommentVersion[];
+}) {
+  if (
+    !currentData?.requestor_responses ||
+    Object.keys(currentData.requestor_responses).length === 0
+  ) {
+    return null;
+  }
+
+  const fieldComments = parseOwnerResponses(currentData.owner_responses);
+
+  return (
+    <>
+      {parentSteps.map((step) => (
+        <section key={step.id} className="space-y-4">
+          {step.title && (
+            <h3 className="text-xl font-semibold">{step.title.eng}</h3>
+          )}
+          {step.pages.map((page: any) =>
+            page.sections.map((sec: any) => (
+              <div
+                key={sec.sectionKey}
+                className="pl-4 border-l-2 border-gray-200"
+              >
+                <h4 className="text-lg font-medium mb-2">
+                  {sec.sectionLabel.eng}
+                </h4>
+                {sec.fields.map((field: any) => {
+                  const hasChildrenData =
+                    currentData?.requestor_responses?.[field.id]
+                      ?.childrenData?.[field.ref!]?.length > 0;
+
+                  if (hasChildrenData) {
+                    return (
+                      <div key={field.id} className="mb-4">
+                        <label className="block font-medium mb-1">
+                          {field.labels.eng?.[field.id] || field.id}
+                        </label>
+                        <div className="ml-4 mt-2 border-l-4 p-2 border-blue-500">
+                          <h5 className="text-md font-semibold text-blue-600">
+                            Child Entries for &quot;
+                            {field.labels.eng?.[field.id] || field.id}&quot;
+                          </h5>
+                          {currentData?.requestor_responses?.[
+                            field.id
+                          ]?.childrenData?.[field.ref!]?.map(
+                            (child: any, index: number) => {
+                              const childStep = parentSteps.find(
+                                (s) => s.id === child.stepId
+                              );
+                              return (
+                                <div
+                                  key={child.id}
+                                  className="mt-2 p-2 bg-blue-50"
+                                >
+                                  <h6 className="text-sm font-medium text-gray-700 mb-2">
+                                    Entry {index + 1}
+                                  </h6>
+                                  {childStep ? (
+                                    childStep.pages.map((cPage: any) => (
+                                      <div key={cPage.pageKey} className="ml-4">
+                                        {cPage.sections.map((cSection: any) => (
+                                          <div
+                                            key={cSection.sectionKey}
+                                            className="ml-4 mb-4"
+                                          >
+                                            <h6 className="text-lg font-medium">
+                                              {cSection.sectionLabel.eng}
+                                            </h6>
+                                            {cSection.fields.map(
+                                              (cField: any) => {
+                                                const childAnswer =
+                                                  child.data[cField.id];
+                                                return (
+                                                  <div
+                                                    key={cField.id}
+                                                    className="mb-1 ml-4 break-words"
+                                                  >
+                                                    <strong>
+                                                      {cField.labels.eng?.[
+                                                        cField.id
+                                                      ] || cField.id}
+                                                      :{" "}
+                                                    </strong>
+                                                    <span className="text-gray-600">
+                                                      {Array.isArray(
+                                                        childAnswer
+                                                      )
+                                                        ? childAnswer.join(", ")
+                                                        : childAnswer?.toString() ||
+                                                          "No response provided"}
+                                                    </span>
+                                                  </div>
+                                                );
+                                              }
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="ml-4 text-gray-600">
+                                      No child structure found.
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
+                        {/* Owner comments for child data */}
+                        {ownerCommentVersions &&
+                        ownerCommentVersions.length > 0 ? (
+                          <OwnerCommentVersions
+                            fieldId={field.id}
+                            ownerCommentVersions={ownerCommentVersions}
+                          />
+                        ) : fieldComments[field.id] ? (
+                          <div className="mt-2">
+                            <div className="bg-gray-50 p-3 rounded border">
+                              <div className="font-medium text-sm text-gray-700 mb-1">
+                                Owner Comments:
+                              </div>
+                              <div className="text-sm text-gray-800">
+                                {fieldComments[field.id]}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  }
+
+                  const flat = Object.entries(
+                    currentData?.requestor_responses || {}
+                  ).reduce((acc, [k, v]) => {
+                    if (v && typeof v === "object" && !Array.isArray(v)) {
+                      return { ...acc, ...v };
+                    }
+                    acc[k] = v;
+                    return acc;
+                  }, {} as Record<string, any>);
+                  const answer = flat[field.id];
+
+                  return (
+                    <div key={field.id} className="mb-4">
+                      <label className="block font-medium mb-1">
+                        {field.labels.eng?.[field.id] || field.id}
+                      </label>
+                      <div className="p-2 bg-gray-100 rounded mb-2 break-words">
+                        {Array.isArray(answer)
+                          ? answer.join(", ")
+                          : String(answer ?? "—")}
+                      </div>
+                      {/* Owner comments for regular fields */}
+                      {ownerCommentVersions &&
+                      ownerCommentVersions.length > 0 ? (
+                        <OwnerCommentVersions
+                          fieldId={field.id}
+                          ownerCommentVersions={ownerCommentVersions}
+                        />
+                      ) : fieldComments[field.id] ? (
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <div className="font-medium text-sm text-gray-700 mb-1">
+                            Owner Comments:
+                          </div>
+                          <div className="text-sm text-gray-800">
+                            {fieldComments[field.id]}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </section>
+      ))}
+    </>
   );
 }
 
@@ -485,7 +593,8 @@ function CommentNavigation({
 export default function NegotiationHistoryPage() {
   const { link_id } = useParams();
   const router = useRouter();
-  const [currentCycleIndex, setCurrentCycleIndex] = useState(0);
+  const [currentHistoryIndex, setCurrentHistoryIndex] = useState(0);
+  const [isViewingHistory, setIsViewingHistory] = useState(false);
 
   const linkIdStr = Array.isArray(link_id) ? link_id[0] : link_id;
 
@@ -499,6 +608,72 @@ export default function NegotiationHistoryPage() {
     retry: 1,
     enabled: !!linkIdStr,
   });
+
+  const { historyEntries } = useNegotiationHistory(history);
+
+  useEffect(() => {
+    if (historyEntries.length > 0) {
+      const totalEntries = historyEntries.length;
+      setCurrentHistoryIndex(totalEntries - 1);
+      setIsViewingHistory(false);
+    }
+  }, [historyEntries.length]);
+
+  const currentData = useMemo(() => {
+    if (!historyEntries.length) {
+      return {
+        questionnaire: history?.questionnaire,
+        requestor_responses: history?.requestor_responses || {},
+        owner_responses: history?.owner_responses,
+        comments: history?.comments || "",
+        state: history?.state,
+        rationale: history?.rationale,
+      };
+    }
+
+    const totalEntries = historyEntries.length;
+
+    if (currentHistoryIndex === totalEntries) {
+      return {
+        questionnaire: history?.questionnaire,
+        requestor_responses: history?.requestor_responses || {},
+        owner_responses: history?.owner_responses,
+        comments: history?.comments || "",
+        state: history?.state,
+        rationale: history?.rationale,
+      };
+    }
+
+    const historyEntry = historyEntries[currentHistoryIndex];
+    return historyEntry
+      ? historyEntry.data
+      : {
+          questionnaire: history?.questionnaire,
+          requestor_responses: history?.requestor_responses || {},
+          owner_responses: history?.owner_responses,
+          comments: history?.comments || "",
+          state: history?.state,
+          rationale: history?.rationale,
+        };
+  }, [history, historyEntries, currentHistoryIndex]);
+
+  const parsedSteps = useMemo(() => {
+    return parseQuestionnaire(currentData?.questionnaire);
+  }, [currentData?.questionnaire]);
+
+  const parentSteps = useMemo(() => {
+    return getParentSteps(parsedSteps);
+  }, [parsedSteps]);
+
+  const handleHistoryNavigate = (index: number) => {
+    const totalEntries = historyEntries.length;
+
+    if (index < 0) index = 0;
+    if (index >= totalEntries) index = totalEntries - 1;
+
+    setCurrentHistoryIndex(index);
+    setIsViewingHistory(index < totalEntries - 1);
+  };
 
   const whoamiQuery = useQuery({
     queryKey: ["requestor", "whoami"],
@@ -517,7 +692,7 @@ export default function NegotiationHistoryPage() {
   }, [whoamiQuery.isError, router]);
 
   const handleNavigate = (index: number) => {
-    setCurrentCycleIndex(index);
+    setCurrentHistoryIndex(index);
   };
 
   if (isLoading) {
@@ -580,20 +755,7 @@ export default function NegotiationHistoryPage() {
     );
   }
 
-  const entries: ArchiveEntry[] = (history.archive_history || []).map(
-    (e, i) => ({
-      ...e,
-      entry_number: e.entry_number ?? i + 1,
-    })
-  );
-  const hasArchive = entries.length > 0;
-  const hasLegacyCycles =
-    history.commentCycles && history.commentCycles.length > 0;
-  const totalEntries = hasArchive
-    ? entries.length
-    : hasLegacyCycles
-    ? history.commentCycles.length
-    : 0;
+  const totalEntries = historyEntries.length;
 
   return (
     <NegotiationLayout
@@ -634,48 +796,71 @@ export default function NegotiationHistoryPage() {
           </div>
         </div>
 
-        {hasArchive ? (
+        {totalEntries > 0 ? (
           <>
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">
                 Archive History
               </h2>
+              {isViewingHistory && (
+                <button
+                  onClick={() => handleHistoryNavigate(totalEntries - 1)}
+                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                >
+                  Back to Latest
+                </button>
+              )}
             </div>
 
-            <CommentNavigation
-              currentIndex={currentCycleIndex}
-              totalCycles={entries.length}
-              onNavigate={handleNavigate}
-            />
+            {totalEntries > 1 && (
+              <CommentNavigation
+                currentIndex={currentHistoryIndex}
+                totalCycles={totalEntries}
+                onNavigate={handleHistoryNavigate}
+              />
+            )}
 
-            <ArchiveEntryView
-              entry={entries[currentCycleIndex]}
-              questionnaire={history.questionnaire}
-              isActive={true}
-            />
-          </>
-        ) : hasLegacyCycles ? (
-          <>
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">
-                Submission History (Legacy)
-              </h2>
-              <p className="text-sm text-gray-600 mb-3">
-                Navigate through different versions of responses and comments
-                over time.
-              </p>
-            </div>
+            {currentData?.requestor_responses &&
+            Object.keys(currentData.requestor_responses).length > 0 ? (
+              <>
+                <QuestionnaireReview
+                  parentSteps={parentSteps}
+                  currentData={currentData}
+                  isViewingHistory={isViewingHistory}
+                  ownerCommentVersions={
+                    historyEntries[currentHistoryIndex]?.ownerCommentVersions
+                  }
+                />
 
-            <CommentNavigation
-              currentIndex={currentCycleIndex}
-              totalCycles={history.commentCycles.length}
-              onNavigate={handleNavigate}
-            />
-
-            <CommentCycleView
-              cycle={history.commentCycles[currentCycleIndex]}
-              isActive={true}
-            />
+                {historyEntries[currentHistoryIndex]?.ownerCommentVersions &&
+                historyEntries[currentHistoryIndex].ownerCommentVersions
+                  .length > 0 ? (
+                  <OverallCommentVersions
+                    ownerCommentVersions={
+                      historyEntries[currentHistoryIndex].ownerCommentVersions
+                    }
+                  />
+                ) : currentData.comments ? (
+                  <div className="mt-6">
+                    <label className="block font-medium mb-1">
+                      Overall Comments
+                    </label>
+                    <div className="bg-gray-50 p-4 rounded border">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                        {currentData.comments}
+                      </pre>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>No questionnaire data available to review.</p>
+                <p className="text-sm mt-2">
+                  This negotiation may not have any responses yet.
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <div className="bg-white rounded-lg shadow-md p-6">
@@ -685,14 +870,14 @@ export default function NegotiationHistoryPage() {
           </div>
         )}
 
-        {history.state === "rejected" && history.rationale && (
+        {currentData?.state === "rejected" && currentData?.rationale && (
           <div className="bg-white rounded-lg shadow-md p-6 mt-6">
             <h3 className="font-semibold text-gray-700 mb-3">
               Rejection Rationale
             </h3>
             <div className="bg-red-50 p-4 rounded border border-red-200">
               <pre className="whitespace-pre-wrap text-sm text-red-800">
-                {history.rationale}
+                {currentData.rationale}
               </pre>
             </div>
           </div>

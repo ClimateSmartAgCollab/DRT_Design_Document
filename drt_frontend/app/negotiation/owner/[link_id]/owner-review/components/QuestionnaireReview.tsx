@@ -1,5 +1,7 @@
 import React from "react";
 import { Field } from "../../../../../components/type";
+import { OwnerCommentVersion } from "../types";
+import { OwnerCommentVersions } from "./OwnerCommentVersions";
 
 interface QuestionnaireReviewProps {
   parentSteps: any[];
@@ -7,6 +9,7 @@ interface QuestionnaireReviewProps {
   fieldComments: Record<string, string>;
   setFieldComments: (comments: Record<string, string>) => void;
   isViewingHistory: boolean;
+  ownerCommentVersions?: OwnerCommentVersion[];
 }
 
 export function QuestionnaireReview({
@@ -15,6 +18,7 @@ export function QuestionnaireReview({
   fieldComments,
   setFieldComments,
   isViewingHistory,
+  ownerCommentVersions,
 }: QuestionnaireReviewProps) {
   if (
     !currentData?.requestor_responses ||
@@ -122,22 +126,41 @@ export function QuestionnaireReview({
                             }
                           )}
                         </div>
-                        <textarea
-                          placeholder="Owner comment…"
-                          value={fieldComments[field.id] || ""}
-                          onChange={(e) =>
-                            setFieldComments({
-                              ...fieldComments,
-                              [field.id]: e.target.value,
-                            })
-                          }
-                          disabled={isViewingHistory}
-                          className={`w-full border rounded p-2 mt-2 ${
-                            isViewingHistory
-                              ? "bg-gray-100 cursor-not-allowed"
-                              : ""
-                          }`}
-                        />
+                        {/* Owner comments for child data */}
+                        {isViewingHistory && ownerCommentVersions && ownerCommentVersions.length > 0 ? (
+                          <OwnerCommentVersions
+                            fieldId={field.id}
+                            ownerCommentVersions={ownerCommentVersions}
+                          />
+                        ) : !isViewingHistory ? (
+                          <textarea
+                            placeholder="Owner comment…"
+                            value={fieldComments[field.id] || ""}
+                            onChange={(e) =>
+                              setFieldComments({
+                                ...fieldComments,
+                                [field.id]: e.target.value,
+                              })
+                            }
+                            disabled={isViewingHistory}
+                            className={`w-full border rounded p-2 mt-2 ${
+                              isViewingHistory
+                                ? "bg-gray-100 cursor-not-allowed"
+                                : ""
+                            }`}
+                          />
+                        ) : fieldComments[field.id] ? (
+                          <div className="mt-2">
+                            <div className="bg-gray-50 p-3 rounded border">
+                              <div className="font-medium text-sm text-gray-700 mb-1">
+                                Owner Comments:
+                              </div>
+                              <div className="text-sm text-gray-800">
+                                {fieldComments[field.id]}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     );
                   }
@@ -164,22 +187,39 @@ export function QuestionnaireReview({
                           ? answer.join(", ")
                           : String(answer ?? "—")}
                       </div>
-                      <textarea
-                        placeholder="Owner comment…"
-                        value={fieldComments[field.id] || ""}
-                        onChange={(e) =>
-                          setFieldComments({
-                            ...fieldComments,
-                            [field.id]: e.target.value,
-                          })
-                        }
-                        disabled={isViewingHistory}
-                        className={`w-full border rounded p-2 ${
-                          isViewingHistory
-                            ? "bg-gray-100 cursor-not-allowed"
-                            : ""
-                        }`}
-                      />
+                      {/* Owner comments for regular fields */}
+                      {isViewingHistory && ownerCommentVersions && ownerCommentVersions.length > 0 ? (
+                        <OwnerCommentVersions
+                          fieldId={field.id}
+                          ownerCommentVersions={ownerCommentVersions}
+                        />
+                      ) : !isViewingHistory ? (
+                        <textarea
+                          placeholder="Owner comment…"
+                          value={fieldComments[field.id] || ""}
+                          onChange={(e) =>
+                            setFieldComments({
+                              ...fieldComments,
+                              [field.id]: e.target.value,
+                            })
+                          }
+                          disabled={isViewingHistory}
+                          className={`w-full border rounded p-2 ${
+                            isViewingHistory
+                              ? "bg-gray-100 cursor-not-allowed"
+                              : ""
+                          }`}
+                        />
+                      ) : fieldComments[field.id] ? (
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <div className="font-medium text-sm text-gray-700 mb-1">
+                            Owner Comments:
+                          </div>
+                          <div className="text-sm text-gray-800">
+                            {fieldComments[field.id]}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
