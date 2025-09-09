@@ -15,16 +15,38 @@ export function OwnerCommentVersions({
     return null;
   }
 
+  const parseFieldCommentsFromGlobal = (comments: string) => {
+    const fieldCommentsMatch = comments.match(/Field Comments:\n([\s\S]*)/);
+    if (fieldCommentsMatch) {
+      const fieldCommentsText = fieldCommentsMatch[1];
+      const fieldComments: Record<string, string> = {};
+      const lines = fieldCommentsText.split('\n');
+      lines.forEach(line => {
+        const match = line.match(/Field (\w+): (.+)/);
+        if (match) {
+          fieldComments[match[1]] = match[2];
+        }
+      });
+      return fieldComments;
+    }
+    return {};
+  };
+
   // Filter versions that have comments for this field
   const relevantVersions = ownerCommentVersions
     .map(version => {
-      const fieldComments = parseOwnerResponses(
+      const fieldCommentsFromResponses = parseOwnerResponses(
         typeof version.owner_responses === 'string' 
           ? version.owner_responses 
           : version.owner_responses 
             ? JSON.stringify(version.owner_responses) 
             : null
       );
+      
+      const fieldCommentsFromGlobal = parseFieldCommentsFromGlobal(version.comments || '');
+      
+      const fieldComments = { ...fieldCommentsFromResponses, ...fieldCommentsFromGlobal };
+      
       return {
         ...version,
         fieldComment: fieldComments[fieldId]
@@ -46,6 +68,11 @@ export function OwnerCommentVersions({
             </div>
             <div className="text-xs text-gray-500">
               {new Date(version.timestamp).toLocaleString()}
+              {version.change_description && (
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                  {version.change_description}
+                </span>
+              )}
             </div>
           </div>
           <div className="text-sm text-gray-800 mb-1">

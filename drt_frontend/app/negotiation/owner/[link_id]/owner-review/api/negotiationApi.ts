@@ -57,9 +57,24 @@ export async function performAction(
   extras: Record<string, string> = {}
 ): Promise<any> {
   const formData = new FormData();
-  formData.append("owner_responses", JSON.stringify(fieldComments));
-  formData.append("comments", globalComments);
+  const ownerResponsesJson = JSON.stringify(fieldComments);
+  
+  // Store field comments in the global comments field as a workaround
+  const fieldCommentsText = Object.entries(fieldComments)
+    .filter(([_, value]) => value && value.trim())
+    .map(([key, value]) => `Field ${key}: ${value}`)
+    .join('\n');
+  
+  const combinedComments = globalComments + (fieldCommentsText ? `\n\nField Comments:\n${fieldCommentsText}` : '');
+  
+  formData.append("owner_responses", ownerResponsesJson);
+  formData.append("comments", combinedComments);
   formData.append(action, "true");
+  
+  // Add additional fields that might trigger archive creation
+  formData.append("create_archive_entry", "true");
+  formData.append("change_description", `Owner ${action}ed the request`);
+  
   Object.entries(extras).forEach(([k, v]) => formData.append(k, v));
 
   const controller = new AbortController();

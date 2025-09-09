@@ -221,6 +221,20 @@ def owner_review(request, link_id):
             negotiation.save()
             # Update last_activity on NLink when owner saves
             nlink.save(update_fields=['last_activity'])
+            
+            # Create archive entry for save action
+            try:
+                create_archive_snapshot(
+                    negotiation,
+                    changed_by="owner",
+                    change_description="Owner saved review",
+                    owner_responses=negotiation.owner_responses,
+                    comments=negotiation.comments,
+                    state=negotiation.state,
+                )
+            except Exception as e:
+                logger.error(f"Failed to archive save action: {e}")
+            
             return Response({'message': 'Review saved successfully!'})
 
         # For restricted actions, check authentication
@@ -237,6 +251,9 @@ def owner_review(request, link_id):
                 return Response({'error': 'Owner authentication required for this action'}, status=401)
             
             if action_found == 'accept':
+                # Update owner responses and comments before changing state
+                negotiation.owner_responses = data.get('owner_responses', '')
+                negotiation.comments = data.get('comments', '')
                 negotiation.state = 'accepted'
                 negotiation.save()
                 # Update last_activity on NLink when owner accepts
@@ -246,6 +263,8 @@ def owner_review(request, link_id):
                         negotiation,
                         changed_by=owner_email or "owner",
                         change_description="Owner accepted",
+                        owner_responses=negotiation.owner_responses,
+                        comments=negotiation.comments,
                         state='accepted',
                     )
                 except Exception as e:
@@ -257,6 +276,9 @@ def owner_review(request, link_id):
 
             elif action_found == 'reject':
                 rationale = data.get('rationale', '')
+                # Update owner responses and comments before changing state
+                negotiation.owner_responses = data.get('owner_responses', '')
+                negotiation.comments = data.get('comments', '')
                 negotiation.rationale = rationale
                 negotiation.state = 'rejected'
                 negotiation.save()
@@ -267,7 +289,8 @@ def owner_review(request, link_id):
                         negotiation,
                         changed_by=owner_email or "owner",
                         change_description="Owner rejected",
-                        comments=rationale,
+                        owner_responses=negotiation.owner_responses,
+                        comments=negotiation.comments,
                         state='rejected',
                     )
                 except Exception as e:

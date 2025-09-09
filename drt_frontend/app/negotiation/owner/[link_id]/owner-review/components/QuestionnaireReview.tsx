@@ -145,11 +145,7 @@ export function QuestionnaireReview({
                               })
                             }
                             disabled={isViewingHistory}
-                            className={`w-full border rounded p-2 mt-2 ${
-                              isViewingHistory
-                                ? "bg-gray-100 cursor-not-allowed"
-                                : ""
-                            }`}
+                            className="w-full border rounded p-2 mt-2"
                           />
                         ) : fieldComments[field.id] ? (
                           <div className="mt-2">
@@ -208,11 +204,7 @@ export function QuestionnaireReview({
                             })
                           }
                           disabled={isViewingHistory}
-                          className={`w-full border rounded p-2 ${
-                            isViewingHistory
-                              ? "bg-gray-100 cursor-not-allowed"
-                              : ""
-                          }`}
+                          className="w-full border rounded p-2"
                         />
                       ) : fieldComments[field.id] ? (
                         <div className="bg-gray-50 p-3 rounded border">

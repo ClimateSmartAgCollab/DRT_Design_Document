@@ -117,37 +117,44 @@ function useNegotiationHistory(history: NegotiationHistory | undefined) {
         archiveEntry.owner_responses || archiveEntry.comments;
 
       if (hasRequestorData) {
-        if (
-          currentEntry &&
-          currentEntry.ownerCommentVersions &&
-          currentEntry.ownerCommentVersions.length > 0
-        ) {
+        // If we have a current entry, save it (even if no owner comment versions yet)
+        if (currentEntry) {
           entries.push({
             data: {
               questionnaire: history.questionnaire,
               requestor_responses: currentEntry.requestor_responses || {},
-              owner_responses: currentEntry.ownerCommentVersions[
-                currentEntry.ownerCommentVersions.length - 1
-              ].owner_responses
-                ? JSON.stringify(
-                    currentEntry.ownerCommentVersions[
+              owner_responses:
+                currentEntry.ownerCommentVersions &&
+                currentEntry.ownerCommentVersions.length > 0
+                  ? currentEntry.ownerCommentVersions[
                       currentEntry.ownerCommentVersions.length - 1
                     ].owner_responses
-                  )
-                : null,
+                    ? JSON.stringify(
+                        currentEntry.ownerCommentVersions[
+                          currentEntry.ownerCommentVersions.length - 1
+                        ].owner_responses
+                      )
+                    : null
+                  : null,
               comments:
-                currentEntry.ownerCommentVersions[
-                  currentEntry.ownerCommentVersions.length - 1
-                ].comments || "",
+                currentEntry.ownerCommentVersions &&
+                currentEntry.ownerCommentVersions.length > 0
+                  ? currentEntry.ownerCommentVersions[
+                      currentEntry.ownerCommentVersions.length - 1
+                    ].comments || ""
+                  : "",
               state:
-                currentEntry.ownerCommentVersions[
-                  currentEntry.ownerCommentVersions.length - 1
-                ].state,
+                currentEntry.ownerCommentVersions &&
+                currentEntry.ownerCommentVersions.length > 0
+                  ? currentEntry.ownerCommentVersions[
+                      currentEntry.ownerCommentVersions.length - 1
+                    ].state
+                  : currentEntry.state,
               rationale: history.rationale,
             },
             timestamp: currentEntry.timestamp,
             changeDescription: currentEntry.change_description,
-            ownerCommentVersions: currentEntry.ownerCommentVersions,
+            ownerCommentVersions: currentEntry.ownerCommentVersions || [],
           });
         }
 
@@ -173,37 +180,43 @@ function useNegotiationHistory(history: NegotiationHistory | undefined) {
       }
     });
 
-    if (
-      currentEntry &&
-      currentEntry.ownerCommentVersions &&
-      currentEntry.ownerCommentVersions.length > 0
-    ) {
+    if (currentEntry) {
       entries.push({
         data: {
           questionnaire: history.questionnaire,
           requestor_responses: currentEntry.requestor_responses || {},
-          owner_responses: currentEntry.ownerCommentVersions[
-            currentEntry.ownerCommentVersions.length - 1
-          ].owner_responses
-            ? JSON.stringify(
-                currentEntry.ownerCommentVersions[
+          owner_responses:
+            currentEntry.ownerCommentVersions &&
+            currentEntry.ownerCommentVersions.length > 0
+              ? currentEntry.ownerCommentVersions[
                   currentEntry.ownerCommentVersions.length - 1
                 ].owner_responses
-              )
-            : null,
+                ? JSON.stringify(
+                    currentEntry.ownerCommentVersions[
+                      currentEntry.ownerCommentVersions.length - 1
+                    ].owner_responses
+                  )
+                : null
+              : null,
           comments:
-            currentEntry.ownerCommentVersions[
-              currentEntry.ownerCommentVersions.length - 1
-            ].comments || "",
+            currentEntry.ownerCommentVersions &&
+            currentEntry.ownerCommentVersions.length > 0
+              ? currentEntry.ownerCommentVersions[
+                  currentEntry.ownerCommentVersions.length - 1
+                ].comments || ""
+              : "",
           state:
-            currentEntry.ownerCommentVersions[
-              currentEntry.ownerCommentVersions.length - 1
-            ].state,
+            currentEntry.ownerCommentVersions &&
+            currentEntry.ownerCommentVersions.length > 0
+              ? currentEntry.ownerCommentVersions[
+                  currentEntry.ownerCommentVersions.length - 1
+                ].state
+              : currentEntry.state,
           rationale: history.rationale,
         },
         timestamp: currentEntry.timestamp,
         changeDescription: currentEntry.change_description,
-        ownerCommentVersions: currentEntry.ownerCommentVersions,
+        ownerCommentVersions: currentEntry.ownerCommentVersions || [],
       });
     }
 
@@ -279,15 +292,41 @@ function OwnerCommentVersions({
     return null;
   }
 
+  // // Parse field comments from the global comments field
+  // const parseFieldCommentsFromGlobal = (comments: string) => {
+  //   const fieldCommentsMatch = comments.match(/Field Comments:\n([\s\S]*)/);
+  //   if (fieldCommentsMatch) {
+  //     const fieldCommentsText = fieldCommentsMatch[1];
+  //     const fieldComments: Record<string, string> = {};
+  //     const lines = fieldCommentsText.split('\n');
+  //     lines.forEach(line => {
+  //       const match = line.match(/Field (\w+): (.+)/);
+  //       if (match) {
+  //         fieldComments[match[1]] = match[2];
+  //       }
+  //     });
+  //     return fieldComments;
+  //   }
+  //   return {};
+  // };
+
   const relevantVersions = ownerCommentVersions
     .map((version) => {
-      const fieldComments = parseOwnerResponses(
+      // First try to get field comments from owner_responses
+      const fieldCommentsFromResponses = parseOwnerResponses(
         typeof version.owner_responses === "string"
           ? version.owner_responses
           : version.owner_responses
           ? JSON.stringify(version.owner_responses)
           : null
       );
+      
+      // Then try to get field comments from global comments
+      // const fieldCommentsFromGlobal = parseFieldCommentsFromGlobal(version.comments || '');
+      
+      // Combine both sources
+      const fieldComments = { ...fieldCommentsFromResponses};
+      
       return {
         ...version,
         fieldComment: fieldComments[fieldId],
@@ -312,6 +351,11 @@ function OwnerCommentVersions({
             </div>
             <div className="text-xs text-gray-500">
               {new Date(version.timestamp).toLocaleString()}
+              {version.change_description && (
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                  {version.change_description}
+                </span>
+              )}
             </div>
           </div>
           <div className="text-sm text-gray-800 mb-1">
@@ -354,10 +398,22 @@ function OverallCommentVersions({
             </div>
             <div className="text-xs text-gray-500">
               {new Date(version.timestamp).toLocaleString()}
+              {version.change_description && (
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                  {version.change_description}
+                </span>
+              )}
             </div>
           </div>
           <div className="text-sm text-gray-800 whitespace-pre-wrap">
-            {version.comments}
+            {(() => {
+              const comments = version.comments || '';
+              const fieldCommentsIndex = comments.indexOf('\n\nField Comments:');
+              if (fieldCommentsIndex !== -1) {
+                return comments.substring(0, fieldCommentsIndex).trim();
+              }
+              return comments.trim();
+            })()}
           </div>
         </div>
       ))}

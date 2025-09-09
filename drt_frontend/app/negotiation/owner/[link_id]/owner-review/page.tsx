@@ -92,8 +92,9 @@ export default function OwnerReviewPage() {
     if (currentHistoryIndex === totalEntries) {
       return {
         ...negotiation,
-        owner_responses: null,
-        comments: "",
+        // Keep the current owner responses and comments for the latest version
+        owner_responses: negotiation.owner_responses,
+        comments: negotiation.comments,
       };
     }
 
@@ -142,8 +143,75 @@ export default function OwnerReviewPage() {
     if (!currentData) return;
 
     setGlobalComments(currentData.comments || "");
-    setFieldComments(parseOwnerResponses(currentData.owner_responses));
-  }, [currentData]);
+    
+    // For history view, get field comments from the latest owner comment version
+    if (isViewingHistory && historyEntries.length > 0 && currentHistoryIndex < historyEntries.length) {
+      const currentHistoryEntry = historyEntries[currentHistoryIndex];
+      if (currentHistoryEntry?.ownerCommentVersions && currentHistoryEntry.ownerCommentVersions.length > 0) {
+        const latestOwnerVersion = currentHistoryEntry.ownerCommentVersions[
+          currentHistoryEntry.ownerCommentVersions.length - 1
+        ];
+        
+        // Parse field comments from owner_responses
+        const fieldCommentsFromResponses = parseOwnerResponses(
+          latestOwnerVersion.owner_responses 
+            ? JSON.stringify(latestOwnerVersion.owner_responses)
+            : null
+        );
+        
+        // Also parse field comments from global comments
+        const parseFieldCommentsFromGlobal = (comments: string) => {
+          const fieldCommentsMatch = comments.match(/Field Comments:\n([\s\S]*)/);
+          if (fieldCommentsMatch) {
+            const fieldCommentsText = fieldCommentsMatch[1];
+            const fieldComments: Record<string, string> = {};
+            const lines = fieldCommentsText.split('\n');
+            lines.forEach(line => {
+              const match = line.match(/Field (\w+): (.+)/);
+              if (match) {
+                fieldComments[match[1]] = match[2];
+              }
+            });
+            return fieldComments;
+          }
+          return {};
+        };
+        
+        // const fieldCommentsFromGlobal = parseFieldCommentsFromGlobal(latestOwnerVersion.comments || '');
+        const combinedFieldComments = { ...fieldCommentsFromResponses};
+        
+        setFieldComments(combinedFieldComments);
+      } else {
+        setFieldComments({});
+      }
+    } else {
+      // For latest version, get field comments from current data
+      const parsedFieldComments = parseOwnerResponses(currentData.owner_responses);
+      
+      // Also try to parse field comments from the global comments field
+      const parseFieldCommentsFromGlobal = (comments: string) => {
+        const fieldCommentsMatch = comments.match(/Field Comments:\n([\s\S]*)/);
+        if (fieldCommentsMatch) {
+          const fieldCommentsText = fieldCommentsMatch[1];
+          const fieldComments: Record<string, string> = {};
+          const lines = fieldCommentsText.split('\n');
+          lines.forEach(line => {
+            const match = line.match(/Field (\w+): (.+)/);
+            if (match) {
+              fieldComments[match[1]] = match[2];
+            }
+          });
+          return fieldComments;
+        }
+        return {};
+      };
+      
+      // const fieldCommentsFromGlobal = parseFieldCommentsFromGlobal(currentData.comments || '');
+      const combinedFieldComments = { ...parsedFieldComments };
+      
+      setFieldComments(combinedFieldComments);
+    }
+  }, [currentData, isViewingHistory, historyEntries, currentHistoryIndex]);
 
   useEffect(() => {
     if (isQuestionnaireLoading) {
@@ -201,7 +269,12 @@ export default function OwnerReviewPage() {
     onSuccess(result, action) {
       setStatusMessage(null);
       qc.invalidateQueries({ queryKey: ["ownerReview", linkIdStr] });
-      router.push(`/negotiation/owner/${linkIdStr}/result/${action}`);
+      qc.invalidateQueries({ queryKey: ["negotiationHistory", linkIdStr] });
+      
+      // Add a small delay to ensure the backend has processed the request
+      setTimeout(() => {
+        router.push(`/negotiation/owner/${linkIdStr}/result/${action}`);
+      }, 1000);
     },
   });
 
