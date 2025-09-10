@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 import NegotiationLayout from "@/app/components/NegotiationLayout";
@@ -378,7 +378,8 @@ function OverallCommentVersions({
           <div className="text-sm text-gray-800 whitespace-pre-wrap">
             {(() => {
               const comments = version.comments || '';
-              const fieldCommentsIndex = comments.indexOf('\n\nField Comments:');
+              // Look for "Field Comments:" pattern (with or without newlines before it)
+              const fieldCommentsIndex = comments.search(/\n*Field Comments:/);
               if (fieldCommentsIndex !== -1) {
                 return comments.substring(0, fieldCommentsIndex).trim();
               }
@@ -644,10 +645,12 @@ function CommentNavigation({
 export default function NegotiationHistoryPage() {
   const { link_id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(0);
   const [isViewingHistory, setIsViewingHistory] = useState(false);
 
   const linkIdStr = Array.isArray(link_id) ? link_id[0] : link_id;
+  const cameFromQuestionnaire = searchParams?.get("from") === "questionnaire";
 
   const {
     data: history,
@@ -837,12 +840,21 @@ export default function NegotiationHistoryPage() {
             </div>
 
             <div className="flex space-x-3">
-              <button
-                onClick={() => router.push("/negotiation/list")}
-                className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
-              >
-                Back to List
-              </button>
+              {cameFromQuestionnaire ? (
+                <button
+                  onClick={() => router.push(`/negotiation/${linkIdStr}/fill-questionnaire`)}
+                  className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  Back to Questionnaire
+                </button>
+              ) : (
+                <button
+                  onClick={() => router.push("/negotiation/list")}
+                  className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  Back to List
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -8,12 +8,14 @@ interface FormHeaderProps {
   language: string;
   setLanguage: (lang: string) => void;
   formTitle: Record<string, string>;
+  rightContent?: React.ReactNode;
 }
 
 export default function FormHeader({
   language,
   setLanguage,
   formTitle,
+  rightContent,
 }: FormHeaderProps) {
   const theme = useTheme();
   const vm = useMemo(() => new FormHeaderVM(formTitle), [formTitle]);
@@ -59,6 +61,7 @@ export default function FormHeader({
             </option>
           ))}
         </select>
+        {rightContent}
       </div>
     </header>
   );

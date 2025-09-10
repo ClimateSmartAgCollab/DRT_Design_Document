@@ -1,6 +1,7 @@
 // drt_frontend\app\components\Form\types.ts
 
 import { Step, Page_parsed, Field } from "../type";
+import type React from "react";
 
 import type { ChildRecord, ParentFormData } from "./domain/form-data";
 
@@ -91,6 +92,8 @@ export interface FormProps {
   globalOwnerComments?: string;
   onSave: (answers: Record<string, Record<string, any>>) => void;
   onSubmit: (answers: Record<string, Record<string, any>>) => void;
+  headerRightContent?: React.ReactNode;
+  storageKey?: string;
 }
 
 // Re-export so consumers can continue importing from "types"

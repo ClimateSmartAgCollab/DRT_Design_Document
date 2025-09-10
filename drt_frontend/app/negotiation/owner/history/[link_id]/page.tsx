@@ -408,7 +408,7 @@ function OverallCommentVersions({
           <div className="text-sm text-gray-800 whitespace-pre-wrap">
             {(() => {
               const comments = version.comments || '';
-              const fieldCommentsIndex = comments.indexOf('\n\nField Comments:');
+              const fieldCommentsIndex = comments.search(/\n*Field Comments:/);
               if (fieldCommentsIndex !== -1) {
                 return comments.substring(0, fieldCommentsIndex).trim();
               }

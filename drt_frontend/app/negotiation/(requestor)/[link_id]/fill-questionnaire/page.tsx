@@ -159,14 +159,30 @@ export default function FillQuestionnairePage() {
             initialAnswers={initialAnswers}
             ownerComments={ownerComments}
             globalOwnerComments={globalOwnerComments}
+            storageKey={linkId ? `drt:questionnaire:${linkId}` : undefined}
+            headerRightContent={
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(new Event("drt:form:flush"));
+                  }
+                  router.push(`/negotiation/history/${linkId}?from=questionnaire`);
+                }}
+                className="ml-3 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                disabled={!linkId}
+              >
+                View History
+              </button>
+            }
             onSave={async (newAnswers) => {
-              console.log('Final payload to backend:', JSON.stringify({ ...newAnswers, submit: false, save: true }, null, 2));
+              // console.log('Final payload to backend:', JSON.stringify({ ...newAnswers, submit: false, save: true }, null, 2));
               setError(null);
               setStatusMessage(null);
               await mutateAsync({ answers: newAnswers, isSubmit: false });
             }}
             onSubmit={async (newAnswers) => {
-              console.log('Final payload to backend:', JSON.stringify({ ...newAnswers, submit: true, save: false }, null, 2));
+              // console.log('Final payload to backend:', JSON.stringify({ ...newAnswers, submit: true, save: false }, null, 2));
               setError(null);
               setStatusMessage(null);
               await mutateAsync({ answers: newAnswers, isSubmit: true });

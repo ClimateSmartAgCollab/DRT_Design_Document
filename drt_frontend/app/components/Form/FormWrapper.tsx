@@ -30,6 +30,7 @@ import { SubheadingFormatter } from "./domain/subheading";
 interface FormWrapperProps extends FormProps {
   parsedSteps?: ParsedStep[];
   questionnaireJson?: any;
+  headerRightContent?: React.ReactNode;
 }
 
 export default function FormWrapper({
@@ -40,6 +41,8 @@ export default function FormWrapper({
   onSubmit,
   parsedSteps: providedParsedSteps,
   questionnaireJson,
+  headerRightContent,
+  storageKey,
 }: FormWrapperProps) {
   const theme = useTheme();
   const [error, setError] = useState<string | null>(null);
@@ -126,16 +129,32 @@ export default function FormWrapper({
   const lastInitialAnswers = useRef(JSON.stringify(initialAnswers));
 
   useEffect(() => {
-    if (initialAnswers && Object.keys(initialAnswers).length > 0) {
+    if (!storageKey || typeof window === "undefined") return;
+    try {
+      const cached = sessionStorage.getItem(storageKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === "object") {
+          reset(parsed as any);
+          setFormData(parsed);
+          formInitialized.current = true;
+          lastInitialAnswers.current = JSON.stringify(parsed);
+        }
+      }
+    } catch {}
+    // run only on mount or storageKey change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+
+  // Initialize from initialAnswers (first load only)
+  useEffect(() => {
+    if (!formInitialized.current && initialAnswers && Object.keys(initialAnswers).length > 0) {
       try {
         const currentInitialAnswers = JSON.stringify(initialAnswers);
-        const hasChanged = currentInitialAnswers !== lastInitialAnswers.current;
-        if (!formInitialized.current) {
-          reset(initialAnswers as any);
-          setFormData(initialAnswers);
-          formInitialized.current = true;
-          lastInitialAnswers.current = currentInitialAnswers;
-        }
+        reset(initialAnswers as any);
+        setFormData(initialAnswers);
+        formInitialized.current = true;
+        lastInitialAnswers.current = currentInitialAnswers;
       } catch {
         if (!formInitialized.current) {
           reset(initialAnswers as any);
@@ -144,13 +163,15 @@ export default function FormWrapper({
         }
       }
     }
-  }, [initialAnswers, formData, step, reset, setFormData]);
+  }, [initialAnswers, reset, setFormData]);
 
   useEffect(() => {
     if (step && !formData[step.id]) {
       prefillCurrentPageData();
     }
-  }, [step?.id]);
+    // Only depend on the step id existing and the formData snapshot for this step
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step?.id, formData[step?.id as keyof typeof formData]]);
 
   const lastSavedData = useRef(JSON.stringify(formData));
   const hasInitialized = useRef(false);
@@ -168,10 +189,15 @@ export default function FormWrapper({
       const t = setTimeout(() => {
         onSave(formData);
         lastSavedData.current = JSON.stringify(formData);
+        if (storageKey && typeof window !== "undefined") {
+          try {
+            sessionStorage.setItem(storageKey, lastSavedData.current);
+          } catch {}
+        }
       }, 2000);
       return () => clearTimeout(t);
     }
-  }, [formData, onSave]);
+  }, [formData, onSave, storageKey]);
 
   const didInit = useRef(false);
   useEffect(() => {
@@ -201,6 +227,42 @@ export default function FormWrapper({
       }
     }
   }, [initialAnswers, setFormData, setParentFormData]);
+
+  // Expose a flush event to immediately persist current form data before navigation
+  const latestFormDataRef = useRef(formData);
+  useEffect(() => {
+    latestFormDataRef.current = formData;
+  }, [formData]);
+
+  const latestStorageKeyRef = useRef(storageKey);
+  useEffect(() => {
+    latestStorageKeyRef.current = storageKey;
+  }, [storageKey]);
+
+  const latestOnSaveRef = useRef(onSave);
+  useEffect(() => {
+    latestOnSaveRef.current = onSave;
+  }, [onSave]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = () => {
+      const snapshot = JSON.stringify(latestFormDataRef.current || {});
+      if (latestStorageKeyRef.current) {
+        try {
+          sessionStorage.setItem(latestStorageKeyRef.current, snapshot);
+        } catch {}
+      }
+      try {
+        latestOnSaveRef.current(latestFormDataRef.current);
+      } catch {}
+      lastSavedData.current = snapshot;
+    };
+    window.addEventListener("drt:form:flush", handler);
+    return () => window.removeEventListener("drt:form:flush", handler);
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!parsedSteps.length) {
     return (
@@ -298,6 +360,7 @@ export default function FormWrapper({
               fra: "Titre par défaut",
             }
           }
+          rightContent={headerRightContent}
         />
 
         <div className={styles.mainContent}>
