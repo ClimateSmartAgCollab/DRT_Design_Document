@@ -166,7 +166,7 @@ export default function NegotiationListContent() {
                 <p className="text-gray-500">Please Waite.</p>
               </div>
             )}
-            
+{/*             
             {hasOld && (
               <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
                 <p className="text-gray-700">
@@ -179,7 +179,7 @@ export default function NegotiationListContent() {
                   </button>
                 </p>
               </div>
-            )}
+            )} */}
             <BulkActionBar
               selectedCount={selected.size}
               onDeleteSelected={handleDeleteSelected}
