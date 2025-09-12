@@ -1,7 +1,7 @@
 // drt_frontend/app/components/NegotiationLayout.tsx
 "use client";
 import React from "react";
-import NegotiationHeader from "./NegotiationHeader";
+import { LayoutShell, AppHeader } from "./LayoutShell";
 
 interface NegotiationLayoutProps {
   children: React.ReactNode;
@@ -9,6 +9,9 @@ interface NegotiationLayoutProps {
   userEmail?: string;
   isLoading?: boolean;
   pageTitle?: string;
+  sidebar?: React.ReactNode;
+  sidebarTitle?: string;
+  showSidebar?: boolean;
 }
 
 export default function NegotiationLayout({ 
@@ -16,19 +19,31 @@ export default function NegotiationLayout({
   userType, 
   userEmail, 
   isLoading,
-  pageTitle
+  pageTitle,
+  sidebar,
+  sidebarTitle,
+  showSidebar = false
 }: NegotiationLayoutProps) {
+  const header = (
+    <AppHeader 
+      userType={userType} 
+      userEmail={userEmail} 
+      isLoading={isLoading}
+      pageTitle={pageTitle}
+      showSidebarToggle={showSidebar && !!sidebar}
+    />
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <NegotiationHeader 
-        userType={userType} 
-        userEmail={userEmail} 
-        isLoading={isLoading}
-        pageTitle={pageTitle}
-      />
-      <div className="flex flex-col items-center w-full px-2 sm:px-4 py-6 sm:py-8 md:py-10">
+    <LayoutShell
+      header={header}
+      sidebar={sidebar}
+      sidebarTitle={sidebarTitle}
+      showSidebar={showSidebar && !!sidebar}
+    >
+      <div className="p-4 sm:p-6 lg:p-8">
         {children}
       </div>
-    </div>
+    </LayoutShell>
   );
 }
