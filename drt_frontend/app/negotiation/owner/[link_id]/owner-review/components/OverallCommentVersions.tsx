@@ -53,6 +53,11 @@ export function OverallCommentVersions({
               </div>
               <div className="text-xs text-gray-500">
                 {new Date(version.timestamp).toLocaleString()}
+                {version.change_description && (
+                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                    {version.change_description}
+                  </span>
+                )}
               </div>
             </div>
             
