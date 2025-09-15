@@ -29,8 +29,8 @@ export function Sidebar({
   onReset,
 }: SidebarProps) {
   return (
-    <aside className="w-72 bg-white border-r border-gray-200 p-6">
-      <h2 className="mb-4 text-2xl font-semibold text-gray-800">Filters</h2>
+    <aside className="w-full lg:w-72 bg-white border-r-0 lg:border-r border-b lg:border-b-0 border-gray-200 p-4 sm:p-6">
+      <h2 className="mb-4 text-xl sm:text-2xl font-semibold text-gray-800">Filters</h2>
 
       {/* Search */}
       <div className="mb-6">

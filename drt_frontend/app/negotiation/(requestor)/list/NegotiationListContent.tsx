@@ -316,8 +316,8 @@ export default function NegotiationListContent() {
           )}
         </header>
 
-        <div className="w-full">
-          <div className="flex min-h-screen bg-gray-50">
+        <div className="w-full overflow-x-hidden">
+          <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
             <Sidebar
               searchTerm={filters.searchTerm}
               onSearchChange={setSearchTerm}
@@ -331,7 +331,7 @@ export default function NegotiationListContent() {
               onSortChange={setSortOption}
               onReset={resetFilters}
             />
-            <main className="flex-1 p-8">
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
               {whoamiQuery.isLoading && (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>

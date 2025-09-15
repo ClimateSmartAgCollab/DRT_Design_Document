@@ -443,40 +443,43 @@ export default function OwnerSummaryPage() {
           )}
         </header>
 
-        <div className="w-full">
-          <div className="flex">
-            <SummarySidebar
-              dataLabelOptions={dataLabelOptions}
-              selectedDataLabel={dataLabel}
-              onDataLabelChange={setDataLabel}
-              tagOptions={tagOptions}
-              selectedTag={tag}
-              onTagChange={(v: string[]) => setTag(v)}
-              recordLabelOptions={recordLabelOptions}
-              selectedRecordLabel={recordLabel}
-              onRecordLabelChange={(v: string[]) => setRecordLabel(v)}
-              startDate={startDate}
-              endDate={endDate}
-              onDateChange={(field, v) =>
-                field === "start" ? setStartDate(v) : setEndDate(v)
-              }
-              onReset={() => {
-                setDataLabel("");
-                setTag([]);
-                setRecordLabel([]);
-                setStartDate("");
-                setEndDate("");
-              }}
-            />
+        <div className="w-full overflow-x-hidden">
+          <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
+            <aside className="w-full lg:w-80 bg-white border-r-0 lg:border-r border-b lg:border-b-0 border-gray-200 p-4 sm:p-6">
+              <SummarySidebar
+                dataLabelOptions={dataLabelOptions}
+                selectedDataLabel={dataLabel}
+                onDataLabelChange={setDataLabel}
+                tagOptions={tagOptions}
+                selectedTag={tag}
+                onTagChange={(v: string[]) => setTag(v)}
+                recordLabelOptions={recordLabelOptions}
+                selectedRecordLabel={recordLabel}
+                onRecordLabelChange={(v: string[]) => setRecordLabel(v)}
+                startDate={startDate}
+                endDate={endDate}
+                onDateChange={(field, v) =>
+                  field === "start" ? setStartDate(v) : setEndDate(v)
+                }
+                onReset={() => {
+                  setDataLabel("");
+                  setTag([]);
+                  setRecordLabel([]);
+                  setStartDate("");
+                  setEndDate("");
+                }}
+              />
+            </aside>
 
-            <div className="flex-1 space-y-8 p-8">
-              <h1 className="text-3xl font-bold">Summary Statistics</h1>
+            <div className="flex-1 space-y-8 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
+              <h1 className="text-2xl sm:text-3xl font-bold">Summary Statistics</h1>
 
               <section className="bg-white p-4 rounded shadow">
                 <Bar
                   data={chartData}
                   options={{
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
                       legend: { position: "top" },
                       title: { display: true, text: "Requests Overview" },
