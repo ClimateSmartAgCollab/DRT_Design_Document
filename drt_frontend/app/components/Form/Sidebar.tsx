@@ -29,6 +29,11 @@ export default function Sidebar({
 }: SidebarProps) {
   const theme = useTheme();
 
+  // Auto-expand the current step and collapse others when currentStep changes
+  React.useEffect(() => {
+    setExpandedStep(currentStep.id);
+  }, [currentStep.id, setExpandedStep]);
+
   return (
     <nav
       className={styles.sidebar}

@@ -30,7 +30,7 @@ export const NavigationItem = React.memo(function NavigationItem({
   const isExpanded = expandedStep === step.id;
   const isActiveStep = currentStep === stepIndex;
 
-  const stepButtonStyle = isExpanded
+  const stepButtonStyle = isActiveStep
     ? {
         backgroundColor: theme.colors.primary,
         color: theme.colors.white,
@@ -60,6 +60,8 @@ export const NavigationItem = React.memo(function NavigationItem({
         onClick={() => setExpandedStep(isExpanded ? null : step.id)}
         className="flex w-full items-center justify-between rounded px-4 py-2 text-left transition-all"
         style={stepButtonStyle}
+        aria-expanded={isExpanded}
+        aria-controls={`submenu-${step.id}`}
       >
         <span>
           {step.sidebar_label?.[language] ||
@@ -81,7 +83,7 @@ export const NavigationItem = React.memo(function NavigationItem({
       </motion.button>
 
       {isExpanded && (
-        <ul className="ml-4 mt-2 space-y-1">
+        <ul id={`submenu-${step.id}`} className="ml-4 mt-2 space-y-1">
           {step.pages.map((page, pageIndex) => {
             const isActivePage = isActiveStep && currentPageIndex === pageIndex;
             return (
@@ -92,7 +94,9 @@ export const NavigationItem = React.memo(function NavigationItem({
               >
                 <button
                   type="button"
-                  onClick={() => onNavigate(stepIndex, pageIndex)}
+                  onClick={() => {
+                    onNavigate(stepIndex, pageIndex);
+                  }}
                   className="w-full rounded px-4 py-2 text-left transition-all"
                   style={pageButtonStyle(isActivePage)}
                 >
