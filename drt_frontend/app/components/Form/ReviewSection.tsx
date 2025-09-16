@@ -216,7 +216,14 @@ export default function ReviewSection({
             }}
           >
             <strong>Owner Comments:</strong>
-            <p className="mt-1">{globalOwnerComments}</p>
+            <p className="mt-1">{(() => {
+              const comments = globalOwnerComments || '';
+              const fieldCommentsIndex = comments.search(/\n*Field Comments:/);
+              if (fieldCommentsIndex !== -1) {
+                return comments.substring(0, fieldCommentsIndex).trim();
+              }
+              return comments.trim();
+            })()}</p>
           </div>
         )}
       </main>
