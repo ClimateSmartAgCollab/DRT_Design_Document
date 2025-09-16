@@ -5,6 +5,7 @@ import { OwnerCommentVersions } from "./OwnerCommentVersions";
 
 interface QuestionnaireReviewProps {
   parentSteps: any[];
+  parsedSteps: any[];
   currentData: any;
   fieldComments: Record<string, string>;
   setFieldComments: (comments: Record<string, string>) => void;
@@ -14,6 +15,7 @@ interface QuestionnaireReviewProps {
 
 export function QuestionnaireReview({
   parentSteps,
+  parsedSteps,
   currentData,
   fieldComments,
   setFieldComments,
@@ -63,9 +65,9 @@ export function QuestionnaireReview({
                             field.id
                           ]?.childrenData?.[field.ref!]?.map(
                             (child: any, index: number) => {
-                              const childStep = parentSteps.find(
-                                (s) => s.id === child.stepId
-                              );
+                              const childStep =
+                                parentSteps.find((s) => s.id === child.stepId) ||
+                                parsedSteps.find((s) => s.id === child.stepId);
                               return (
                                 <div
                                   key={child.id}
@@ -135,18 +137,27 @@ export function QuestionnaireReview({
                             ownerCommentVersions={ownerCommentVersions}
                           />
                         ) : !isViewingHistory ? (
-                          <textarea
-                            placeholder="Owner comment…"
-                            value={fieldComments[field.id] || ""}
-                            onChange={(e) =>
-                              setFieldComments({
-                                ...fieldComments,
-                                [field.id]: e.target.value,
-                              })
-                            }
-                            disabled={isViewingHistory}
-                            className="w-full border rounded p-2 mt-2"
-                          />
+                          <>
+                            <textarea
+                              placeholder="Owner comment…"
+                              value={fieldComments[field.id] || ""}
+                              onChange={(e) =>
+                                setFieldComments({
+                                  ...fieldComments,
+                                  [field.id]: e.target.value,
+                                })
+                              }
+                              disabled={isViewingHistory}
+                              className="w-full border rounded p-2 mt-2"
+                            />
+                            {/* Show comment history on latest page */}
+                            {ownerCommentVersions && ownerCommentVersions.length > 0 && (
+                              <OwnerCommentVersions
+                                fieldId={field.id}
+                                ownerCommentVersions={ownerCommentVersions}
+                              />
+                            )}
+                          </>
                         ) : fieldComments[field.id] ? (
                           <div className="mt-2">
                             <div className="bg-gray-50 p-3 rounded border">
@@ -194,18 +205,27 @@ export function QuestionnaireReview({
                           ownerCommentVersions={ownerCommentVersions}
                         />
                       ) : !isViewingHistory ? (
-                        <textarea
-                          placeholder="Owner comment…"
-                          value={fieldComments[field.id] || ""}
-                          onChange={(e) =>
-                            setFieldComments({
-                              ...fieldComments,
-                              [field.id]: e.target.value,
-                            })
-                          }
-                          disabled={isViewingHistory}
-                          className="w-full border rounded p-2"
-                        />
+                        <>
+                          <textarea
+                            placeholder="Owner comment…"
+                            value={fieldComments[field.id] || ""}
+                            onChange={(e) =>
+                              setFieldComments({
+                                ...fieldComments,
+                                [field.id]: e.target.value,
+                              })
+                            }
+                            disabled={isViewingHistory}
+                            className="w-full border rounded p-2"
+                          />
+                          {/* Show comment history on latest page */}
+                          {ownerCommentVersions && ownerCommentVersions.length > 0 && (
+                            <OwnerCommentVersions
+                              fieldId={field.id}
+                              ownerCommentVersions={ownerCommentVersions}
+                            />
+                          )}
+                        </>
                       ) : fieldComments[field.id] ? (
                         <div className="bg-gray-50 p-3 rounded border">
                           <div className="font-medium text-sm text-gray-700 mb-1">

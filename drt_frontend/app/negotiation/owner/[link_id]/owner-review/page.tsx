@@ -142,8 +142,6 @@ export default function OwnerReviewPage() {
   useEffect(() => {
     if (!currentData) return;
 
-    setGlobalComments(currentData.comments || "");
-    
     // For history view, get field comments from the latest owner comment version
     if (isViewingHistory && historyEntries.length > 0 && currentHistoryIndex < historyEntries.length) {
       const currentHistoryEntry = historyEntries[currentHistoryIndex];
@@ -181,35 +179,18 @@ export default function OwnerReviewPage() {
         const combinedFieldComments = { ...fieldCommentsFromResponses};
         
         setFieldComments(combinedFieldComments);
+        
+        // For history view, also set global comments from the historical data
+        setGlobalComments(latestOwnerVersion.comments || "");
       } else {
         setFieldComments({});
+        setGlobalComments("");
       }
     } else {
-      // For latest version, get field comments from current data
-      const parsedFieldComments = parseOwnerResponses(currentData.owner_responses);
-      
-      // Also try to parse field comments from the global comments field
-      const parseFieldCommentsFromGlobal = (comments: string) => {
-        const fieldCommentsMatch = comments.match(/Field Comments:\n([\s\S]*)/);
-        if (fieldCommentsMatch) {
-          const fieldCommentsText = fieldCommentsMatch[1];
-          const fieldComments: Record<string, string> = {};
-          const lines = fieldCommentsText.split('\n');
-          lines.forEach(line => {
-            const match = line.match(/Field (\w+): (.+)/);
-            if (match) {
-              fieldComments[match[1]] = match[2];
-            }
-          });
-          return fieldComments;
-        }
-        return {};
-      };
-      
-      // const fieldCommentsFromGlobal = parseFieldCommentsFromGlobal(currentData.comments || '');
-      const combinedFieldComments = { ...parsedFieldComments };
-      
-      setFieldComments(combinedFieldComments);
+      // For latest version (reopening), clear both field and global comments for fresh editing
+      // Previous comments will still be visible in history
+      setFieldComments({});
+      setGlobalComments("");
     }
   }, [currentData, isViewingHistory, historyEntries, currentHistoryIndex]);
 
@@ -427,6 +408,7 @@ export default function OwnerReviewPage() {
             <>
               <QuestionnaireReview
                 parentSteps={parentSteps}
+                parsedSteps={parsedSteps}
                 currentData={currentData}
                 fieldComments={fieldComments}
                 setFieldComments={setFieldComments}
@@ -461,6 +443,14 @@ export default function OwnerReviewPage() {
                 This negotiation may not have any responses yet.
               </p>
             </div>
+          )}
+
+          {/* Overall Comments History */}
+          {historyEntries.length > 0 && historyEntries[currentHistoryIndex]?.ownerCommentVersions && 
+           historyEntries[currentHistoryIndex].ownerCommentVersions.length > 0 && (
+            <OverallCommentVersions
+              ownerCommentVersions={historyEntries[currentHistoryIndex].ownerCommentVersions}
+            />
           )}
 
           <ActionButtons
