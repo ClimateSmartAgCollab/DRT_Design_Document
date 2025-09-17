@@ -438,11 +438,11 @@ export default function HomePage() {
                     {t.attentionCard.username}
                   </span>
                   <span className="font-mono select-all text-sm sm:text-base">
-                    aditya.nienow@ethereal.email
+                    timothy.okon@ethereal.email
                   </span>
                   <button
                     onClick={() =>
-                      handleCopy("aditya.nienow@ethereal.email", "username")
+                      handleCopy("timothy.okon@ethereal.email", "username")
                     }
                     className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
                     title={t.copy}
@@ -478,10 +478,10 @@ export default function HomePage() {
                     {t.attentionCard.password}
                   </span>
                   <span className="font-mono select-all text-sm sm:text-base">
-                    AqFy19WdAnDghQQrdm
+                    fPvxnHHH143UyCh5vv
                   </span>
                   <button
-                    onClick={() => handleCopy("AqFy19WdAnDghQQrdm", "password")}
+                    onClick={() => handleCopy("fPvxnHHH143UyCh5vv", "password")}
                     className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
                     title={t.copy}
                   >
