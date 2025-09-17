@@ -134,6 +134,11 @@ export default function NegotiationListContent() {
     }
   }, [whoamiQuery.isError, router]);
 
+  // Refresh page data when component mounts to ensure latest data
+  React.useEffect(() => {
+    reload();
+  }, []);
+
   return (
     <Providers>
       <main className="min-h-dvh bg-white flex flex-col">
