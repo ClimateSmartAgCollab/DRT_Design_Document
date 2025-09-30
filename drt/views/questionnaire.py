@@ -123,6 +123,11 @@ def fill_questionnaire(request, link_id):
             old_state = negotiation.state
             negotiation.requestor_responses = data
             negotiation.state = 'owner_open'
+            # Increment submission_version on each requestor submission
+            try:
+                negotiation.submission_version = (negotiation.submission_version or 0) + 1
+            except Exception:
+                negotiation.submission_version = 1
             negotiation.save()
             # Update last_activity on NLink when requestor submits
             nlink.save(update_fields=['last_activity'])

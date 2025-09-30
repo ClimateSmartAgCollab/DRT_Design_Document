@@ -3,6 +3,11 @@ from celery import shared_task
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from django.core.cache import cache
+from .utils.email_helpers import (
+    get_verification_email_html, get_notification_email_html, get_rejection_email_html,
+    get_clarification_email_html, get_reopen_email_html, get_abandonment_reminder_html,
+    get_abandonment_notification_html, get_magic_link_resend_html, get_plain_text_email
+)
 
 logger = logging.getLogger(__name__)
 
@@ -11,31 +16,32 @@ logger = logging.getLogger(__name__)
 def send_owner_email_task(email, magic_link, expiry):
     """Send owner email asynchronously using Celery"""
     try:
+        # Generate consistent HTML content
+        html_content = get_verification_email_html(
+            magic_link=magic_link,
+            expiry=f"{expiry:%Y-%m-%d %H:%M} UTC",
+            recipient_type="owner"
+        )
+        
+        # Generate plain text content
+        plain_text_content = (
+            "Hello,\n\n"
+            "Click the link below to verify your email:\n\n"
+            f"    {magic_link}\n\n"
+            f"This link will expire at {expiry:%Y-%m-%d %H:%M} UTC.\n\n"
+            "For your security, please do not share this link with anyone. "
+            "If you did not request this link, simply ignore this message or "
+            "contact our support team at adc@uoguelph.ca.\n\n"
+            "Best regards,\n"
+            "The DRT System"
+        )
+        
         msg = EmailMultiAlternatives(
             subject="Access Link for Owner Verification",
-            body=(
-                "Hello,\n\n"
-                "Click the link below to verify your email:\n\n"
-                f"    {magic_link}\n\n"
-                f"This link will expire at {expiry:%H:%M}.\n\n"
-                "For your security, please do not share this link with anyone. "
-                "If you did not request this link, simply ignore this message or "
-                "contact our support team at adc@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[email],
         )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>Click the link below to verify your email:</p>
-            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
-            <p>This link will expire at {expiry:%H:%M}.</p>
-            <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at adc@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
         logger.info(f"Owner email sent successfully to {email}")
@@ -48,31 +54,30 @@ def send_owner_email_task(email, magic_link, expiry):
 def send_requestor_email_task(email, magic_link, expiry):
     """Send requestor email asynchronously using Celery"""
     try:
+        html_content = get_verification_email_html(
+            magic_link=magic_link,
+            expiry=f"{expiry:%Y-%m-%d %H:%M} UTC",
+            recipient_type="requestor"
+        )
+        
+        plain_text_content = (
+            "Hello,\n\n"
+            "Click the link below to verify your email:\n\n"
+            f"    {magic_link}\n\n"
+            f"This link will expire at {expiry:%Y-%m-%d %H:%M} UTC.\n\n"
+            "For your security, please do not share this link with anyone. "
+            "If you did not request this link, simply ignore this message or "
+            "contact our support team at adc@uoguelph.ca.\n\n"
+            "Best regards,\n"
+            "The DRT System"
+        )
+        
         msg = EmailMultiAlternatives(
             subject="Access Link for Requestor Verification",
-            body=(
-                "Hello,\n\n"
-                "Click the link below to verify your email:\n\n"
-                f"    {magic_link}\n\n"
-                f"This link will expire at {expiry:%H:%M}.\n\n"
-                "For your security, please do not share this link with anyone. "
-                "If you did not request this link, simply ignore this message or "
-                "contact our support team at adc@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[email],
         )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>Click the link below to verify your email:</p>
-            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
-            <p>This link will expire at {expiry:%H:%M}.</p>
-            <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at adc@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
         logger.info(f"Requestor email sent successfully to {email}")
@@ -101,66 +106,100 @@ def send_notification_emails_task(nlink_id, owner_review_url):
         magic_link, expiry = generate_owner_magic_link_with_target(
             owner_email, owner_review_url)
 
+        # Determine if this is a new or updated request using submission_version
+        try:
+            submission_version = getattr(nlink.negotiation, 'submission_version', 0) or 0
+        except Exception:
+            submission_version = 0
+        # First submission (version 1) → New; subsequent (>1) → Updated
+        is_new_request = submission_version <= 1
+
+        owner_subject = (
+            "New Data Access Request - Action Required" if is_new_request
+            else "Updated Data Access Request - Action Required"
+        )
+        owner_intro = (
+            "A new data access request has been submitted for your dataset."
+            if is_new_request
+            else "The requestor has updated their access request based on your feedback."
+        )
+
+        dashboard_url_owner = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/homepage"
+
         # Send email to owner
+        email_type = "owner_new_request" if is_new_request else "owner_updated_request"
+        owner_html_content = get_notification_email_html(
+            email_type=email_type,
+            dataset_name=nlink.negotiation.questionnaire_SAID,
+            requestor_email=nlink.requestor_email,
+            magic_link=magic_link,
+            expiry=f"{expiry:%Y-%m-%d %H:%M} UTC",
+            dashboard_url=dashboard_url_owner,
+            is_new_request=is_new_request
+        )
+        
+        owner_plain_text = (
+            f"Hello,\n\n"
+            f"{owner_intro}\n\n"
+            f"Requestor: {nlink.requestor_email}\n"
+            f"Dataset: {nlink.negotiation.questionnaire_SAID}\n\n"
+            f"Please click the link below to verify your email and review the request:\n\n"
+            f"    {magic_link}\n\n"
+            f"This link will expire on {expiry:%Y-%m-%d %H:%M} UTC.\n\n"
+            f"Alternative access: You can also use your Dashboard at {dashboard_url_owner}.\n\n"
+            f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
+            f"Best regards,\n"
+            f"The DRT System"
+        )
+        
         owner_msg = EmailMultiAlternatives(
-            subject="New Data Access Request - Action Required",
-            body=(
-                f"Hello,\n\n"
-                f"A new data access request has been submitted for your dataset.\n\n"
-                f"Requestor: {nlink.requestor_email}\n"
-                f"Dataset: {nlink.negotiation.questionnaire_SAID}\n\n"
-                f"Please click the link below to verify your email and review the request:\n\n"
-                f"    {magic_link}\n\n"
-                f"This link will expire at {expiry:%H:%M}.\n\n"
-                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
-                f"Best regards,\n"
-                f"The DRT System"
-            ),
+            subject=owner_subject,
+            body=owner_plain_text,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[owner_email],
         )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>A new data access request has been submitted for your dataset.</p>
-            <p><strong>Requestor:</strong> {nlink.requestor_email}<br>
-            <strong>Dataset:</strong> {nlink.negotiation.questionnaire_SAID}</p>
-            <p>Please click the link below to verify your email and review the request:</p>
-            <p><a href="{magic_link}" target="_blank">{magic_link}</a></p>
-            <p>This link will expire at {expiry:%H:%M}.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
-        owner_msg.attach_alternative(html_content, "text/html")
+        owner_msg.attach_alternative(owner_html_content, "text/html")
         owner_msg.send(fail_silently=True)
 
         # Send email to requestor
+        req_subject = (
+            "Data Access Request Submitted Successfully" if is_new_request
+            else "Data Access Request Updated Successfully"
+        )
+        req_intro = (
+            "Your data access request has been submitted successfully."
+            if is_new_request
+            else "Your data access request has been updated successfully."
+        )
+        dashboard_url_req = f"{settings.FRONTEND_BASE_URL}/negotiation/homepage"
+
+        # Send email to requestor
+        requestor_html_content = get_notification_email_html(
+            email_type="requestor_confirmation",
+            dataset_name=nlink.negotiation.questionnaire_SAID,
+            owner_email=owner_email,
+            dashboard_url=dashboard_url_req,
+            is_new_request=is_new_request
+        )
+        
+        requestor_plain_text = (
+            f"Hello,\n\n"
+            f"{req_intro}\n\n"
+            f"Dataset: {nlink.negotiation.questionnaire_SAID}\n"
+            f"We will notify you once the owner reviews your request.\n\n"
+            f"You can access your Dashboard at: {dashboard_url_req}\n\n"
+            f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
+            f"Best regards,\n"
+            f"The DRT System"
+        )
+        
         requestor_msg = EmailMultiAlternatives(
-            subject="Data Access Request Submitted Successfully",
-            body=(
-                f"Hello,\n\n"
-                f"Your data access request has been submitted successfully.\n\n"
-                f"Dataset: {nlink.negotiation.questionnaire_SAID}\n"
-                f"Owner: {owner_email}\n\n"
-                f"We will notify you once the owner reviews your request.\n\n"
-                f"You can access your Dashboard at: https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage\n\n"
-                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
-                f"Best regards,\n"
-                f"The DRT System"
-            ),
+            subject=req_subject,
+            body=requestor_plain_text,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[nlink.requestor_email],
         )
-        
-        html_content = f"""
-            <p>Hello,</p>
-            <p>Your data access request has been submitted successfully.</p>
-            <p><strong>Dataset:</strong> {nlink.negotiation.questionnaire_SAID}<br>
-            <strong>Owner:</strong> {owner_email}</p>
-            <p>We will notify you once the owner reviews your request.</p>
-            <p>You can access your <a href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage" target="_blank">Dashboard</a>.</p>
-            <p>If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
-        requestor_msg.attach_alternative(html_content, "text/html")
+        requestor_msg.attach_alternative(requestor_html_content, "text/html")
         requestor_msg.send(fail_silently=True)
 
         logger.info(f"Notification emails sent for negotiation {nlink_id}")
@@ -209,28 +248,53 @@ def generate_license_and_notify_owner_task(nlink_id):
 def send_rejection_email_task(requestor_email, requestor_link, rationale):
     """Send rejection email asynchronously using Celery"""
     try:
+        dashboard_url = f"{settings.FRONTEND_BASE_URL}/negotiation/homepage"
+        questionnaire_url = f"{settings.FRONTEND_BASE_URL}/negotiation/{requestor_link}/fill-questionnaire"
+        
+        # Try to get additional request details from the database
+        try:
+            from .models import NLink
+            nlink = NLink.objects.get(requestor_link=requestor_link)
+            record_label = nlink.record_label
+        except Exception:
+            record_label = None
+        
+        # Generate consistent HTML content
+        html_content = get_rejection_email_html(
+            dataset_name="Data Access Request",
+            rationale=rationale,
+            dashboard_url=dashboard_url,
+            questionnaire_url=questionnaire_url,
+            record_label=record_label
+        )
+        
+        # Generate plain text content
+        plain_text_content = (
+            f"Hello,\n\n"
+            f"Your data access request has been rejected.\n\n"
+        )
+        
+        if record_label:
+            plain_text_content += f"Dataset: {record_label}\n"
+        plain_text_content += f"Reason: {rationale}\n\n"
+        
+        plain_text_content += f"You can:\n"
+        plain_text_content += f"1. View this request: {questionnaire_url}\n"
+        plain_text_content += f"2. Access your Dashboard: {dashboard_url}\n\n"
+        
+        plain_text_content += (
+            f"You can review the rejection reason above and consider submitting a new request with additional information or clarification if needed.\n\n"
+            f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
+            f"Best regards,\n"
+            f"The DRT System"
+        )
+        
         msg = EmailMultiAlternatives(
             subject="Data Access Request Rejected",
-            body=(
-                f"Hello,\n\n"
-                f"Your data access request has been rejected.\n\n"
-                f"Reason: {rationale}\n\n"
-                f"You can access your Dashboard at: https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage\n\n"
-                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
-                f"Best regards,\n"
-                f"The DRT System"
-            ),
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[requestor_email],
         )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>Your data access request has been rejected.</p>
-            <p><strong>Reason:</strong> {rationale}</p>
-            <p>You can access your <a href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage" target="_blank">Dashboard</a>.</p>
-            <p>If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
 
@@ -244,30 +308,30 @@ def send_rejection_email_task(requestor_email, requestor_link, rationale):
 def send_clarification_email_task(requestor_email, clarification_url):
     """Send clarification email asynchronously using Celery"""
     try:
+        # Generate consistent HTML content
+        html_content = get_clarification_email_html(
+            dataset_name="Data Access Request",  # Could be enhanced to get actual dataset name
+            clarification_url=clarification_url
+        )
+        
+        # Generate plain text content
+        plain_text_content = (
+            "Hello,\n\n"
+            "We need a bit more information to proceed with your request.\n"
+            "Please complete the necessary details by accessing your form at the link below:\n\n"
+            f"    {clarification_url}\n\n"
+            "If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
+            "Thank you for your prompt attention.\n\n"
+            "Best regards,\n"
+            "The DRT System"
+        )
+        
         msg = EmailMultiAlternatives(
             subject="Data Access Request - Clarification Required",
-            body=(
-                "Hello,\n\n"
-                "We need a bit more information to proceed with your request.\n"
-                "Please complete the necessary details by accessing your form at the link below:\n\n"
-                f"    {clarification_url}\n\n"
-                "If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
-                "Thank you for your prompt attention.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[requestor_email],
         )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>We need a bit more information to proceed with your request. "
-            <p>Please complete the necessary details by accessing your form at the link below:</p>
-            <p><a href="{clarification_url}" target="_blank">{clarification_url}</a></p>
-            <p>If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.</p>
-            <p>Thank you for your prompt attention.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
 
@@ -281,19 +345,26 @@ def send_clarification_email_task(requestor_email, clarification_url):
 def send_magic_link_resend_email_task(requestor_email, magic_link):
     """Send magic link resend email asynchronously using Celery"""
     try:
+        # Generate consistent HTML content
+        html_content = get_magic_link_resend_html(magic_link=magic_link)
+        
+        # Generate plain text content
+        plain_text_content = (
+            f"Hello,\n\n"
+            f"Here is your access link again:\n\n"
+            f"{magic_link}\n\n"
+            f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
+            f"Best regards,\n"
+            f"The DRT System"
+        )
+        
         msg = EmailMultiAlternatives(
             subject="Access Link Resent",
-            body=(
-                f"Hello,\n\n"
-                f"Here is your access link again:\n\n"
-                f"{magic_link}\n\n"
-                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca"
-                f"Best regards,\n"
-                f"The DRT System"
-            ),
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[requestor_email],
         )
+        msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
 
         logger.info(f"Magic link resend email sent to {requestor_email}")
@@ -306,31 +377,32 @@ def send_magic_link_resend_email_task(requestor_email, magic_link):
 def send_requestor_verification_email_task(email, magic_link, expiry):
     """Send requestor verification email asynchronously using Celery"""
     try:
+        # Generate consistent HTML content
+        html_content = get_verification_email_html(
+            magic_link=magic_link,
+            expiry=f"{expiry:%Y-%m-%d %H:%M} UTC",
+            recipient_type="requestor"
+        )
+        
+        # Generate plain text content
+        plain_text_content = (
+            "Hello,\n\n"
+            "Click the link below to verify your email and access the questionnaire:\n\n"
+            f"{magic_link}\n\n"
+            f"This link will expire at {expiry:%Y-%m-%d %H:%M} UTC.\n\n"
+            "For your security, please do not share this link with anyone. "
+            "If you did not request this link, simply ignore this message or "
+            "contact our support team at adc@uoguelph.ca.\n\n"
+            "Best regards,\n"
+            "The DRT System"
+        )
+        
         msg = EmailMultiAlternatives(
             subject="Access Link for Requestor Verification",
-            body=(
-                "Hello,\n\n"
-                "Click the link below to verify your email and access the questionnaire:\n\n"
-                f"{magic_link}\n\n"
-                f"This link will expire at {expiry:%H:%M}.\n\n"
-                "For your security, please do not share this link with anyone. "
-                "If you did not request this link, simply ignore this message or "
-                "contact our support team at adc@uoguelph.ca.\n\n"
-                "Best regards,\n"
-                "The DRT System"
-            ),
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[email],
         )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>Click the link below to verify your email and access the questionnaire:</p>
-            <p><a href=\"{magic_link}\" target=\"_blank\">{magic_link}</a></p>
-            <p>This link will expire at {expiry:%H:%M}.</p>
-            <p>For your security, please do not share this link with anyone.<br>
-            If you did not request this link, simply ignore this message or contact our support team at adc@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
 
@@ -381,29 +453,52 @@ def send_reopen_notification_email_task(requestor_email, requestor_link, previou
             'abandoned': 'Abandoned'
         }.get(previous_state, previous_state)
         
+        dashboard_url = f"{settings.FRONTEND_BASE_URL}/negotiation/homepage"
+        questionnaire_url = f"{settings.FRONTEND_BASE_URL}/negotiation/{requestor_link}/fill-questionnaire"
+        
+        # Try to get additional request details from the database
+        try:
+            from .models import NLink
+            nlink = NLink.objects.get(requestor_link=requestor_link)
+            record_label = nlink.record_label
+        except Exception:
+            record_label = None
+        
+        # Generate consistent HTML content
+        html_content = get_reopen_email_html(
+            dataset_name="Data Access Request",
+            previous_state=state_display,
+            dashboard_url=dashboard_url,
+            questionnaire_url=questionnaire_url,
+            record_label=record_label
+        )
+        
+        # Generate plain text content
+        plain_text_content = (
+            f"Hello,\n\n"
+            f"Your data access request has been reopened by the data owner.\n\n"
+        )
+        
+        if record_label:
+            plain_text_content += f"Dataset: {record_label}\n"
+        plain_text_content += f"Previous Status: {state_display}\n\n"
+        
+        plain_text_content += f"You can now continue with your request:\n"
+        plain_text_content += f"1. Direct link to your questionnaire: {questionnaire_url}\n"
+        plain_text_content += f"2. Access your Dashboard: {dashboard_url}\n\n"
+        
+        plain_text_content += (
+            f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
+            f"Best regards,\n"
+            f"The DRT System"
+        )
+        
         msg = EmailMultiAlternatives(
             subject="Data Access Request Reopened",
-            body=(
-                f"Hello,\n\n"
-                f"Your data access request has been reopened by the data owner.\n\n"
-                f"Previous Status: {state_display}\n\n"
-                f"You can now continue with your request by accessing your Dashboard at: "
-                f"https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage\n\n"
-                f"If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.\n\n"
-                f"Best regards,\n"
-                f"The DRT System"
-            ),
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[requestor_email],
         )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>Your data access request has been reopened by the data owner.</p>
-            <p><strong>Previous Status:</strong> {state_display}</p>
-            <p>You can now continue with your request by accessing your <a href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage" target="_blank">Dashboard</a>.</p>
-            <p>If you have any questions or need assistance, simply reach out to our support team at adc@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
         msg.attach_alternative(html_content, "text/html")
         
         # Try to send email and log the result
@@ -427,52 +522,43 @@ def send_abandonment_reminder_email_task(recipient_email, link_id, questionnaire
     try:
         if recipient_type == 'requestor':
             subject = "Data Access Request - Action Required"
-            dashboard_url = "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/{link_id}/fill-questionnaire"
+            dashboard_url = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/fill-questionnaire"
+        else:  # owner
+            subject = "Data Access Request Review - Action Required"
+            dashboard_url = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/{link_id}/owner-review"
+        
+        # Generate consistent HTML content
+        html_content = get_abandonment_reminder_html(
+            dataset_name=questionnaire_said,
+            recipient_type=recipient_type,
+            dashboard_url=dashboard_url
+        )
+        
+        # Generate plain text content
+        if recipient_type == 'requestor':
             action_text = "complete your questionnaire or take action"
             body_text = (
                 f"Hello,\n\n"
                 f"We noticed that your data access request has been inactive for over 30 days.\n\n"
                 f"Dataset: {questionnaire_said}\n\n"
-                f"To keep your request active, please {action_text} by accessing your Dashboard at: "
-                f"{dashboard_url}\n\n"
+                f"To keep your request active, please {action_text} by accessing your Dashboard at: {dashboard_url}\n\n"
                 f"You have 3 days to take action. If no action is taken within this period, your request will be automatically marked as abandoned.\n\n"
                 f"If you no longer need this data or have any questions, please contact our support team at adc@uoguelph.ca.\n\n"
                 f"Best regards,\n"
                 f"The DRT System"
             )
-            html_content = f"""
-                <p>Hello,</p>
-                <p>We noticed that your data access request has been inactive for over 30 days.</p>
-                <p><strong>Dataset:</strong> {questionnaire_said}</p>
-                <p>To keep your request active, please {action_text} by accessing your <a href="{dashboard_url}" target="_blank">Dashboard</a>.</p>
-                <p><strong>Important:</strong> You have 3 days to take action. If no action is taken within this period, your request will be automatically marked as abandoned.</p>
-                <p>If you no longer need this data or have any questions, please contact our support team at adc@uoguelph.ca.</p>
-                <p>Best regards,<br>The DRT System</p>
-            """
         else:  # owner
-            subject = "Data Access Request Review - Action Required"
-            dashboard_url = f"https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/{link_id}/owner-review"
             action_text = "review and respond to the request"
             body_text = (
                 f"Hello,\n\n"
                 f"We noticed that a data access request has been waiting for your review for over 30 days.\n\n"
                 f"Dataset: {questionnaire_said}\n\n"
-                f"To keep this request active, please {action_text} by accessing your review page at: "
-                f"{dashboard_url}\n\n"
+                f"To keep this request active, please {action_text} by accessing your review page at: {dashboard_url}\n\n"
                 f"You have 3 days to take action. If no action is taken within this period, the request will be automatically marked as abandoned.\n\n"
                 f"If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.\n\n"
                 f"Best regards,\n"
                 f"The DRT System"
             )
-            html_content = f"""
-                <p>Hello,</p>
-                <p>We noticed that a data access request has been waiting for your review for over 30 days.</p>
-                <p><strong>Dataset:</strong> {questionnaire_said}</p>
-                <p>To keep this request active, please {action_text} by accessing your <a href="{dashboard_url}" target="_blank">Review Page</a>.</p>
-                <p><strong>Important:</strong> You have 3 days to take action. If no action is taken within this period, the request will be automatically marked as abandoned.</p>
-                <p>If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.</p>
-                <p>Best regards,<br>The DRT System</p>
-            """
         
         msg = EmailMultiAlternatives(
             subject=subject,
@@ -494,39 +580,36 @@ def send_abandonment_notification_email_task(requestor_email, requestor_link, qu
     """Send abandonment notification email to requestor asynchronously using Celery"""
     try:
         # Create the specific questionnaire link
-        questionnaire_url = f"https://drt-test.canadacentral.cloudapp.azure.com/negotiation/{requestor_link}/fill-questionnaire"
-        dashboard_url = "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage"
+        questionnaire_url = f"{settings.FRONTEND_BASE_URL}/negotiation/{requestor_link}/fill-questionnaire"
+        dashboard_url = f"{settings.FRONTEND_BASE_URL}/negotiation/homepage"
+        
+        # Generate consistent HTML content
+        html_content = get_abandonment_notification_html(
+            dataset_name=questionnaire_said,
+            questionnaire_url=questionnaire_url,
+            dashboard_url=dashboard_url
+        )
+        
+        # Generate plain text content
+        plain_text_content = (
+            f"Hello,\n\n"
+            f"Your data access request has been automatically marked as abandoned due to inactivity.\n\n"
+            f"Dataset: {questionnaire_said}\n\n"
+            f"Reason: No activity was detected for over 33 days (30 days initial + 3 days grace period).\n\n"
+            f"If you still need access to this data, you can:\n"
+            f"1. Continue with this specific request: {questionnaire_url}\n"
+            f"2. Access your Dashboard for all requests: {dashboard_url}\n\n"
+            f"If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.\n\n"
+            f"Best regards,\n"
+            f"The DRT System"
+        )
         
         msg = EmailMultiAlternatives(
             subject="Data Access Request - Abandoned",
-            body=(
-                f"Hello,\n\n"
-                f"Your data access request has been automatically marked as abandoned due to inactivity.\n\n"
-                f"Dataset: {questionnaire_said}\n\n"
-                f"Reason: No activity was detected for over 33 days (30 days initial + 3 days grace period).\n\n"
-                f"If you still need access to this data, you can:\n"
-                f"1. Continue with this specific request: {questionnaire_url}\n"
-                f"2. Access your Dashboard for all requests: {dashboard_url}\n\n"
-                f"If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.\n\n"
-                f"Best regards,\n"
-                f"The DRT System"
-            ),
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[requestor_email],
         )
-        html_content = f"""
-            <p>Hello,</p>
-            <p>Your data access request has been automatically marked as abandoned due to inactivity.</p>
-            <p><strong>Dataset:</strong> {questionnaire_said}</p>
-            <p><strong>Reason:</strong> No activity was detected for over 33 days (30 days initial + 3 days grace period).</p>
-            <p>If you still need access to this data, you can:</p>
-            <ol>
-                <li>Continue with this specific request: <a href="{questionnaire_url}" target="_blank">Access Questionnaire</a></li>
-                <li>Access your <a href="{dashboard_url}" target="_blank">Dashboard</a> for all requests</li>
-            </ol>
-            <p>If you have any questions or need assistance, please contact our support team at adc@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=True)
 

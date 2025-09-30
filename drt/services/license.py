@@ -3,6 +3,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from jinja2 import Environment, FileSystemLoader, select_autoescape, Template
 from django.utils.translation import gettext_lazy as _
+from drt.utils.email_helpers import get_license_email_html
 import logging
 
 logger = logging.getLogger(__name__)
@@ -98,9 +99,21 @@ def generate_license_and_notify_owner(nlink):
             logger.error(f"Owner email not found for ID: {nlink.owner_id}")
             return
 
-        # Send email directly
+        # Send email with consistent template
         subject = "License Agreement for Record – " + nlink.record_label
-        body = (
+        dashboard_url = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/homepage"
+        
+        # Generate consistent HTML content
+        html_content = get_license_email_html(
+            record_label=nlink.record_label,
+            data_label=nlink.data_label,
+            tags=nlink.tags,
+            requestor_email=nlink.requestor_email,
+            dashboard_url=dashboard_url
+        )
+        
+        # Generate plain text content
+        plain_text_content = (
             f"Hello,\n\n"
             f"We hope this message finds you well. Please find attached the license agreement documents related to the dataset for your review and negotiation.\n\n"
             f"Below are the key details regarding this license request:\n"
@@ -108,30 +121,15 @@ def generate_license_and_notify_owner(nlink):
             f"  • Tags: {nlink.tags}\n"
             f"  • Record Label: {nlink.record_label}\n"
             f"  • Requestor Email: {nlink.requestor_email}\n\n"
-            f"You can access your Dashboard at: https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/homepage\n\n"
+            f"You can access your Dashboard at: {dashboard_url}\n\n"
             f"Please review the attached documents at your earliest convenience. If you have any questions or require clarification, do not hesitate to contact us at adc@uoguelph.ca.\n\n"
             f"Best regards,\n"
-            f"DRT System"
+            f"The DRT System"
         )
-
-        html_content = f"""
-            <p>Hello,</p>
-            <p>We hope this message finds you well. Please find attached the license agreement documents related to the dataset for your review and negotiation.</p>
-            <p>Below are the key details regarding this license request:</p>
-            <ul>
-                <li><strong>Data Label:</strong> {nlink.data_label}</li>
-                <li><strong>Tags:</strong> {nlink.tags}</li>
-                <li><strong>Record Label:</strong> {nlink.record_label}</li>
-                <li><strong>Requestor Email:</strong> {nlink.requestor_email}</li>
-            </ul>
-            <p>You can access your <a href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/homepage" target="_blank">Dashboard</a>.</p>
-            <p>Please review the attached documents at your earliest convenience. If you have any questions or require clarification, do not hesitate to contact us at adc@uoguelph.ca.</p>
-            <p>Best regards,<br>The DRT System</p>
-        """
 
         email = EmailMultiAlternatives(
             subject=subject,
-            body=body,
+            body=plain_text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[owner_email],
         )

@@ -67,6 +67,7 @@ class Negotiation(models.Model):
     timestamps = models.DateTimeField(auto_now_add=True)
     archived = models.BooleanField(default=False)
     rationale = models.TextField(blank=True, null=True)
+    submission_version = models.IntegerField(default=0)
 
 
 class Archive(models.Model):

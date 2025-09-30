@@ -42,7 +42,8 @@ def owner_email_entry(request):
 
         # Generate a secure random token for the magic link
         token = secrets.token_urlsafe(32)
-        expiry = timezone.now() + datetime.timedelta(minutes=10)
+        ttl_minutes = getattr(settings, 'MAGIC_LINK_TTL_MINUTES', 10)
+        expiry = timezone.now() + datetime.timedelta(minutes=ttl_minutes)
 
         # Invalidate previous token for this email, if any
         old_token = cache.get(f"magic_token_for:{email}")
@@ -54,8 +55,9 @@ def owner_email_entry(request):
         if target_url:
             token_data['target_url'] = target_url
             
-        cache.set(f"magic_token:{token}", token_data, 600)
-        cache.set(f"magic_token_for:{email}", token, 600)
+        cache_timeout = ttl_minutes * 60
+        cache.set(f"magic_token:{token}", token_data, cache_timeout)
+        cache.set(f"magic_token_for:{email}", token, cache_timeout)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
 
@@ -92,8 +94,10 @@ def verify_owner_magic_link(request):
             return Response({"error": "Missing required parameters"}, status=400)
 
         entry = cache.get(f"magic_token:{token}")
-        if not entry or timezone.now() > entry["expiry"]:
-            return Response({"error": "Access link expired"}, status=400)
+        if not entry:
+            return Response({"error": "Access link expired", "dashboard_url": f"{settings.FRONTEND_BASE_URL}/negotiation/owner/homepage"}, status=400)
+        if timezone.now() > entry["expiry"]:
+            return Response({"error": "Access link expired", "dashboard_url": f"{settings.FRONTEND_BASE_URL}/negotiation/owner/homepage"}, status=400)
 
         email = entry["email"]
 
@@ -151,7 +155,8 @@ def req_email_entry(request):
 
         # Generate a secure random token for the magic link
         token = secrets.token_urlsafe(32)
-        expiry = timezone.now() + datetime.timedelta(minutes=10)
+        ttl_minutes = getattr(settings, 'MAGIC_LINK_TTL_MINUTES', 10)
+        expiry = timezone.now() + datetime.timedelta(minutes=ttl_minutes)
 
         # Invalidate previous token for this email, if any
         old_token = cache.get(f"magic_token_for:{email}")
@@ -159,9 +164,10 @@ def req_email_entry(request):
             cache.delete(f"magic_token:{old_token}")
 
         # Store the new token and a reverse mapping for easy invalidation
+        cache_timeout = ttl_minutes * 60
         cache.set(f"magic_token:{token}", {
-                  'email': email, 'expiry': expiry}, 600)
-        cache.set(f"magic_token_for:{email}", token, 600)
+                  'email': email, 'expiry': expiry}, cache_timeout)
+        cache.set(f"magic_token_for:{email}", token, cache_timeout)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/verify-magic-link?token={token}"
         
@@ -234,7 +240,8 @@ def generate_owner_magic_link_with_target(email, target_url):
     """Generate a magic link for owner authentication with a target URL"""
     # Generate a secure random token for the magic link
     token = secrets.token_urlsafe(32)
-    expiry = timezone.now() + datetime.timedelta(minutes=10)
+    ttl_minutes = getattr(settings, 'MAGIC_LINK_TTL_MINUTES', 10)
+    expiry = timezone.now() + datetime.timedelta(minutes=ttl_minutes)
 
     # Invalidate previous token for this email, if any
     old_token = cache.get(f"magic_token_for:{email}")
@@ -242,9 +249,10 @@ def generate_owner_magic_link_with_target(email, target_url):
         cache.delete(f"magic_token:{old_token}")
 
     # Store the new token with target URL and a reverse mapping for easy invalidation
+    cache_timeout = ttl_minutes * 60
     cache.set(f"magic_token:{token}", {
-              'email': email, 'expiry': expiry, 'target_url': target_url}, 600)
-    cache.set(f"magic_token_for:{email}", token, 600)
+              'email': email, 'expiry': expiry, 'target_url': target_url}, cache_timeout)
+    cache.set(f"magic_token_for:{email}", token, cache_timeout)
 
     magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
     return magic_link, expiry
