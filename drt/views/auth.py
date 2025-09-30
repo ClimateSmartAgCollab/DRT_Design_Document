@@ -45,19 +45,24 @@ def owner_email_entry(request):
         ttl_minutes = getattr(settings, 'MAGIC_LINK_TTL_MINUTES', 10)
         expiry = timezone.now() + datetime.timedelta(minutes=ttl_minutes)
 
-        # Invalidate previous token for this email, if any
-        old_token = cache.get(f"magic_token_for:{email}")
-        if old_token:
-            cache.delete(f"magic_token:{old_token}")
-
-        # Store the new token with target URL and a reverse mapping for easy invalidation
+        # Use a scoped mapping per target to avoid invalidating other links for the same owner
         token_data = {'email': email, 'expiry': expiry}
+        cache_timeout = ttl_minutes * 60
         if target_url:
             token_data['target_url'] = target_url
-            
-        cache_timeout = ttl_minutes * 60
-        cache.set(f"magic_token:{token}", token_data, cache_timeout)
-        cache.set(f"magic_token_for:{email}", token, cache_timeout)
+            scoped_key = f"magic_token_for:{email}:{target_url}"
+            old_token = cache.get(scoped_key)
+            if old_token:
+                cache.delete(f"magic_token:{old_token}")
+            cache.set(f"magic_token:{token}", token_data, cache_timeout)
+            cache.set(scoped_key, token, cache_timeout)
+        else:
+            # Backward-compatible behavior if no target is provided (single latest per email)
+            old_token = cache.get(f"magic_token_for:{email}")
+            if old_token:
+                cache.delete(f"magic_token:{old_token}")
+            cache.set(f"magic_token:{token}", token_data, cache_timeout)
+            cache.set(f"magic_token_for:{email}", token, cache_timeout)
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
 
@@ -101,8 +106,12 @@ def verify_owner_magic_link(request):
 
         email = entry["email"]
 
-        # Ensure this token is the latest for this email
-        latest_token = cache.get(f"magic_token_for:{email}")
+        # Ensure this token is the latest for this email and target (if provided)
+        target_url = entry.get('target_url')
+        if target_url:
+            latest_token = cache.get(f"magic_token_for:{email}:{target_url}")
+        else:
+            latest_token = cache.get(f"magic_token_for:{email}")
         if latest_token != token:
             return Response({"error": "This link has been expired by a newer request."}, status=400)
 
@@ -112,9 +121,13 @@ def verify_owner_magic_link(request):
         
         # Get target URL if it exists
         target_url = entry.get('target_url')
-        
+
+        # Delete only this token and its scoped mapping
         cache.delete(f"magic_token:{token}")
-        cache.delete(f"magic_token_for:{email}")
+        if target_url:
+            cache.delete(f"magic_token_for:{email}:{target_url}")
+        else:
+            cache.delete(f"magic_token_for:{email}")
         logger.info(f"Access link verified for {email} at {timezone.now()}")
         
         response_data = {"message": "verified"}
@@ -243,16 +256,20 @@ def generate_owner_magic_link_with_target(email, target_url):
     ttl_minutes = getattr(settings, 'MAGIC_LINK_TTL_MINUTES', 10)
     expiry = timezone.now() + datetime.timedelta(minutes=ttl_minutes)
 
-    # Invalidate previous token for this email, if any
-    old_token = cache.get(f"magic_token_for:{email}")
+    # Invalidate previous token only for this specific target (scoped)
+    scoped_key = f"magic_token_for:{email}:{target_url}"
+    old_token = cache.get(scoped_key)
     if old_token:
         cache.delete(f"magic_token:{old_token}")
 
     # Store the new token with target URL and a reverse mapping for easy invalidation
     cache_timeout = ttl_minutes * 60
-    cache.set(f"magic_token:{token}", {
-              'email': email, 'expiry': expiry, 'target_url': target_url}, cache_timeout)
-    cache.set(f"magic_token_for:{email}", token, cache_timeout)
+    cache.set(
+        f"magic_token:{token}",
+        {'email': email, 'expiry': expiry, 'target_url': target_url},
+        cache_timeout,
+    )
+    cache.set(scoped_key, token, cache_timeout)
 
     magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/verify-magic-link?token={token}"
     return magic_link, expiry
