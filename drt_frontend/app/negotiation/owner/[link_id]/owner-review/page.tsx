@@ -76,7 +76,7 @@ export default function OwnerReviewPage() {
     queryKey: ["negotiationHistory", linkIdStr],
     queryFn: () => fetchNegotiationHistory(linkIdStr!),
     retry: 1,
-    enabled: !!linkIdStr,
+    // enabled: !!linkIdStr && isAuthenticated === true,
   });
 
   const { historyEntries } = useNegotiationHistory(history);
