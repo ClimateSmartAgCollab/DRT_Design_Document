@@ -67,6 +67,7 @@ export default function OwnerReviewPage() {
     queryKey: ["ownerReview", linkIdStr],
     queryFn: () => fetchNegotiation(linkIdStr!),
     retry: 1,
+    // enabled: !!linkIdStr && isAuthenticated === true,
   });
 
   const { data: history, isLoading: loadingHistory } = useQuery<
