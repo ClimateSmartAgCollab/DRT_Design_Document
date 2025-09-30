@@ -144,3 +144,6 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Magic link TTL in minutes (default: 7 days)
+MAGIC_LINK_TTL_MINUTES = int(os.environ.get("MAGIC_LINK_TTL_MINUTES", str(60 * 24 * 7)))
+
