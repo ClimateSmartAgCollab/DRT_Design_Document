@@ -1,15 +1,58 @@
 "use client";
 import React, { useMemo } from "react";
-import DateTimeField from "./DateTimeField";
 import { ParsedField, ParsedStep } from "./types";
 import { useFormData } from "../Form/context/FormDataContext";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { useTheme } from "./hooks/useTheme";
-import { OptionsMapper } from "./domain/field-options";
 import {
   ReferenceFieldController,
   type ReferenceDeps,
 } from "./domain/reference-controller";
+import { FieldValidator } from "./domain/validation";
+import { DateTimeDetector } from "./utils/date-time-detector";
+import {
+  Box,
+  TextField,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  Checkbox,
+  FormGroup,
+  MenuItem,
+  Select,
+  FormControl,
+  Chip,
+  ToggleButton,
+  ToggleButtonGroup,
+  Slider,
+  Typography,
+} from "@mui/material";
+
+
+// Helper to get file type info from format
+const getFileTypeInfo = (formatStr: string): { icon: string; hint: string } => {
+  if (!formatStr) return { icon: "📎", hint: "" };
+  
+  const mappings = [
+    { keywords: ["PDF", "pdf"], icon: "📄", hint: "PDF documents" },
+    { keywords: ["Excel", "spreadsheet", "xlsx"], icon: "📊", hint: "Excel spreadsheets" },
+    { keywords: ["Word", "docx"], icon: "📝", hint: "Word documents" },
+    { keywords: ["CSV", "csv"], icon: "📋", hint: "CSV files" },
+    { keywords: ["image", "JPEG", "PNG", "jpg", "png"], icon: "🖼️", hint: "Image files" },
+    { keywords: ["video", "MP4", "mp4"], icon: "🎥", hint: "Video files" },
+    { keywords: ["audio", "mp3", "wav"], icon: "🎵", hint: "Audio files" },
+    { keywords: ["ZIP", "archive", "zip"], icon: "🗜️", hint: "Archive files" },
+    { keywords: ["JSON", "XML", "json"], icon: "{ }", hint: "Data files" },
+  ];
+  
+  for (const mapping of mappings) {
+    if (mapping.keywords.some(kw => formatStr.includes(kw))) {
+      return { icon: mapping.icon, hint: mapping.hint };
+    }
+  }
+  
+  return { icon: "📎", hint: formatStr };
+};
 
 interface FieldRendererProps {
   register: UseFormRegisterReturn;
@@ -23,26 +66,12 @@ interface FieldRendererProps {
   ) => void;
   handleFieldChange: (newVal: any) => void;
   saveCurrentPageData: () => void;
-  formData: Record<string, Record<string, any>>;
-  stepId: string;
-  createNewChild: (parentFieldId: string, childStepId: string) => any;
-  editExistingChild: (parentFieldId: string, childId: string) => any | null;
-  deleteChild: (
-    childId: string,
-    parentFieldId: string,
-    childStepId: string
-  ) => void;
   onNavigate: (stepIndex: number, pageIndex?: number) => void;
   parsedSteps: ParsedStep[];
   parentFormData: Record<string, any>;
-  currentChildId: string | null;
-  currentChildParentId: string | null;
-  isNewChild: boolean;
   setIsNewChild: (v: boolean) => void;
   setCurrentChildId: (id: string | null) => void;
   setCurrentChildParentId: (id: string | null) => void;
-  fieldErrors: Record<string, string>;
-  isValid__UTF8: (text: string) => boolean;
   clearCurrentStepFormData: () => void;
 }
 
@@ -56,15 +85,12 @@ export default function FieldRenderer(props: FieldRendererProps) {
     registerFieldRef,
     handleFieldChange,
     saveCurrentPageData,
-    formData,
-    stepId,
     onNavigate,
     parsedSteps,
     parentFormData,
     setIsNewChild,
     setCurrentChildId,
     setCurrentChildParentId,
-    isValid__UTF8,
     clearCurrentStepFormData,
   } = props;
 
@@ -108,161 +134,478 @@ export default function FieldRenderer(props: FieldRendererProps) {
     setIsNewChild,
   ]);
 
+  // Helper: Render list inputs (entry codes or boolean options)
+  const renderListInput = (
+    options: [string, string][],
+    inputType: string | undefined,
+    isArray: boolean,
+    selectedValue: any,
+    onChange: (val: any) => void
+  ) => {
+    const effectiveInputType = inputType || (isArray ? 'checkbox-multi' : (options.length <= 5 ? 'radio-single' : 'dropdown-single'));
+    const baseType = effectiveInputType.replace(/-single|-multi$/, '');
+    const isMulti = effectiveInputType.includes('-multi');
+    
+    const selectedValues = isMulti ? (Array.isArray(selectedValue) ? selectedValue : []) : selectedValue;
+    
+    switch (baseType) {
+      case 'checkbox':
+        return (
+          <Box>
+            {isMulti && selectedValues.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+                {selectedValues.map((val: string, idx: number) => (
+                  <Chip
+                    key={idx}
+                    label={options.find(([k]) => k === val)?.[1] || val}
+                    size="small"
+                    onDelete={() => {
+                      const updated = selectedValues.filter((_: any, i: number) => i !== idx);
+                      onChange(updated);
+                      saveCurrentPageData();
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+            <FormGroup>
+              {options.map(([optKey, optLabel]) => (
+                <FormControlLabel
+                  key={optKey}
+                  control={
+                    <Checkbox
+                      checked={selectedValues.includes(optKey)}
+                      onChange={(e) => {
+                        const updated = e.target.checked
+                          ? [...selectedValues, optKey]
+                          : selectedValues.filter((v: string) => v !== optKey);
+                        onChange(updated);
+                        (rhfOnChange as any)({ target: { value: updated } });
+                        saveCurrentPageData();
+                      }}
+                      size="small"
+                    />
+                  }
+                  label={<span className="text-sm">{optLabel}</span>}
+                />
+              ))}
+            </FormGroup>
+          </Box>
+        );
+      
+      case 'radio':
+        return (
+          <RadioGroup
+            value={selectedValues || ""}
+            onChange={(e) => {
+              onChange(e.target.value);
+              rhfOnChange(e);
+              saveCurrentPageData();
+            }}
+            row={field.orientation === 'horizontal'}
+          >
+            {options.map(([optKey, optLabel]) => (
+              <FormControlLabel
+                key={optKey}
+                value={optKey}
+                control={<Radio size="small" />}
+                label={<span className="text-sm">{optLabel}</span>}
+              />
+            ))}
+          </RadioGroup>
+        );
+      
+      case 'dropdown':
+      case 'select':
+        if (isMulti) {
+          return (
+            <FormControl fullWidth size="small">
+              <Select
+                multiple
+                value={selectedValues}
+                onChange={(e) => {
+                  onChange(e.target.value);
+                  (rhfOnChange as any)({ target: { value: e.target.value } });
+                  saveCurrentPageData();
+                }}
+                renderValue={(selected: string[]) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((val) => (
+                      <Chip key={val} label={options.find(([k]) => k === val)?.[1] || val} size="small" />
+                    ))}
+                  </Box>
+                )}
+              >
+                {options.map(([optKey, optLabel]) => (
+                  <MenuItem key={optKey} value={optKey}>{optLabel}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          );
+        } else {
+          return (
+            <FormControl fullWidth size="small">
+              <Select
+                value={selectedValues || ""}
+                onChange={(e) => {
+                  onChange(e.target.value);
+                  rhfOnChange(e);
+                  saveCurrentPageData();
+                }}
+              >
+                {options.map(([optKey, optLabel]) => (
+                  <MenuItem key={optKey} value={optKey}>{optLabel}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          );
+        }
+      
+      case 'toggle':
+      case 'button-group':
+        return (
+          <ToggleButtonGroup
+            value={isMulti ? selectedValues : selectedValues}
+            onChange={(e, newValue) => {
+              onChange(newValue);
+              (rhfOnChange as any)({ target: { value: newValue } });
+              saveCurrentPageData();
+            }}
+            exclusive={!isMulti}
+            size="small"
+            sx={{ flexWrap: 'wrap', gap: 0.5 }}
+          >
+            {options.map(([optKey, optLabel]) => (
+              <ToggleButton
+                key={optKey}
+                value={optKey}
+                sx={{ textTransform: 'none', fontSize: '0.875rem' }}
+              >
+                {optLabel}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        );
+      
+      case 'datalist':
+        if (isMulti) {
+          // Multi-select datalist with chip input
+          const [inputValue, setInputValue] = React.useState("");
+          
+          return (
+            <Box>
+              {selectedValues.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+                  {selectedValues.map((val: string, idx: number) => (
+                    <Chip
+                      key={idx}
+                      label={options.find(([k]) => k === val)?.[1] || val}
+                      size="small"
+                      onDelete={() => {
+                        const updated = selectedValues.filter((_: any, i: number) => i !== idx);
+                        onChange(updated);
+                        saveCurrentPageData();
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
+              <TextField
+                fullWidth
+                size="small"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && inputValue.trim()) {
+                    e.preventDefault();
+                    if (!selectedValues.includes(inputValue.trim())) {
+                      const updated = [...selectedValues, inputValue.trim()];
+                      onChange(updated);
+                      (rhfOnChange as any)({ target: { value: updated } });
+                      saveCurrentPageData();
+                    }
+                    setInputValue("");
+                  }
+                }}
+                onBlur={() => {
+                  if (inputValue.trim() && !selectedValues.includes(inputValue.trim())) {
+                    const updated = [...selectedValues, inputValue.trim()];
+                    onChange(updated);
+                    (rhfOnChange as any)({ target: { value: updated } });
+                    saveCurrentPageData();
+                    setInputValue("");
+                  }
+                }}
+                placeholder="Type or select, press Enter to add..."
+                slotProps={{ htmlInput: { list: `datalist-${id}` } }}
+              />
+              <datalist id={`datalist-${id}`}>
+                {options.map(([optKey, optLabel]) => (
+                  <option key={optKey} value={optKey}>{optLabel}</option>
+                ))}
+              </datalist>
+              <span className="text-xs text-gray-500 mt-1 block">
+                Type or select from {options.length} options. Press Enter to add each item.
+              </span>
+            </Box>
+          );
+        } else {
+          // Single-select datalist
+          return (
+            <Box>
+              <TextField
+                fullWidth
+                size="small"
+                value={selectedValues || ""}
+                onChange={(e) => {
+                  onChange(e.target.value);
+                  rhfOnChange(e);
+                }}
+                onBlur={saveCurrentPageData}
+                placeholder="Type or select from list..."
+                slotProps={{ htmlInput: { list: `datalist-${id}` } }}
+              />
+              <datalist id={`datalist-${id}`}>
+                {options.map(([optKey, optLabel]) => (
+                  <option key={optKey} value={optKey}>{optLabel}</option>
+                ))}
+              </datalist>
+              <span className="text-xs text-gray-500 mt-1 block">
+                Searchable dropdown with {options.length} options
+              </span>
+            </Box>
+          );
+        }
+      
+      case 'slider':
+      case 'range':
+        // Range slider (for numeric options)
+        if (options.length >= 2) {
+          const currentIndex = isMulti 
+            ? selectedValues.length > 0 ? options.findIndex(([k]) => k === selectedValues[0]) : 0
+            : options.findIndex(([k]) => k === selectedValues);
+          const sliderValue = currentIndex >= 0 ? currentIndex : 0;
+          
+          return (
+            <Box sx={{ px: 2, py: 1 }}>
+              {isMulti && selectedValues.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 2 }}>
+                  {selectedValues.map((val: string, idx: number) => (
+                    <Chip
+                      key={idx}
+                      label={options.find(([k]) => k === val)?.[1] || val}
+                      size="small"
+                      onDelete={() => {
+                        const updated = selectedValues.filter((_: any, i: number) => i !== idx);
+                        onChange(updated);
+                        saveCurrentPageData();
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
+              <Slider
+                value={sliderValue}
+                onChange={(e, newValue) => {
+                  const selectedKey = options[newValue as number][0];
+                  if (isMulti) {
+                    if (!selectedValues.includes(selectedKey)) {
+                      const updated = [...selectedValues, selectedKey];
+                      onChange(updated);
+                      (rhfOnChange as any)({ target: { value: updated } });
+                    }
+                  } else {
+                    onChange(selectedKey);
+                    (rhfOnChange as any)({ target: { value: selectedKey } });
+                  }
+                }}
+                onChangeCommitted={saveCurrentPageData}
+                marks
+                min={0}
+                max={options.length - 1}
+                step={1}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(value) => options[value]?.[1] || ""}
+                sx={{
+                  color: theme.colors.primary,
+                  '& .MuiSlider-markLabel': {
+                    fontSize: '0.75rem',
+                    color: theme.colors.grey[600]
+                  }
+                }}
+              />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                <Typography variant="caption" sx={{ color: theme.colors.grey[600] }}>
+                  {options[0][1]}
+                </Typography>
+                <Typography variant="caption" sx={{ color: theme.colors.grey[600] }}>
+                  {options[options.length - 1][1]}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        }
+        return isMulti ? (
+          <FormGroup>
+            {options.map(([optKey, optLabel]) => (
+              <FormControlLabel
+                key={optKey}
+                control={
+                  <Checkbox
+                    checked={selectedValues.includes(optKey)}
+                    onChange={(e) => {
+                      const updated = e.target.checked
+                        ? [...selectedValues, optKey]
+                        : selectedValues.filter((v: string) => v !== optKey);
+                      onChange(updated);
+                      (rhfOnChange as any)({ target: { value: updated } });
+                      saveCurrentPageData();
+                    }}
+                  />
+                }
+                label={optLabel}
+              />
+            ))}
+          </FormGroup>
+        ) : (
+          <RadioGroup value={selectedValues || ""} onChange={(e) => { onChange(e.target.value); rhfOnChange(e); saveCurrentPageData(); }}>
+            {options.map(([optKey, optLabel]) => (
+              <FormControlLabel key={optKey} value={optKey} control={<Radio />} label={optLabel} />
+            ))}
+          </RadioGroup>
+        );
+      
+      default:
+        // Fallback to checkbox/radio
+        return isMulti ? (
+          <FormGroup>
+            {options.map(([optKey, optLabel]) => (
+              <FormControlLabel
+                key={optKey}
+                control={
+                  <Checkbox
+                    checked={selectedValues.includes(optKey)}
+                    onChange={(e) => {
+                      const updated = e.target.checked
+                        ? [...selectedValues, optKey]
+                        : selectedValues.filter((v: string) => v !== optKey);
+                      onChange(updated);
+                      (rhfOnChange as any)({ target: { value: updated } });
+                      saveCurrentPageData();
+                    }}
+                  />
+                }
+                label={optLabel}
+              />
+            ))}
+          </FormGroup>
+        ) : (
+          <RadioGroup value={selectedValues || ""} onChange={(e) => { onChange(e.target.value); rhfOnChange(e); saveCurrentPageData(); }}>
+            {options.map(([optKey, optLabel]) => (
+              <FormControlLabel key={optKey} value={optKey} control={<Radio />} label={optLabel} />
+            ))}
+          </RadioGroup>
+        );
+    }
+  };
+
+  const hasEntryCodeOptions = field.options?.[language]?.[field.id] && 
+    Object.keys(field.options[language][field.id]).length > 0;
+  const hasBooleanOptions = field.booleanOptions && field.booleanOptions.length > 0;
+  const hasOptions = hasEntryCodeOptions || hasBooleanOptions;
+  
+  if (hasOptions) {
+    let entryCodeOptions: [string, string][] = [];
+    
+    if (hasEntryCodeOptions) {
+      const optionsData = field.options[language][field.id];
+      const labelsData = field.optionLabels?.[language]?.[field.id] || {};
+      
+      if (Array.isArray(optionsData)) {
+        entryCodeOptions = optionsData.map(key => {
+          const label = typeof labelsData === 'object' && labelsData !== null && !Array.isArray(labelsData)
+            ? (labelsData as Record<string, string>)[key] || key
+            : key;
+          return [key, label] as [string, string];
+        });
+      } else {
+        entryCodeOptions = Object.entries(optionsData);
+      }
+    }
+    
+    const boolOpts = hasBooleanOptions 
+      ? field.booleanOptions!.map(o => [o, o] as [string, string])
+      : [];
+    const finalOptions = entryCodeOptions.length > 0 ? entryCodeOptions : boolOpts;
+    const isArray = field.type.startsWith("Array[");
+    
+    return renderListInput(finalOptions, field.inputType, isArray, value, handleFieldChange);
+  }
+  
   // 1) TEXTAREA
   if (field.type === "textarea") {
     return (
-      <textarea
+        <textarea
+          id={id}
+          name={rhfName}
+          value={value ?? ""}
+          placeholder={
+            typeof field.placeholder === 'string' 
+              ? field.placeholder 
+              : (field.placeholder?.[language] || "")
+          }
+          className="w-full rounded p-2"
+          style={fieldStyles}
+          ref={(el) => {
+            rhfRef(el);
+            registerFieldRef(field.id, el);
+          }}
+          onChange={(e) => {
+            rhfOnChange(e);
+            handleFieldChange(e.target.value);
+          }}
+          onBlur={(e) => {
+            rhfOnBlur(e);
+            saveCurrentPageData();
+          }}
+        />
+    );
+  }
+
+  // 2) DATE/TIME 
+  if (field.type === "DateTime") {
+    const { inputType, placeholder: detectedPlaceholder } = DateTimeDetector.detect(field.validation?.format);
+    
+    const placeholder = typeof field.placeholder === 'string' 
+      ? field.placeholder 
+      : (field.placeholder?.[language] || detectedPlaceholder);
+    
+    return (
+      <input
+        type={inputType}
         id={id}
         name={rhfName}
         value={value ?? ""}
-        placeholder={
-          field.placeholder?.[language] || field.placeholder?.eng || ""
-        }
+        placeholder={placeholder}
         className="w-full rounded p-2"
-        style={fieldStyles}
+        style={{
+          ...fieldStyles,
+          height: '40px',
+          fontSize: '0.875rem'
+        }}
         ref={(el) => {
           rhfRef(el);
           registerFieldRef(field.id, el);
         }}
         onChange={(e) => {
-          rhfOnChange(e);
           handleFieldChange(e.target.value);
+          rhfOnChange(e);
         }}
         onBlur={(e) => {
           rhfOnBlur(e);
           saveCurrentPageData();
         }}
-        onPaste={(e) => {
-          const pasted = e.clipboardData.getData("text");
-          if (!isValid__UTF8(pasted)) {
-            e.preventDefault();
-            alert(
-              "Pasted text contains invalid characters. Please use UTF-8 text only."
-            );
-          }
-        }}
       />
-    );
-  }
-
-  // 2) DATE/TIME
-  if (field.type === "DateTime") {
-    return (
-      <DateTimeField
-        id={id}
-        field={field}
-        format={field.validation?.format || "YYYY-MM-DD"}
-        fieldValue={value}
-        register={register}
-        handleFieldChange={(f, v) => handleFieldChange(v)}
-        saveCurrentPageData={saveCurrentPageData}
-      />
-    );
-  }
-
-  // 3) RADIO
-  if (field.type === "radio") {
-    return (
-      <div
-        className={`flex ${
-          field.orientation === "vertical" ? "flex-col" : "flex-row space-x-4"
-        }`}
-      >
-        {Object.entries(field.options?.[language] || {}).map(
-          ([optKey, optLabel]) => (
-            <label
-              key={optKey}
-              htmlFor={`${id}-${optKey}`}
-              className="flex items-center space-x-2"
-              style={{ color: theme.colors.text, fontFamily: theme.fonts.body }}
-            >
-              <input
-                id={`${id}-${optKey}`}
-                type="radio"
-                name={rhfName}
-                value={optKey}
-                checked={value === optKey}
-                style={{ accentColor: theme.colors.primary }}
-                ref={(el) => {
-                  rhfRef(el);
-                  registerFieldRef(field.id, el);
-                }}
-                onChange={(e) => {
-                  rhfOnChange(e);
-                  handleFieldChange(optKey);
-                }}
-                onBlur={(e) => {
-                  rhfOnBlur(e);
-                  saveCurrentPageData();
-                }}
-              />
-              <span>{optLabel}</span>
-            </label>
-          )
-        )}
-      </div>
-    );
-  }
-
-  // 4) SELECT/DROPDOWN (checkbox group UI)
-  if (field.type === "select" || field.type === "dropdown") {
-    const selectedValues = OptionsMapper.selected(formData, stepId, field.id);
-    const optionsMap = OptionsMapper.map(field, language);
-
-    return (
-      <div>
-        <div className="flex flex-col gap-2">
-          {Object.entries(optionsMap).map(([optKey, optLabel]) => (
-            <label
-              key={optKey}
-              htmlFor={`${id}-${optKey}`}
-              className="flex items-center space-x-2"
-              style={{ color: theme.colors.text, fontFamily: theme.fonts.body }}
-            >
-              <input
-                id={`${id}-${optKey}`}
-                type="checkbox"
-                name={rhfName}
-                value={optKey}
-                checked={selectedValues.includes(optKey)}
-                ref={(el) => {
-                  rhfRef(el);
-                  registerFieldRef(field.id, el);
-                }}
-                onChange={(e) => {
-                  const updated = e.target.checked
-                    ? [...selectedValues, optKey]
-                    : selectedValues.filter((x) => x !== optKey);
-                  handleFieldChange(updated);
-                  // mimic RHF event for arrays
-                  (rhfOnChange as any)({ target: { value: updated } });
-                  saveCurrentPageData();
-                }}
-                onBlur={(e) => {
-                  rhfOnBlur(e);
-                  saveCurrentPageData();
-                }}
-                style={{ accentColor: theme.colors.primary }}
-              />
-              <span>{optLabel}</span>
-            </label>
-          ))}
-        </div>
-
-        {selectedValues.length > 0 && (
-          <button
-            className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
-            style={{ backgroundColor: theme.colors.primary }}
-            type="button"
-            onClick={() => {
-              handleFieldChange([]);
-              saveCurrentPageData();
-            }}
-          >
-            Clear All
-          </button>
-        )}
-      </div>
     );
   }
 
@@ -275,108 +618,525 @@ export default function FieldRenderer(props: FieldRendererProps) {
     ];
 
     return (
-      <div>
-        <button
-          type="button"
-          onClick={() => controller.openNew(field)}
-          className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
-          style={{ backgroundColor: theme.colors.primary }}
-        >
-          +{" "}
-          {field.reference_button_text?.[language] ||
-            field.reference_button_text?.eng ||
-            "+ Child Step"}
-        </button>
+        <div>
+          <button
+            type="button"
+            onClick={() => controller.openNew(field)}
+            className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
+            style={{ backgroundColor: theme.colors.primary }}
+          >
+            +{" "}
+            {field.reference_button_text?.[language] ||
+              field.reference_button_text?.eng ||
+              "+ Child Step"}
+          </button>
 
-        {children.length > 0 && (
-          <div className="mt-4 rounded border bg-gray-100 p-4">
-            <h4 className="mb-2 text-lg font-semibold">{childStepName}</h4>
-            <table className="w-full table-fixed border border-gray-300">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="w-64 border border-gray-300 px-4 py-2 text-left">
-                    Attributes
-                  </th>
-                  <th className="w-32 border border-gray-300 px-4 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {children.map((child) => (
-                  <tr key={child.id}>
-                    <td className="break-words border border-gray-300 px-4 py-2">
-                      {field.showing_attribute?.map((attr) => {
-                        const childStep = parsedSteps.find(
-                          (s) => s.id === field.ref
-                        );
-                        const childField =
-                          childStep?.pages?.[0]?.sections?.[0]?.fields?.find(
-                            (f) => f.id === attr
-                          );
-                        const label =
-                          childField?.labels?.[language]?.[attr] ||
-                          childField?.labels?.eng?.[attr] ||
-                          attr;
-                        return (
-                          <div
-                            key={attr}
-                            className="mt-2 text-sm text-gray-700"
-                          >
-                            <strong>{label}: </strong>
-                            <span>{child.data[attr] || "(No Data)"}</span>
-                          </div>
-                        );
-                      })}
-                    </td>
-                    <td className="border border-gray-300 px-4 py-2 text-center">
-                      <div className="flex justify-center space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => controller.editExisting(field, child)}
-                          className="mt-2 rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => controller.delete(field, child.id)}
-                          className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
-                          style={{ backgroundColor: theme.colors.primary }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+          {children.length > 0 && (
+            <div className="mt-4 rounded border bg-gray-100 p-4">
+              <h4 className="mb-2 text-lg font-semibold">{childStepName}</h4>
+              <table className="w-full table-fixed border border-gray-300">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th className="w-64 border border-gray-300 px-4 py-2 text-left">
+                      Attributes
+                    </th>
+                    <th className="w-32 border border-gray-300 px-4 py-2" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {children.map((child) => (
+                    <tr key={child.id}>
+                      <td className="break-words border border-gray-300 px-4 py-2">
+                        {field.showing_attribute?.map((attr) => {
+                          const childStep = parsedSteps.find(
+                            (s) => s.id === field.ref
+                          );
+                          const childField =
+                            childStep?.pages?.[0]?.sections?.[0]?.fields?.find(
+                              (f) => f.id === attr
+                            );
+                          const label =
+                            childField?.labels?.[language]?.[attr] ||
+                            childField?.labels?.eng?.[attr] ||
+                            attr;
+                          return (
+                            <div
+                              key={attr}
+                              className="mt-2 text-sm text-gray-700"
+                            >
+                              <strong>{label}: </strong>
+                              <span>{child.data[attr] || "(No Data)"}</span>
+                            </div>
+                          );
+                        })}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-center">
+                        <div className="flex justify-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => controller.editExisting(field, child)}
+                            className="mt-2 rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => controller.delete(field, child.id)}
+                            className="mt-2 rounded px-3 py-1 text-white hover:opacity-90"
+                            style={{ backgroundColor: theme.colors.primary }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
       </div>
     );
   }
 
-  // 6) DEFAULT TEXT
-  return (
-    <input
-      id={id}
-      name={rhfName}
-      type="text"
-      className="w-full rounded p-2"
-      style={fieldStyles}
-      value={value ?? ""}
-      ref={(el) => {
-        rhfRef(el);
-        registerFieldRef(field.id, el);
-      }}
-      onChange={(e) => {
-        rhfOnChange(e);
-        handleFieldChange(e.target.value);
-      }}
-      onBlur={(e) => {
-        rhfOnBlur(e);
-        saveCurrentPageData();
-      }}
-    />
+  // 3) BOOLEAN (without options - uses defaults)
+  if (field.type === "Boolean") {
+    const boolOpts = ['True', 'False'];
+    return (
+        <RadioGroup
+          value={value || ""}
+          onChange={(e) => {
+            handleFieldChange(e.target.value);
+            rhfOnChange(e);
+            saveCurrentPageData();
+          }}
+          row
+        >
+          {boolOpts.map((opt) => (
+            <FormControlLabel
+              key={opt}
+              value={opt.toLowerCase()}
+              control={<Radio size="small" />}
+              label={<span className="text-sm">{opt}</span>}
+            />
+        ))}
+      </RadioGroup>
   );
+}
+
+// 4) ARRAY[BOOLEAN] (without options)
+if (field.type === "Array[Boolean]") {
+  const boolOpts = ['True', 'False', 'Yes', 'No', '1', '0'];
+  const selectedValues = Array.isArray(value) ? value : [];
+  
+  return (
+        <Box>
+          {selectedValues.length > 0 && (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+              {selectedValues.map((val: string, idx: number) => (
+                <Chip
+                  key={idx}
+                  label={val}
+                  size="small"
+                  onDelete={() => {
+                    const updated = selectedValues.filter((_: any, i: number) => i !== idx);
+                    handleFieldChange(updated);
+                    saveCurrentPageData();
+                  }}
+                />
+              ))}
+            </Box>
+          )}
+          <FormGroup>
+            {boolOpts.map((opt) => (
+              <FormControlLabel
+                key={opt}
+                control={
+                  <Checkbox
+                    checked={selectedValues.includes(opt)}
+                    onChange={(e) => {
+                      const updated = e.target.checked
+                        ? [...selectedValues, opt]
+                        : selectedValues.filter((v: string) => v !== opt);
+                      handleFieldChange(updated);
+                      (rhfOnChange as any)({ target: { value: updated } });
+                      saveCurrentPageData();
+                    }}
+                    size="small"
+                  />
+                }
+                label={<span className="text-sm">{opt}</span>}
+              />
+        ))}
+      </FormGroup>
+    </Box>
+);
+}
+
+// 5) NUMERIC
+if (field.type === "Numeric") {
+  const placeholder = typeof field.placeholder === 'string' 
+    ? field.placeholder 
+    : (field.placeholder?.[language] || "");
+    
+    const [numericError, setNumericError] = React.useState<string | null>(null);
+    const [inputValue, setInputValue] = React.useState<string>(value?.toString() || "");
+    
+    React.useEffect(() => {
+      setInputValue(value?.toString() || "");
+    }, [value]);
+    
+  return (
+        <TextField
+        type="text"  // Changed from "number" to allow format validation
+          fullWidth
+          size="small"
+        value={inputValue}
+        error={!!numericError}
+        helperText={numericError}
+        onChange={(e) => {
+          const inputVal = e.target.value;
+          setInputValue(inputVal);
+          
+          if (!inputVal) {
+            setNumericError(null);
+            handleFieldChange("");
+            rhfOnChange(e);
+            return;
+          }
+          
+          const num = parseFloat(inputVal);
+          
+          // Use FieldValidator for all validation logic (pass string for validation)
+          const validationError = FieldValidator.validate(field, inputVal, language);
+          
+          if (validationError) {
+            setNumericError(validationError);
+            handleFieldChange("");
+            rhfOnChange(e);
+            return;
+          }
+          
+          // Valid number
+          setNumericError(null);
+          handleFieldChange(num);
+          rhfOnChange(e);
+        }}
+      onBlur={saveCurrentPageData}
+      placeholder={placeholder}
+    />
+);
+}
+
+// 6) ARRAY[NUMERIC]
+if (field.type === "Array[Numeric]") {
+  const selectedValues = Array.isArray(value) ? value : [];
+  const placeholder = typeof field.placeholder === 'string' 
+    ? field.placeholder 
+    : (field.placeholder?.[language] || "");
+  
+    const [inputError, setInputError] = React.useState<string | null>(null);
+    
+  return (
+        <Box>
+          {selectedValues.length > 0 && (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+              {selectedValues.map((val: number, idx: number) => (
+                <Chip
+                  key={idx}
+                  label={String(val)}
+                  size="small"
+                  onDelete={() => {
+                    const updated = selectedValues.filter((_: any, i: number) => i !== idx);
+                    handleFieldChange(updated);
+                    saveCurrentPageData();
+                  }}
+                />
+              ))}
+            </Box>
+          )}
+          <TextField
+          type="text"  // Changed from "number" to allow validation
+            fullWidth
+            size="small"
+            placeholder={placeholder}
+          error={!!inputError}
+          helperText={inputError}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const inputVal = (e.target as HTMLInputElement).value.trim();
+              
+              if (!inputVal) {
+                return;
+              }
+              
+              const num = parseFloat(inputVal);
+              
+              const validationError = FieldValidator.validate(field, inputVal, language);
+              
+              if (validationError) {
+                setInputError(validationError);
+                return;
+              }
+              
+              setInputError(null);
+              handleFieldChange([...selectedValues, num]);
+              (e.target as HTMLInputElement).value = '';
+            }
+          }}
+          onChange={() => setInputError(null)}
+      />
+    </Box>
+);
+}
+
+  // 7) ARRAY[DATETIME] 
+  if (field.type === "Array[DateTime]") {
+    const selectedValues = Array.isArray(value) ? value : [];
+    
+    const { inputType, placeholder: detectedPlaceholder } = DateTimeDetector.detect(field.validation?.format);
+    
+    const placeholder = typeof field.placeholder === 'string' 
+      ? field.placeholder 
+      : (field.placeholder?.[language] || detectedPlaceholder);
+    
+    const [inputError, setInputError] = React.useState<string | null>(null);
+    
+    return (
+      <Box>
+        {selectedValues.length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+            {selectedValues.map((val: string, idx: number) => (
+              <Chip
+                key={idx}
+                label={val}
+                size="small"
+                onDelete={() => {
+                  const updated = selectedValues.filter((_: any, i: number) => i !== idx);
+                  handleFieldChange(updated);
+                  saveCurrentPageData();
+                }}
+              />
+            ))}
+          </Box>
+        )}
+        <Box>
+          <input
+            type={inputType}
+            placeholder={placeholder}
+            className="w-full rounded p-2"
+            style={{
+              ...fieldStyles,
+              height: '40px',
+              fontSize: '0.875rem'
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const val = (e.target as HTMLInputElement).value.trim();
+                if (val) {
+                  const validationError = FieldValidator.validate(field, val, language);
+                  
+                  if (validationError) {
+                    setInputError(validationError);
+                    return;
+                  }
+                  
+                  setInputError(null);
+                  handleFieldChange([...selectedValues, val]);
+                  (e.target as HTMLInputElement).value = '';
+                }
+              }
+            }}
+            onChange={() => setInputError(null)}
+          />
+          {inputError && (
+            <Typography variant="caption" sx={{ color: theme.colors.secondary, display: 'block', mt: 0.5 }}>
+              {inputError}
+            </Typography>
+          )}
+          <Typography variant="caption" sx={{ color: theme.colors.grey[600], display: 'block', mt: 0.5 }}>
+            Select a date/time and press Enter to add
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
+// 8) BINARY
+if (field.type === "Binary") {
+  const formatStr = field.validation?.format || "";
+  const { icon, hint } = getFileTypeInfo(formatStr);
+  
+  return (
+        <Box
+          sx={{
+            border: '2px dashed #a8a8a8',
+            borderRadius: 1,
+            p: 2,
+            textAlign: 'center',
+            backgroundColor: '#F5F5F5',
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.onchange = (e: any) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleFieldChange(file);
+                saveCurrentPageData();
+              }
+            };
+            input.click();
+          }}
+        >
+          {value && typeof value === 'object' && value.name && (
+            <Box sx={{ mb: 1 }}>
+              <Chip
+                label={value.name}
+                size="small"
+                onDelete={() => {
+                  handleFieldChange(null);
+                  saveCurrentPageData();
+                }}
+              />
+            </Box>
+          )}
+          <span className="text-base">{icon} File upload area</span>
+          <div className="text-xs text-gray-500 mt-2">Click or drag file to upload</div>
+      {hint && <div className="text-xs mt-1 font-semibold" style={{ color: '#94002a' }}>Accepts: {hint}</div>}
+    </Box>
+);
+}
+
+// 9) ARRAY[BINARY]
+if (field.type === "Array[Binary]") {
+  const selectedFiles = Array.isArray(value) ? value : [];
+  const formatStr = field.validation?.format || "";
+  const { icon, hint } = getFileTypeInfo(formatStr);
+  
+  return (
+        <Box>
+          {selectedFiles.length > 0 && (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+              {selectedFiles.map((file: any, idx: number) => (
+                <Chip
+                  key={idx}
+                  label={typeof file === 'string' ? file : (file?.name || `file${idx + 1}`)}
+                  size="small"
+                  onDelete={() => {
+                    const updated = selectedFiles.filter((_: any, i: number) => i !== idx);
+                    handleFieldChange(updated);
+                    saveCurrentPageData();
+                  }}
+                />
+              ))}
+            </Box>
+          )}
+          <Box
+            sx={{
+              border: '2px dashed #a8a8a8',
+              borderRadius: 1,
+              p: 2,
+              textAlign: 'center',
+              backgroundColor: '#F5F5F5',
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.multiple = true;
+              input.onchange = (e: any) => {
+                const files = Array.from(e.target.files);
+                handleFieldChange([...selectedFiles, ...files]);
+                saveCurrentPageData();
+              };
+              input.click();
+            }}
+          >
+            <span className="text-base">{icon} File upload area</span>
+            <div className="text-xs text-gray-500 mt-2">Multiple files - Click or drag to upload</div>
+      {hint && <div className="text-xs mt-1 font-semibold" style={{ color: '#94002a' }}>Accepts: {hint}</div>}
+    </Box>
+  </Box>
+);
+}
+
+  // 10) ARRAY[TEXT] (without entry codes)
+  if (field.type === "Array[Text]") {
+    const selectedValues = Array.isArray(value) ? value : [];
+    const placeholder = typeof field.placeholder === 'string' 
+      ? field.placeholder 
+      : (field.placeholder?.[language] || "");
+    
+    const [inputError, setInputError] = React.useState<string | null>(null);
+    
+    return (
+      <Box>
+        {selectedValues.length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+            {selectedValues.map((val: string, idx: number) => (
+              <Chip
+                key={idx}
+                label={val}
+                size="small"
+                onDelete={() => {
+                  const updated = selectedValues.filter((_: any, i: number) => i !== idx);
+                  handleFieldChange(updated);
+                  saveCurrentPageData();
+                }}
+              />
+            ))}
+          </Box>
+        )}
+        <TextField
+          fullWidth
+          size="small"
+          placeholder={placeholder}
+          error={!!inputError}
+          helperText={inputError}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const val = (e.target as HTMLInputElement).value.trim();
+              if (val) {
+                const validationError = FieldValidator.validate(field, val, language);
+                
+                if (validationError) {
+                  setInputError(validationError);
+                  return;
+                }
+                
+                setInputError(null);
+                handleFieldChange([...selectedValues, val]);
+                (e.target as HTMLInputElement).value = '';
+              }
+            }
+          }}
+          onChange={() => setInputError(null)}
+        />
+      </Box>
+    );
+  }
+
+// 11) DEFAULT TEXT
+return (
+      <TextField
+        fullWidth
+        size="small"
+        value={value ?? ""}
+        onChange={(e) => {
+          handleFieldChange(e.target.value);
+          rhfOnChange(e);
+        }}
+        onBlur={saveCurrentPageData}
+        placeholder={
+          typeof field.placeholder === 'string' 
+            ? field.placeholder 
+            : (field.placeholder?.[language] || "")
+      }
+    />
+);
 }

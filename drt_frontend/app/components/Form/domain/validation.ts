@@ -1,5 +1,9 @@
 // drt_frontend/app/components/Form/domain/validation.ts
 
+import * as Yup from "yup";
+import { OcaFormatParser } from "../../parser/utils/regex-parser";
+import { FormatMessageGenerator } from "../../parser/utils/format-messages";
+
 export type FieldErrors = Record<string, string>;
 
 export interface FieldValidationMeta {
@@ -14,7 +18,7 @@ export interface FieldLike {
   id: string;
   type: string;
   validation?: FieldValidationMeta;
-  options?: Record<string, Record<string, string[]>>; // options[lang][fieldId] -> allowed[]
+  options?: Record<string, Record<string, string[]>>;
   [k: string]: any;
 }
 
@@ -28,7 +32,6 @@ export interface StepLikeForValidation {
 }
 
 export interface ValueProvider {
-  /** Return user input for a given field; single string or array for multi-selects */
   get(field: FieldLike): string | string[];
 }
 
@@ -57,24 +60,59 @@ export class FieldValidator {
     const v = field.validation ?? {};
     const { conformance, format, entryCodes, characterEncoding } = v;
 
-    const checkOne = (value: string): string | null => {
-      if (format && !new RegExp(format).test(value)) {
-        return `Please match the format: ${format}`;
+    //1. Format validation
+    const checkOne = (value: any): string | null => {
+      if (!value && conformance !== "M") {
+        return null;
       }
-      if (entryCodes && entryCodes.length > 0 && !entryCodes.includes(value)) {
-        return `Value must be one of: ${entryCodes.join(", ")}`;
+      
+      const stringValue = String(value);
+      
+      if (format) {
+        if (field.type === "Binary" || field.type === "Array[Binary]") {
+          if (value instanceof File) {
+            if (!OcaFormatParser.test(format, value.type)) {
+              return FormatMessageGenerator.getErrorMessage(field.type, format);
+            }
+          } else if (stringValue) {
+            if (!OcaFormatParser.test(format, stringValue)) {
+              return FormatMessageGenerator.getErrorMessage(field.type, format);
+            }
+          }
+        } else {
+          if (!OcaFormatParser.test(format, stringValue)) {
+            return FormatMessageGenerator.getErrorMessage(field.type, format);
+          }
+        }
       }
-      if (characterEncoding === "utf-8" && !Utf8Codec.isValid(value)) {
+      
+      // 2. Entry codes validation - use options as primary data source
+      const optionsData = field.options?.[language]?.[field.id];
+      if (optionsData) {
+        if (Array.isArray(optionsData)) {
+          if (optionsData.length > 0 && !optionsData.includes(stringValue)) {
+            return `Value must be one of: ${optionsData.join(", ")}`;
+          }
+        } else if (typeof optionsData === 'object') {
+          const validKeys = Object.keys(optionsData);
+          if (validKeys.length > 0 && !validKeys.includes(stringValue)) {
+            return `Value must be one of: ${validKeys.join(", ")}`;
+          }
+        }
+      } else if (entryCodes && entryCodes.length > 0) {
+        if (!entryCodes.includes(stringValue)) {
+          return `Value must be one of: ${entryCodes.join(", ")}`;
+        }
+      }
+      
+      // 3. Character encoding validation
+      if (characterEncoding === "utf-8" && !Utf8Codec.isValid(stringValue)) {
         return "Invalid UTF-8 characters detected.";
       }
-      const allowed = field.options?.[language]?.[field.id];
-      if (Array.isArray(allowed) && allowed.length > 0 && !allowed.includes(value)) {
-        return `Value must be one of these: ${allowed.join(", ")}`;
-      }
+      
       return null;
     };
 
-    // Required
     if (conformance === "M") {
       const empty =
         (typeof userInput === "string" && userInput.length === 0) ||
@@ -82,25 +120,43 @@ export class FieldValidator {
       if (empty) return "This field is required.";
     }
 
-    if (typeof userInput === "string") {
+    if (Array.isArray(userInput) && v.cardinality) {
+      const { min, max } = v.cardinality;
+      
+      if (typeof min === "number" && userInput.length < min) {
+        return `At least ${min} ${min === 1 ? 'item' : 'items'} required`;
+      }
+      
+      if (typeof max === "number" && userInput.length > max) {
+        return `At most ${max} ${max === 1 ? 'item' : 'items'} allowed`;
+      }
+    }
+
+    if (typeof userInput === "string" || typeof userInput === "number" || 
+        userInput instanceof File || typeof userInput === "boolean") {
       return checkOne(userInput);
     }
 
     if (Array.isArray(userInput)) {
-      for (const item of userInput) {
+      for (let i = 0; i < userInput.length; i++) {
+        const item = userInput[i];
+        
+        if (!item && conformance !== "M") {
+          continue;
+        }
+        
         const err = checkOne(item);
         if (err) {
-          // Make array-specific message clearer if needed
           if (err.startsWith("Value must be one of")) {
             return `Each item must be one of: ${err.replace("Value must be one of: ", "")}`;
           }
-          if (err.startsWith("Please match the format")) {
-            return err.replace("Please", "Each item must");
+          if (err.startsWith("Please")) {
+            return `Item ${i + 1}: ${err}`;
           }
           if (err === "Invalid UTF-8 characters detected.") {
-            return "Invalid UTF-8 characters in one or more items.";
+            return `Invalid UTF-8 characters in item ${i + 1}.`;
           }
-          return err;
+          return `Item ${i + 1}: ${err}`;
         }
       }
     }
@@ -136,11 +192,6 @@ export class PageValidator {
       section.fields.forEach((field) => {
         const input = this.valueProvider.get(field);
 
-        if (typeof input === "string" && !Utf8Codec.isValid(input)) {
-          // Non-fatal warning (kept from your original behavior)
-          console.warn(`Field "${field.id}" has invalid UTF-8 characters`);
-        }
-
         const err = FieldValidator.validate(field, input, this.language);
         if (err) {
           ok = false;
@@ -150,5 +201,66 @@ export class PageValidator {
     });
 
     return { ok, errors };
+  }
+}
+
+
+type ParsedStepLike = {
+  id: string;
+  pages: Array<{
+    sections: Array<{
+      fields: Array<
+        {
+          id: string;
+          type: string;
+          validation?: FieldValidationMeta;
+          options?: Record<string, Record<string, string[]>>;
+        } & Record<string, any>
+      >;
+    }>;
+  }>;
+};
+
+
+export class YupSchemaFactory {
+  build(steps: ParsedStepLike[]): Yup.ObjectSchema<any> {
+    const shape: Record<string, Yup.ObjectSchema<any>> = {};
+    const defaultLanguage = "eng";
+
+    steps.forEach((step) => {
+      const fieldsShape: Record<string, any> = {};
+
+      step.pages.forEach((page) =>
+        page.sections.forEach((section) =>
+          section.fields.forEach((field) => {
+            let schema: Yup.Schema<any>;
+
+            if (field.type === "Numeric" || field.type === "Array[Numeric]") {
+              schema = field.type.startsWith("Array[") 
+                ? Yup.array().of(Yup.number())
+                : Yup.number();
+            } else if (field.type.startsWith("Array[")) {
+              schema = Yup.array().of(Yup.mixed());
+            } else {
+              schema = Yup.mixed();
+            }
+
+            schema = schema.test(
+              "oca-validation",
+              (value: any) => {
+                const error = FieldValidator.validate(field as FieldLike, value, defaultLanguage);
+                return error === null;
+              }
+            );
+
+            fieldsShape[field.id] = schema;
+          })
+        )
+      );
+
+      shape[step.id] = Yup.object().shape(fieldsShape);
+    });
+
+    return Yup.object().shape(shape);
   }
 }

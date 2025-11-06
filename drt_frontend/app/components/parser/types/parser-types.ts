@@ -24,6 +24,7 @@ export interface OverlayData {
   entryCodes: Record<string, string[] | undefined>;
   characterEncoding: Record<string, any>;
   format: Record<string, any>;
+  descriptions?: Record<string, Record<string, string>>;  
 }
 
 

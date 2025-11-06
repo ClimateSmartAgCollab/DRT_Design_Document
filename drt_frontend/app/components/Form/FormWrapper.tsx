@@ -16,7 +16,6 @@ import { useDynamicForm } from "../Form/hooks/useDynamicForm";
 import { useFormData } from "../Form/context/FormDataContext";
 import { buildValidationSchema } from "./hooks/useDynamicForm/validationSchema";
 import { useTheme } from "./hooks/useTheme";
-import { isValid__UTF8 } from "./hooks/useDynamicForm/utils";
 
 import FormHeader from "./FormHeader";
 import FieldRenderer from "./FieldRenderer";
@@ -51,9 +50,12 @@ export default function FormWrapper({
   const parsedSteps = useMemo(() => {
     if (questionnaireJson) {
       try {
-        return parseJsonToFormStructure(questionnaireJson);
-      } catch {
-        setError("Failed to parse questionnaire structure");
+        const steps = parseJsonToFormStructure(questionnaireJson);
+        // console.log("Parsed steps:", steps);
+        return steps;
+      } catch (err) {
+        console.error("Parser error:", err);
+        setError(`Failed to parse questionnaire structure: ${err instanceof Error ? err.message : String(err)}`);
         return [];
       }
     }
@@ -63,8 +65,9 @@ export default function FormWrapper({
   const validationSchema = useMemo(() => {
     try {
       return buildValidationSchema(parsedSteps);
-    } catch {
-      setError("Failed to build validation schema");
+    } catch (err) {
+      console.error("Validation schema build error:", err);
+      setError(`Failed to build validation schema: ${err instanceof Error ? err.message : String(err)}`);
       return yup.object({});
     }
   }, [parsedSteps]);
@@ -451,6 +454,16 @@ export default function FormWrapper({
                         >
                           {field.labels[language]?.[field.id] ||
                             field.labels.eng?.[field.id]}
+                          {field.validation?.conformance === "M" && (
+                            <span
+                              style={{ 
+                                color: theme.colors.secondary || "#ff0000", 
+                                marginLeft: "4px" 
+                              }}
+                            >
+                              *
+                            </span>
+                          )}
                         </label>
 
                         <FieldRenderer
@@ -465,22 +478,12 @@ export default function FormWrapper({
                             methods.setValue(name, newVal);
                           }}
                           saveCurrentPageData={() => {}}
-                          formData={formData}
-                          stepId={step.id}
-                          createNewChild={createNewChild}
-                          editExistingChild={editExistingChild}
-                          deleteChild={deleteChild}
                           onNavigate={onNavigate}
                           parsedSteps={parsedSteps}
                           parentFormData={parentFormData}
-                          currentChildId={currentChildId}
-                          currentChildParentId={currentChildParentId}
-                          isNewChild={isNewChild}
                           setIsNewChild={setIsNewChild}
                           setCurrentChildId={setCurrentChildId}
                           setCurrentChildParentId={setCurrentChildParentId}
-                          fieldErrors={fieldErrors}
-                          isValid__UTF8={isValid__UTF8}
                           clearCurrentStepFormData={clearCurrentStepFormData}
                         />
 

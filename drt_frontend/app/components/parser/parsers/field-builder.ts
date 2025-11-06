@@ -11,6 +11,7 @@ export class FieldFactory {
   private readonly characterEncoding = this.dto.characterEncoding ?? {};
   private readonly format = this.dto.format ?? {};
   private readonly cardinalityRules = this.dto.cardinalityRules ?? {};
+  private readonly descriptions = this.dto.descriptions ?? {};
 
   constructor(
     private readonly snapshot: OverlaySnapshot,
@@ -35,6 +36,9 @@ export class FieldFactory {
       value: typeInfo?.value,
       ref: undefined,
       placeholder: typeInfo?.placeholder,
+      description: this.descriptions[fieldId],
+      inputType: typeInfo?.input_type,
+      booleanOptions: Array.isArray(typeInfo?.options) ? typeInfo.options : undefined,
       validation: {
         conformance: this.conformance[fieldId],
         entryCodes: this.entryCodes[fieldId],

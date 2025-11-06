@@ -1,6 +1,6 @@
 // drt_frontend/app/components/Form/hooks/useDynamicForm/validationSchema.ts
 import type * as Yup from "yup";
-import { YupSchemaFactory } from "../../domain/validation-schema";
+import { YupSchemaFactory } from "../../domain/validation";
 import type { ParsedStep } from "../../types";
 
 

@@ -1,7 +1,7 @@
 import { Bundle, Dependency, AdcForm, ArgumentType } from "../../type";
 import { OverlayData, StepMeta } from "../types/parser-types";
 import { EntityLocator, DefaultEntityLocator } from "../utils/entity-lookup";
-import { Arrays, Numbers } from "../utils/helpers";
+import { Arrays, Numbers, Lang } from "../utils/helpers";
 
 
 export class OverlaySnapshot {
@@ -23,43 +23,50 @@ export class OverlaySnapshot {
   }
 
   labelsFor(fieldId: string): Record<string, Record<string, string>> {
-    const out: Record<string, Record<string, string>> = {
-      [this.defaultLang]: { [fieldId]: "" },
-    };
-    for (const lang of Object.keys(this.data.labels ?? {})) {
-      const byLang = this.data.labels[lang];
-      if (byLang && typeof byLang[fieldId] === "string") {
-        out[lang] = { [fieldId]: byLang[fieldId] };
-      }
-    }
-    return out;
+    return this.extractByLanguage(
+      this.data.labels,
+      fieldId,
+      "",
+      (value) => typeof value === "string"
+    );
   }
 
   optionsFor(fieldId: string): Record<string, Record<string, string[]>> {
-    const out: Record<string, Record<string, string[]>> = {
-      [this.defaultLang]: { [fieldId]: [] },
-    };
-    for (const lang of Object.keys(this.data.options ?? {})) {
-      const byLang = this.data.options[lang];
-      if (byLang && Array.isArray(byLang[fieldId])) {
-        out[lang] = { [fieldId]: byLang[fieldId] };
-      }
-    }
-    return out;
+    return this.extractByLanguage(
+      this.data.options,
+      fieldId,
+      [],
+      (value) => Array.isArray(value)
+    );
   }
 
-  optionLabelsFor(
-    fieldId: string
-  ): Record<string, Record<string, Record<string, string>>> {
-    const out: Record<string, Record<string, Record<string, string>>> = {
-      [this.defaultLang]: { [fieldId]: {} },
+  optionLabelsFor(fieldId: string): Record<string, Record<string, Record<string, string>>> {
+    return this.extractByLanguage(
+      this.data.optionLabels,
+      fieldId,
+      {},
+      (value) => value !== undefined
+    );
+  }
+
+  private extractByLanguage<T>(
+    dataSource: Record<string, Record<string, T>> | undefined,
+    fieldId: string,
+    defaultValue: T,
+    validator: (value: T) => boolean
+  ): Record<string, Record<string, T>> {
+    const out: Record<string, Record<string, T>> = {
+      [this.defaultLang]: { [fieldId]: defaultValue },
     };
-    for (const lang of Object.keys(this.data.optionLabels ?? {})) {
-      const byLang = this.data.optionLabels[lang];
-      if (byLang && byLang[fieldId]) {
-        out[lang] = { [fieldId]: byLang[fieldId] };
+    
+    for (const lang of Object.keys(dataSource ?? {})) {
+      const byLang = dataSource?.[lang];
+      const value = byLang?.[fieldId];
+      if (value !== undefined && validator(value)) {
+        out[lang] = { [fieldId]: value };
       }
     }
+    
     return out;
   }
 }
@@ -92,6 +99,7 @@ export class OverlayExtractor {
           entryCodes: {},
           characterEncoding: {},
           format: {},
+          descriptions: {},
         },
         this.defaultLang
       );
@@ -137,38 +145,30 @@ export class OverlayExtractor {
       });
     }
 
-    const interaction = this.locator.getInteractionArgs(
-      captureBase,
-      this.presentations
-    );
-    Object.keys(interaction).forEach((k) => {
-      types[k] = interaction[k];
+    
+    const allLanguages = this.getLanguagesForCaptureBase(captureBase);
+    const fieldInteractionsByLang = this.collectInteractionsByLanguage(captureBase, allLanguages);
+    
+    
+    Object.entries(fieldInteractionsByLang).forEach(([fieldId, langMap]) => {
+      const baseArgs = langMap[this.defaultLang] || Object.values(langMap)[0];
+      const placeholders = this.extractPlaceholders(langMap, allLanguages);
+      
+      const { placeholder: _, ...baseArgsWithoutPlaceholder } = baseArgs || {};
+      types[fieldId] = {
+        ...baseArgsWithoutPlaceholder,
+        ...(Object.keys(placeholders).length > 0 ? { placeholder: placeholders } : {}),
+      };
     });
 
-    if (entity.overlays?.conformance?.attribute_conformance) {
-      Object.assign(
-        conformance,
-        entity.overlays.conformance.attribute_conformance
-      );
-    }
 
-    if (entity.overlays?.entry_code?.attribute_entry_codes) {
-      Object.assign(
-        entryCodes,
-        entity.overlays.entry_code.attribute_entry_codes
-      );
-    }
+    const knownFieldIds = new Set(Object.keys(entity.capture_base?.attributes || {}));
+    const fieldDescriptions = this.extractFieldDescriptions(captureBase, knownFieldIds);
 
-    if (entity.overlays?.character_encoding?.attribute_character_encoding) {
-      Object.assign(
-        characterEncoding,
-        entity.overlays.character_encoding.attribute_character_encoding
-      );
-    }
-
-    if (entity.overlays?.format?.attribute_formats) {
-      Object.assign(format, entity.overlays.format.attribute_formats);
-    }
+    Object.assign(conformance, entity.overlays?.conformance?.attribute_conformance ?? {});
+    Object.assign(entryCodes, entity.overlays?.entry_code?.attribute_entry_codes ?? {});
+    Object.assign(characterEncoding, entity.overlays?.character_encoding?.attribute_character_encoding ?? {});
+    Object.assign(format, entity.overlays?.format?.attribute_formats ?? {});
 
     return new OverlaySnapshot(
       {
@@ -181,6 +181,7 @@ export class OverlayExtractor {
         entryCodes,
         characterEncoding,
         format,
+        descriptions: fieldDescriptions,
       },
       this.defaultLang
     );
@@ -205,5 +206,98 @@ export class OverlayExtractor {
     });
 
     return { names, descriptions };
+  }
+
+  private getLanguagesForCaptureBase(captureBase: string): Set<string> {
+    const languages = new Set<string>();
+    if (this.presentations) {
+      this.presentations
+        .filter((p) => p.capture_base === captureBase)
+        .forEach((p) => languages.add(Lang.normalize(p.language)));
+    }
+    return languages;
+  }
+
+  private collectInteractionsByLanguage(
+    captureBase: string,
+    languages: Set<string>
+  ): Record<string, Record<string, ArgumentType>> {
+    const fieldInteractionsByLang: Record<string, Record<string, ArgumentType>> = {};
+    
+    languages.forEach((lang) => {
+      const interaction = this.locator.getInteractionArgs(captureBase, this.presentations, lang);
+      Object.entries(interaction).forEach(([fieldId, args]) => {
+        if (!fieldInteractionsByLang[fieldId]) {
+          fieldInteractionsByLang[fieldId] = {};
+        }
+        fieldInteractionsByLang[fieldId][lang] = args;
+      });
+    });
+    
+    return fieldInteractionsByLang;
+  }
+
+  private extractPlaceholders(
+    langMap: Record<string, ArgumentType>,
+    languages: Set<string>
+  ): Record<string, string> {
+    const placeholders: Record<string, string> = {};
+    
+    languages.forEach((lang) => {
+      const args = langMap[lang];
+      if (!args?.placeholder) return;
+      
+      const placeholderValue: any = args.placeholder;
+      const extractedValue = this.extractPlaceholderValue(placeholderValue, lang);
+      
+      if (extractedValue) {
+        placeholders[lang] = extractedValue;
+      }
+    });
+    
+    return placeholders;
+  }
+
+  private extractPlaceholderValue(placeholderValue: any, lang: string): string | null {
+    if (typeof placeholderValue === 'string') {
+      const trimmed = placeholderValue.trim();
+      return trimmed !== '' ? placeholderValue : null;
+    }
+    
+    if (typeof placeholderValue === 'object' && placeholderValue[lang]) {
+      const langValue = placeholderValue[lang];
+      if (typeof langValue === 'string') {
+        const trimmed = langValue.trim();
+        return trimmed !== '' ? langValue : null;
+      }
+    }
+    
+    return null;
+  }
+
+  private extractFieldDescriptions(
+    captureBase: string,
+    knownFieldIds: Set<string>
+  ): Record<string, Record<string, string>> {
+    const fieldDescriptions: Record<string, Record<string, string>> = {};
+    
+    if (!this.presentations) return fieldDescriptions;
+    
+    this.presentations.forEach((pres) => {
+      if (pres.capture_base !== captureBase || !pres.description) return;
+      
+      const lang = Lang.normalize(pres.language);
+      
+      Object.entries(pres.description).forEach(([key, value]) => {
+        if (typeof value === 'string' && knownFieldIds.has(key)) {
+          if (!fieldDescriptions[key]) {
+            fieldDescriptions[key] = {};
+          }
+          fieldDescriptions[key][lang] = value;
+        }
+      });
+    });
+    
+    return fieldDescriptions;
   }
 }

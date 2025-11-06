@@ -15,7 +15,7 @@ UI is kept as **pure React views**, while business rules live in **TypeScript do
 
 * **View (React):** `FormWrapper`, `FieldRenderer`, `ReviewSection`, `Sidebar`, etc.
 * **View-Model / Controllers (Hooks):** `useDynamicFormCore`, `usePageNavigation`, `useHandleNavigate`
-* **Domain Services (OO):** `ReferenceFieldController`, `StepTreeBuilder`, `SubheadingFormatter`, `DateTimeFormatResolver`, `OptionsMapper`, `FormHeaderVM`, `ChildReviewPresenter`, `StepIndexResolver`
+* **Domain Services (OO):** `ReferenceFieldController`, `StepTreeBuilder`, `SubheadingFormatter`, `FormHeaderVM`, `ChildReviewPresenter`, `StepIndexResolver`
 * **Repository:** `FormDataContext` (CRUD APIs, in-memory store with sessionStorage sync)
 
 ---
@@ -25,7 +25,7 @@ UI is kept as **pure React views**, while business rules live in **TypeScript do
 * **Repository:** `FormDataContext` (CRUD + queries for parent/child)
 * **Facade / Orchestrator:** `useDynamicFormCore`, `ReferenceFieldController`
 * **Mediator:** `usePageNavigation` (coordinates validation + navigation)
-* **Strategy:** validation rules (`validation.ts`, `validationSchema.ts`), input format mapping (`DateTimeFormatResolver`)
+* **Strategy:** validation rules (`validation.ts`, `validationSchema.ts`)
 * **Builder:** `validationSchema.ts` builds nested Yup schema
 * **Composite:** Steps → Pages → Sections → Fields (`steps.ts`, `step-tree.ts`)
 * **Adapter:** `FieldRenderer` adapts domain fields to `react-hook-form`

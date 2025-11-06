@@ -154,6 +154,16 @@ export default function ReviewSection({
                                 {field.labels[language]?.[field.id] ||
                                   field.labels.eng?.[field.id] ||
                                   "No label"}
+                                {field.validation?.conformance === "M" && (
+                                  <span
+                                    style={{ 
+                                      color: theme.colors.secondary || "#ff0000", 
+                                      marginLeft: "4px" 
+                                    }}
+                                  >
+                                    *
+                                  </span>
+                                )}
                               </label>
                               <ChildReview
                                 field={field}
@@ -174,6 +184,16 @@ export default function ReviewSection({
                             >
                               {field.labels[language]?.[field.id] ||
                                 field.labels.eng?.[field.id]}
+                              {field.validation?.conformance === "M" && (
+                                <span
+                                  style={{ 
+                                    color: theme.colors.secondary || "#ff0000", 
+                                    marginLeft: "4px" 
+                                  }}
+                                >
+                                  *
+                                </span>
+                              )}
                             </label>
                             <div
                               className="mt-1 break-words"

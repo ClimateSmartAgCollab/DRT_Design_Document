@@ -143,13 +143,14 @@ export interface AdcForm {
   d: string;
   type: string;
   capture_base: string;
-  language: string[];
+  language: string | string[]; 
   pages: Page[];
   page_order: string[];
-  page_labels: LangMap<LangMap<string>>;
-  sidebar_label: LangMap<LangMap<string>>;
-  subheading: LangMap<LangMap<string>>;
-  title?: LangMap<string>;
+  page_labels: LangMap<string> | LangMap<LangMap<string>>;
+  sidebar_label: LangMap<string> | LangMap<LangMap<string>>;
+  subheading?: LangMap<string> | LangMap<LangMap<string>>;
+  title?: string | LangMap<string>; 
+  description?: LangMap<string> | LangMap<LangMap<string>>; 
   interaction: Interaction[];
 }
 
@@ -207,6 +208,9 @@ export interface ArgumentType {
   placeholder?: LangMap<string>;
   reference_button_text?: LangMap<string>;
   showing_attribute?: string[];
+  description?: LangMap<string>;  
+  input_type?: string;             
+  options?: string[];             
 }
 
 export interface Reference {
@@ -226,6 +230,9 @@ export interface Field {
   placeholder?: Record<string, string>;
   reference_button_text?: Record<string, string>;
   showing_attribute?: string[];
+  description?: Record<string, string>;  
+  inputType?: string;                    
+  booleanOptions?: string[];             
   validation: {
     conformance?: 'M' | 'O';
     format?: string;

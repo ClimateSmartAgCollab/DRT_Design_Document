@@ -9,10 +9,14 @@ import {
 import { Lang } from "../utils/helpers";
 
 export class PresentationParser {
-  constructor(private readonly presentation: AdcForm) {}
+  constructor(
+    private readonly presentation: AdcForm,
+    private readonly allLanguagePresentations?: AdcForm[]
+  ) {}
 
   parse(fields: Field[]): Page_parsed[] {
     const pres = this.presentation;
+    const presLang = this.getLanguage();
 
     return (pres.page_order ?? [])
       .map((pageKey) => {
@@ -32,8 +36,8 @@ export class PresentationParser {
             const grp = sectionOrField as AttributeGroup;
             return {
               sectionKey: grp.named_section,
-              sectionLabel: Lang.pick(pres.page_labels, grp.named_section),
-              subheading: Lang.pick(pres.subheading, grp.named_section),
+              sectionLabel: this.pickLabel('page_labels', grp.named_section, presLang),
+              subheading: this.pickLabel('description', grp.named_section, presLang),
               fields: (grp.attribute_order ?? [])
                 .map((fId) => fields.find((f) => f.id === fId))
                 .filter(Boolean) as Field[],
@@ -43,14 +47,59 @@ export class PresentationParser {
 
         return {
           pageKey,
-          pageLabel: Lang.pick(pres.page_labels, pageKey),
-          sidebar_label: Lang.pick(pres.sidebar_label, pageKey),
-          subheading: Lang.pick(pres.subheading, pageKey),
+          pageLabel: this.pickLabel('page_labels', pageKey, presLang),
+          sidebar_label: this.pickLabel('sidebar_label', pageKey, presLang),
+          subheading: this.pickLabel('description', pageKey, presLang),
           sections,
           captureBase: pres.capture_base,
         } as Page_parsed;
       })
       .filter(Boolean) as Page_parsed[];
+  }
+
+  private getLanguage(): string {
+    return Lang.normalize(this.presentation.language);
+  }
+
+  private pickLabel(
+    fieldName: 'page_labels' | 'sidebar_label' | 'description',
+    key: string,
+    currentLang: string
+  ): Record<string, string> {
+    const obj = this.getFieldValue(this.presentation, fieldName);
+    if (!obj) return {};
+
+    const firstKey = Object.keys(obj)[0];
+    if (firstKey && typeof obj[firstKey] === 'object' && obj[firstKey] !== null && !Array.isArray(obj[firstKey])) {
+      return Lang.pick(obj, key);
+    }
+
+    const result: Record<string, string> = {};
+    
+    if (this.allLanguagePresentations && this.allLanguagePresentations.length > 0) {
+      this.allLanguagePresentations.forEach((pres) => {
+        const lang = Lang.normalize(pres.language);
+        const presObj = this.getFieldValue(pres, fieldName);
+        
+        if (presObj && presObj[key] !== undefined) {
+          result[lang] = presObj[key];
+        }
+      });
+    } else {
+      const value = obj[key];
+      if (value !== undefined) {
+        result[currentLang] = value;
+      }
+    }
+
+    return result;
+  }
+
+  private getFieldValue(pres: AdcForm, fieldName: 'page_labels' | 'sidebar_label' | 'description'): any {
+    if (fieldName === 'page_labels') return pres.page_labels;
+    if (fieldName === 'sidebar_label') return pres.sidebar_label;
+    if (fieldName === 'description') return pres.description || pres.subheading;
+    return undefined;
   }
 
   getPageInfo(pageKey: string): {
@@ -60,14 +109,15 @@ export class PresentationParser {
     subheading: Record<string, string>;
   } | null {
     const pres = this.presentation;
+    const presLang = this.getLanguage();
     const page = pres.pages?.find((p) => p.named_section === pageKey);
     if (!page) return null;
 
     return {
       page,
-      pageLabel: Lang.pick(pres.page_labels, pageKey),
-      sidebarLabel: Lang.pick(pres.sidebar_label, pageKey),
-      subheading: Lang.pick(pres.subheading, pageKey),
+      pageLabel: this.pickLabel('page_labels', pageKey, presLang),
+      sidebarLabel: this.pickLabel('sidebar_label', pageKey, presLang),
+      subheading: this.pickLabel('description', pageKey, presLang),
     };
   }
 
@@ -105,6 +155,9 @@ export class PresentationsExtractor {
           if (adcExt.overlays?.form) {
             adcExt.overlays.form.forEach((form: AdcForm) => {
               form.capture_base = captureBaseId; // set from key
+              if (!form.language) {
+                form.language = 'eng';
+              }
             });
             presentations.push(...adcExt.overlays.form);
           }
@@ -115,6 +168,11 @@ export class PresentationsExtractor {
     // Fallback to old form structure if no ADC extensions found
     if (presentations.length === 0 && metadata.extensions?.form) {
       presentations = metadata.extensions.form as AdcForm[];
+      presentations.forEach(form => {
+        if (!form.language) {
+          form.language = 'eng';
+        }
+      });
     }
 
     // Put main capture base first
@@ -132,17 +190,23 @@ export class PresentationsExtractor {
       return 0;
     });
 
-    // Main title
     let mainTitle: Record<string, string> = { eng: "", fra: "" };
-    const mainPres = sortedPresentations.find(
-      (p) => p.capture_base === mainCaptureBase
-    );
-    if (mainPres?.title) {
-      mainTitle = {
-        eng: typeof mainPres.title.eng === "string" ? mainPres.title.eng : "",
-        fra: typeof mainPres.title.fra === "string" ? mainPres.title.fra : "",
-      };
-    }
+    
+    sortedPresentations
+      .filter((p) => p.capture_base === mainCaptureBase)
+      .forEach((pres) => {
+        if (pres.title) {
+          if (typeof pres.title === "string") {
+            const lang = Lang.normalize(pres.language);
+            mainTitle[lang] = pres.title;
+          } else if (typeof pres.title === "object") {
+            mainTitle = {
+              eng: typeof pres.title.eng === "string" ? pres.title.eng : mainTitle.eng,
+              fra: typeof pres.title.fra === "string" ? pres.title.fra : mainTitle.fra,
+            };
+          }
+        }
+      });
 
     return { presentations: sortedPresentations, mainCaptureBase, mainTitle };
   }

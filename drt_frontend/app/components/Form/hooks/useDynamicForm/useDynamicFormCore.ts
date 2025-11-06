@@ -2,7 +2,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import type { Step, Page_parsed, Field } from "../../../type";
 import { useFormData } from "../../context/FormDataContext";
-import { isValid__UTF8 } from "./utils";
 import { validateField } from "./validation";
 import { useHandleNavigate, usePageNavigation } from "../useDynamicForm";
 import { useSubmissionMapping } from "./mapping";
@@ -128,12 +127,6 @@ export function useDynamicForm(parsedSteps: Step[]) {
     (field: Field, newValue: string | string[]) => {
       const normalizedValue =
         typeof newValue === "string" ? newValue.normalize("NFC") : newValue;
-      if (
-        typeof normalizedValue === "string" &&
-        !isValid__UTF8(normalizedValue)
-      ) {
-        console.warn(`Invalid UTF-8 in field "${field.id}".`);
-      }
 
       if (currentChildId && currentChildParentId) {
         updateChildById(currentChildParentId, currentChildId, {

@@ -43,9 +43,42 @@ export class Lang {
     return new LanguageMap(obj).pick(key);
   }
 
+  /** 
+   * Flexible pick that handles both flat and nested structures.
+   */
+  static pickFlexible(
+    obj: Record<string, string | Record<string, string>> | undefined,
+    key: string
+  ): Record<string, string> {
+    const res: Record<string, string> = {};
+    if (!obj) return res;
+
+    Object.entries(obj).forEach(([lang, value]) => {
+      if (typeof value === 'string') {
+        if (lang === key || Object.keys(obj).length === 1) {
+          res[lang] = value;
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        res[lang] = value[key] ?? "";
+      }
+    });
+
+    return res;
+  }
+
   /** Factory to work with multiple lookups ergonomically. */
   static map(obj?: Record<string, Record<string, string>>): LanguageMap {
     return new LanguageMap(obj);
+  }
+
+  /**
+   * Normalize language Handles both array and string formats, with fallback to 'eng'
+   */
+  static normalize(language: string | string[] | undefined): string {
+    if (Array.isArray(language)) {
+      return language[0] || 'eng';
+    }
+    return language || 'eng';
   }
 }
 

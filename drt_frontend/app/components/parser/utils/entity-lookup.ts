@@ -1,6 +1,7 @@
 // drt_frontend/app/components/parser/utils/entity-lookup.ts
 import { Bundle, Dependency, AdcForm, ArgumentType } from "../../type";
 import { EntityLookupResult } from "../types/parser-types";
+import { Lang } from "./helpers";
 
 export class EntityLocator {
   findByCaptureBase(
@@ -21,9 +22,22 @@ export class EntityLocator {
 
   getInteractionArgs(
     captureBase: string,
-    presentations: AdcForm[] | undefined
+    presentations: AdcForm[] | undefined,
+    preferredLanguage?: string
   ): Record<string, ArgumentType> {
     if (!presentations) return {};
+    
+    
+    if (preferredLanguage) {
+      const langSpecificPresentation = presentations.find(
+        (p) => p.capture_base === captureBase && Lang.normalize(p.language) === preferredLanguage
+      );
+      if (langSpecificPresentation?.interaction?.[0]?.arguments) {
+        return langSpecificPresentation.interaction[0].arguments;
+      }
+    }
+    
+    // Fallback to any presentation for this capture base
     const presentation = presentations.find(
       (p) => p.capture_base === captureBase
     );

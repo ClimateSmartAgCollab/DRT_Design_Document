@@ -62,6 +62,16 @@ export default function ChildReview({ field, parsedSteps, language }: ChildRevie
                           <div key={cField.id} className="mb-1 ml-4">
                             <label className="block text-sm font-semibold" style={{ color: theme.colors.text }}>
                               {cField.labels[language]?.[cField.id] || cField.labels.eng?.[cField.id] || cField.id}
+                              {cField.validation?.conformance === "M" && (
+                                <span
+                                  style={{ 
+                                    color: theme.colors.secondary || "#ff0000", 
+                                    marginLeft: "4px" 
+                                  }}
+                                >
+                                  *
+                                </span>
+                              )}
                             </label>
                             <ChildReview field={cField} parsedSteps={parsedSteps} language={language} />
                           </div>
@@ -71,7 +81,18 @@ export default function ChildReview({ field, parsedSteps, language }: ChildRevie
                       return (
                         <div key={cField.id} className="mb-1 ml-4 break-words">
                           <strong style={{ color: theme.colors.text }}>
-                            {cField.labels[language]?.[cField.id] || cField.labels.eng?.[cField.id] || cField.id}:{" "}
+                            {cField.labels[language]?.[cField.id] || cField.labels.eng?.[cField.id] || cField.id}
+                            {cField.validation?.conformance === "M" && (
+                              <span
+                                style={{ 
+                                  color: theme.colors.secondary || "#ff0000", 
+                                  marginLeft: "4px" 
+                                }}
+                              >
+                                *
+                              </span>
+                            )}
+                            :{" "}
                           </strong>
                           <span style={{ color: theme.colors.grey[600] }}>{presenter.valueToString(val)}</span>
                         </div>

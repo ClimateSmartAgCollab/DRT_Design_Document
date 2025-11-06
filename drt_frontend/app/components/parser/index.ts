@@ -1,5 +1,5 @@
 import { Step } from "../type";
-import { asRoot, Normalizers } from "./utils/helpers";
+import { asRoot, Normalizers, Lang } from "./utils/helpers";
 import {
   PresentationsExtractor,
   PresentationParser,
@@ -88,10 +88,18 @@ export class FormStructureParser {
           );
           const fieldFactory = new FieldFactory(snapshot, rel.refsMap);
           const fields = fieldFactory.buildMany(fieldIds);
+          
+          const allPresentationsForCapBase = presentations.filter(
+            (p) => p.capture_base === capBase
+          );
           const stepPresentation =
-            presentations.find((p) => p.capture_base === capBase) ||
+            allPresentationsForCapBase.find((p) => Lang.normalize(p.language) === defaultLanguage) ||
+            allPresentationsForCapBase[0] ||
             presentation;
-          const pages = new PresentationParser(stepPresentation).parse(fields);
+          const pages = new PresentationParser(
+            stepPresentation,
+            allPresentationsForCapBase
+          ).parse(fields);
           if (!allSteps[capBase]) {
             allSteps[capBase] = {
               id: capBase,
