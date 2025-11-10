@@ -11,7 +11,7 @@ services:
       - ../.env.staging
       - ../backend/local.env
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
     volumes:
       - ../backend:/usr/src
     depends_on:
@@ -57,7 +57,7 @@ services:
       dockerfile: ../frontend/frontend.Dockerfile
     command: npm start
     ports:
-      - "127.0.0.1:3000:3000"
+      - "80:3000"
     depends_on:
       - backend
 
