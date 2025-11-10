@@ -56,10 +56,23 @@ services:
       context: ../frontend
       dockerfile: ../frontend/frontend.Dockerfile
     command: npm start
-    ports:
-      - "80:3000"
+    expose:
+      - "3000"
     depends_on:
       - backend
+
+  nginx:
+    image: nginx:stable-alpine
+    depends_on:
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /usr/local/nginx/conf:/etc/nginx/conf.d
+      - /usr/local/nginx/snippets:/etc/nginx/snippets
+      - /usr/local/nginx/certbot:/var/www/certbot
+      - /etc/letsencrypt:/etc/letsencrypt
 
   postgres:
     image: postgres:13
