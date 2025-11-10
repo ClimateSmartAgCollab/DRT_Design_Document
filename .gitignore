@@ -1,8 +1,12 @@
 # project-specific
 .env
-static/admin/
-static/rest_framework/
-static/debug_toolbar/
+.env.staging
+.cursor/
+pgdata/
+drt_landing_page/
+backend/static/admin/
+backend/static/rest_framework/
+backend/static/debug_toolbar/
 .vscode/
 
 # Byte-compiled / optimized / DLL files
@@ -65,8 +69,8 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
-db.sqlite3
-db.sqlite3-journal
+backend/drt_core/db.sqlite3
+backend/drt_core/db.sqlite3-journal
 
 # Flask stuff:
 instance/

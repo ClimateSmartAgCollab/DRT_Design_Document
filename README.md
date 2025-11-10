@@ -1,3 +1,36 @@
+# DaRT Monorepo
+
+## Repository Layout
+- `backend/` – Django API, Celery workers, management commands, static assets
+- `frontend/` – Next.js application and UI theme tokens
+- `infra/` – Docker Compose file and backend Dockerfile
+- `docs/` – design documentation (populate as you migrate existing docs)
+
+## Quick Start (Docker)
+```bash
+cd infra
+docker compose up --build
+```
+The backend will be available on `http://127.0.0.1:8000` and the frontend on `http://127.0.0.1:3000`.
+
+## Manual Setup
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+cp env.example .env            # update secrets as needed
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
+
+# Frontend
+cd frontend
+npm install
+cp env.local.example .env.local
+npm run dev
+```
+
+---
+
 ```mermaid
 graph TD;
     User[User] --> |Submits Request| DRT_with_Django;

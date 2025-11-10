@@ -1,8 +1,0 @@
-# netlify.toml
-[build]
-  base    = "drt_frontend"              # where your Next.js lives
-  command = "npm install && npm run build"
-  publish = ".next"        # must differ from base!
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
