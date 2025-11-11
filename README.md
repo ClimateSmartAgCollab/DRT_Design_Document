@@ -1,6 +1,6 @@
-# DaRT (Data Request Tracker)
+# DRT (Data Request Tracker)
 
-DaRT is an end-to-end platform for managing data access negotiations between requestors and dataset owners. It streamlines how research teams discover questionnaires, submit structured requests, collaborate with owners, negotiate license terms, and archive the final agreements. The project is delivered as a full-stack monorepo that contains the production application, infrastructure assets, and supporting documentation.
+DRT is an end-to-end platform for managing data access negotiations between requestors and dataset owners. It streamlines how research teams discover questionnaires, submit structured requests, collaborate with owners, negotiate license terms, and archive the final agreements. The project is delivered as a full-stack monorepo that contains the production application, infrastructure assets, and supporting documentation.
 
 ---
 
@@ -29,7 +29,7 @@ Traditional data sharing in research relies on:
 - No audit trails
 - Inconsistent approval processes
 
-DaRT replaces this chaos with a structured, transparent, automated workflow that maintains compliance with data governance principles while supporting FAIR data principles (Findable, Accessible, Interoperable, Reusable).
+DRT replaces this chaos with a structured, transparent, automated workflow that maintains compliance with data governance principles while supporting FAIR data principles (Findable, Accessible, Interoperable, Reusable).
 
 ---
 
@@ -44,7 +44,7 @@ DaRT replaces this chaos with a structured, transparent, automated workflow that
 
 ## System Architecture
 
-DaRT is composed of independently deployable services orchestrated via Docker Compose in development and container platforms in production.
+DRT is composed of independently deployable services orchestrated via Docker Compose in development and container platforms in production.
 
 ```mermaid
 graph LR;

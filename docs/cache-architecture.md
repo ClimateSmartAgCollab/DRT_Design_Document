@@ -49,7 +49,7 @@ graph TD;
 
 ## Full Workflow Summary
 
-1. **Request Submission:** Requestors access DaRT through UUID-backed links and submit data via dynamic questionnaires served by Django.
+1. **Request Submission:** Requestors access DRT through UUID-backed links and submit data via dynamic questionnaires served by Django.
 2. **Cache Coordination:** Django retrieves questionnaire metadata and related assets from the cache; cache misses fall back to GitHub and repopulate the cache.
 3. **GitHub Synchronization:** GitHub changes trigger cache refreshes (via webhooks) or are detected by periodic polling jobs if webhooks are unavailable.
 4. **Negotiation Management:** Negotiation states, conversations, and reminders reside in PostgreSQL, orchestrated by Django and auxiliary Celery tasks.

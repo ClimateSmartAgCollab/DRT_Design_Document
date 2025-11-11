@@ -1,6 +1,6 @@
 # Documentation
 
-Use this directory to capture architecture notes, decision records, and design diagrams for the DaRT platform. Suggested structure:
+Use this directory to capture architecture notes, decision records, and design diagrams for the DRT platform. Suggested structure:
 
 - `architecture/` – high-level diagrams, ADRs, and data flow docs
 - `api/` – endpoint descriptions, example requests/responses
