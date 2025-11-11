@@ -36,7 +36,7 @@ DRT replaces this chaos with a structured, transparent, automated workflow that 
 ## Core Value Proposition
 - **requestor-centric workflow:** requestors discover datasets, complete guided questionnaires, and track negotiations in one place.
 - **Owner-centric workflow:** owners receive structured submissions, collaborate asynchronously, and approve or reject with clear audit trails.
-- **Automatic license generation:** approved negotiations produce artifacts that are stored for compliance.
+- **Automatic license generation:** approved negotiations produce artifacts that are emailed to stakeholders (automated archival is planned).
 - **GitHub-backed source of truth:** static assets (questionnaires, license templates, metadata) are versioned in GitHub, while dynamic state lives in PostgreSQL.
 - **Human-friendly access control:** email links verification replaces heavyweight accounts for requestors and owners while preserving security.
 
@@ -83,7 +83,7 @@ graph LR;
 ```
 
 **Key architectural decisions**
-- **Separation of dynamic vs. static data:** PostgreSQL tracks negotiations and auditing, while GitHub holds immutable datasets, questionnaires, and generated licenses.
+- **Separation of dynamic vs. static data:** PostgreSQL tracks negotiations and auditing, while GitHub holds immutable datasets, questionnaires, and license templates.
 - **Caching strategy:** Redis caches frequently accessed GitHub payloads and owner lookups to reduce API calls and improve response times.
 - **Task orchestration:** Celery handles outbound email, cache warmups, periodic GitHub polling, and license generation without blocking web traffic.
 - **Composable UI:** the Next.js frontend consumes the Django API and reuses shared design tokens for multiple client themes.
@@ -95,7 +95,7 @@ graph LR;
 - **Guided data requests:** requestors receive dataset-specific questionnaires with branching logic and inline guidance.
 - **Negotiation lifecycle:** owners review submissions, request clarifications, reject with rationale, or approve and trigger license generation.
 - **Email workflows:** automated notifications (verification, reminders, approvals, rejections) keep both parties informed.
-- **License automation:** finalized negotiations produce licenses and archive them back to GitHub.
+- **License automation:** finalized negotiations produce licenses that are distributed via email (automated archival remains on the roadmap).
 - **Self-serve dashboards:** role-specific dashboard views summarize open negotiations, outstanding actions, and historical archives.
 - **Analytics hooks:** summary statistics aggregate negotiation activity by owner, dataset, and tags for operational reporting.
 
@@ -113,7 +113,7 @@ graph LR;
    - Each state transition is stored and archived; Celery dispatches notifications (`backend/drt/tasks.py`).
 4. **License issuance**
    - Approval flows call `generate_license_and_notify_owner` to produce the license using Jinja templates and email it to the owner.
-   - GitHub receives the finalized license and submission snapshot for audit.
+   - (Planned) Automatic archival of generated licenses to GitHub is not yet implemented; artifacts are currently delivered via email only.
 5. **Archival & analytics**
    - Every significant change is recorded in the `Archive` table, enabling historical review.
    - `SummaryStatistic` records aggregated for reporting.
@@ -214,7 +214,7 @@ Use `redis-server` or the Docker container to provide the broker/backend.
 - **Static files:** `python manage.py collectstatic` prior to production deploy to upload assets.
 - **Email delivery:** external SMTP provider (Ethereal for staging, production provider TBD).
 - **Monitoring hooks:** extendable via Django signals and Celery task logging; integrate with preferred observability stack.
-- **Disaster recovery:** PostgreSQL volume backups plus GitHub as authoritative store for questionnaires/licenses.
+- **Disaster recovery:** PostgreSQL volume backups plus GitHub as authoritative store for questionnaires, license templates, and other static assets.
 
 ---
 

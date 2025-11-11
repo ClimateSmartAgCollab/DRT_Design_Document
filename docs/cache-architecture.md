@@ -15,7 +15,7 @@ graph TD;
 
     Cache --> DRT_with_Django;
 
-    DRT_with_Django --> |Updates/Stores Files| GitHub;
+    DRT_with_Django --> |Fetches Static Assets (on cache miss)| GitHub;
 
     subgraph "DRT System"
 
@@ -42,7 +42,8 @@ graph TD;
 - **Cache-first Reads:** Django checks the cache for recently accessed or frequently used GitHub assets before reaching out to GitHub directly.
 - **Cache Refresh:** GitHub is the source of truth for static content. Changes in GitHub trigger cache refreshes via webhooks or scheduled polling.
 - **Dynamic State:** Negotiation data lives in PostgreSQL, and Django reads/writes relational state there throughout the workflow.
-- **Publishing Back to GitHub:** Generated artifacts (licenses, archives) are pushed to GitHub for persistent storage and auditability.
+- **GitHub Reads:** When cached content is missing or stale, Django fetches the latest questionnaires and license templates directly from GitHub.
+- **Future Work:** Automated upload of generated licenses to GitHub is planned but not yet implemented; current workflows deliver artifacts via email.
 - **Fallback Logic:** If cached content is stale or missing, Django fetches fresh data from GitHub, updates the cache, and serves the latest version to the user.
 
 ---
@@ -53,7 +54,7 @@ graph TD;
 2. **Cache Coordination:** Django retrieves questionnaire metadata and related assets from the cache; cache misses fall back to GitHub and repopulate the cache.
 3. **GitHub Synchronization:** GitHub changes trigger cache refreshes (via webhooks) or are detected by periodic polling jobs if webhooks are unavailable.
 4. **Negotiation Management:** Negotiation states, conversations, and reminders reside in PostgreSQL, orchestrated by Django and auxiliary Celery tasks.
-5. **Artifact Archival:** Completed negotiations generate licenses and archives that Django stores back in GitHub for compliance.
+5. **Artifact Delivery:** Completed negotiations generate licenses that are emailed to requestors/owners; system-side archival to GitHub is a future enhancement.
 6. **Ongoing Serving:** Subsequent requests benefit from cached data, reducing GitHub traffic while ensuring freshness when updates occur.
 
 ---
@@ -135,7 +136,7 @@ graph LR
     Review -->|State transitions / comments| PG
     Approve -->|Trigger license generation| CeleryTask[Celery Task]
     CeleryTask -->|Render Jinja template| License[License Artifact]
-    CeleryTask -->|Upload license + snapshot| GH
+    CeleryTask -. Planned GitHub archival .-> GH
     CeleryTask -->|Warm cache entries| Redis
     GH -->|Webhook event| CacheRefresh[Cache Refresh Task]
     CacheRefresh --> Redis
@@ -143,8 +144,8 @@ graph LR
 
 ### Notes
 
-- Negotiation events remain in PostgreSQL, but finalized artifacts are versioned in GitHub to align with static asset governance.
-- Cache warmups following license generation ensure owners immediately see updated archives.
+- Negotiation events remain in PostgreSQL; generated licenses are currently distributed via email. GitHub archival is an open roadmap item.
+- Cache warmups following license generation ensure owners immediately see updated negotiation state, even without GitHub uploads.
 
 ---
 
