@@ -15,7 +15,7 @@ graph TD;
 
     Cache --> DRT_with_Django;
 
-    DRT_with_Django --> |Fetches Static Assets (on cache miss)| GitHub;
+    DRT_with_Django --> |Fetches Static Assets on cache miss| GitHub;
 
     subgraph "DRT System"
 
