@@ -1,24 +1,194 @@
-# DaRT Monorepo
+# DaRT (Data Request Tracker)
 
-## Repository Layout
-- `backend/` – Django API, Celery workers, management commands, static assets
-- `frontend/` – Next.js application and UI theme tokens
-- `infra/` – Docker Compose file and backend Dockerfile
-- `docs/` – design documentation (populate as you migrate existing docs)
+DaRT is an end-to-end platform for managing data access negotiations between requestors and dataset owners. It streamlines how research teams discover questionnaires, submit structured requests, collaborate with owners, negotiate license terms, and archive the final agreements. The project is delivered as a full-stack monorepo that contains the production application, infrastructure assets, and supporting documentation.
 
-## Quick Start (Docker)
+---
+
+## Table of Contents
+- [Core Problem DRT Solves](#core-problem-it-solves)
+- [Core Value Proposition](#core-value-proposition)
+- [System Architecture](#system-architecture)
+- [Platform Capabilities](#platform-capabilities)
+- [Domain Workflow](#domain-workflow)
+- [Module Overview](#module-overview)
+- [Data Model Highlights](#data-model-highlights)
+- [Environment & Configuration](#environment--configuration)
+- [Local Development](#local-development)
+- [Deployment & Operations](#deployment--operations)
+- [Project Structure](#project-structure)
+- [Resources & Contacts](#resources--contacts)
+
+---
+
+## Core Problem DRT Solves
+
+Traditional data sharing in research relies on:
+- Manual email chains
+- Unstructured requests
+- Lost documentation
+- No audit trails
+- Inconsistent approval processes
+
+DaRT replaces this chaos with a structured, transparent, automated workflow that maintains compliance with data governance principles while supporting FAIR data principles (Findable, Accessible, Interoperable, Reusable).
+
+---
+
+## Core Value Proposition
+- **requestor-centric workflow:** requestors discover datasets, complete guided questionnaires, and track negotiations in one place.
+- **Owner-centric workflow:** owners receive structured submissions, collaborate asynchronously, and approve or reject with clear audit trails.
+- **Automatic license generation:** approved negotiations produce artifacts that are stored for compliance.
+- **GitHub-backed source of truth:** static assets (questionnaires, license templates, metadata) are versioned in GitHub, while dynamic state lives in PostgreSQL.
+- **Human-friendly access control:** email links verification replaces heavyweight accounts for requestors and owners while preserving security.
+
+---
+
+## System Architecture
+
+DaRT is composed of independently deployable services orchestrated via Docker Compose in development and container platforms in production.
+
+```mermaid
+graph LR;
+    subgraph Client
+        Requestor
+        Owner
+        Admin
+    end
+    subgraph Web Tier
+        Frontend[Next.js Frontend]
+        Nginx
+    end
+    subgraph App Tier
+        Django[DRT Django API]
+        CeleryWorker[Celery Workers]
+        CeleryBeat[Celery Beat Scheduler]
+    end
+    subgraph Data Layer
+        Postgres[(PostgreSQL)]
+        Redis[(Redis Cache)]
+        GitHub[GitHub Data Store]
+    end
+
+    Requestor -->|Magic link| Frontend
+    Owner --> Frontend
+    Admin --> Django
+    Frontend <-->|REST & Web APIs| Django
+    Django -->|Negotiation state| Postgres
+    Django -->|Cache lookups| Redis
+    Django -->|Fetch/Publish metadata| GitHub
+    CeleryWorker -->|Async tasks| Redis
+    CeleryWorker --> Postgres
+    CeleryBeat --> CeleryWorker
+    Nginx --> Frontend
+    Nginx --> Django
+```
+
+**Key architectural decisions**
+- **Separation of dynamic vs. static data:** PostgreSQL tracks negotiations and auditing, while GitHub holds immutable datasets, questionnaires, and generated licenses.
+- **Caching strategy:** Redis caches frequently accessed GitHub payloads and owner lookups to reduce API calls and improve response times.
+- **Task orchestration:** Celery handles outbound email, cache warmups, periodic GitHub polling, and license generation without blocking web traffic.
+- **Composable UI:** the Next.js frontend consumes the Django API and reuses shared design tokens for multiple client themes.
+- See `docs/cache-architecture.md` for a deeper dive into GitHub-backed caching and refresh flows.
+
+---
+
+## Platform Capabilities
+- **Guided data requests:** requestors receive dataset-specific questionnaires with branching logic and inline guidance.
+- **Negotiation lifecycle:** owners review submissions, request clarifications, reject with rationale, or approve and trigger license generation.
+- **Email workflows:** automated notifications (verification, reminders, approvals, rejections) keep both parties informed.
+- **License automation:** finalized negotiations produce licenses and archive them back to GitHub.
+- **Self-serve dashboards:** role-specific dashboard views summarize open negotiations, outstanding actions, and historical archives.
+- **Analytics hooks:** summary statistics aggregate negotiation activity by owner, dataset, and tags for operational reporting.
+
+---
+
+## Domain Workflow
+1. **Access initiation**
+   - Requestors receive a UUID-backed email link, no heavy account creation, and land on the questionnaire tailored to the dataset.
+   - Owners join via invitation links tied to `NLink` records in GitHub data store.
+2. **Questionnaire completion**
+   - The frontend renders dynamic JSON schemas fetched from the GitHub data store, cached in Redis for 24 hours to avoid rate limits.
+   - Responses persist in PostgreSQL as part of the `Negotiation` entity.
+3. **Owner review**
+   - The dataset owner receives notification via email. They access the owner portal using their invitation link (`NLink` record). Owners review submissions, request clarifications (triggers an email back to the requestor), reject with rationale (archived with reason), or Approve (triggers license generation) via the Next.js negotiation workspace.
+   - Each state transition is stored and archived; Celery dispatches notifications (`backend/drt/tasks.py`).
+4. **License issuance**
+   - Approval flows call `generate_license_and_notify_owner` to produce the license using Jinja templates and email it to the owner.
+   - GitHub receives the finalized license and submission snapshot for audit.
+5. **Archival & analytics**
+   - Every significant change is recorded in the `Archive` table, enabling historical review.
+   - `SummaryStatistic` records aggregated for reporting.
+   - Dashboards display: Open negotiations, Pending actions, Historical trends, Outcomes by dataset/owner/tags
+
+---
+
+## Module Overview
+- **`backend/drt_core` & `backend/drt` (Django)**
+  - API endpoints, negotiation models, and Celery task definitions.
+  - Management commands for cache maintenance and GitHub synchronization.
+  - Email templates and utilities for owner/requestor communications.
+- **`backend/datastore`**
+  - Gateway for GitHub-hosted questionnaire assets and metadata.
+  - Cache-aware fetch routines reused by Celery.
+- **`frontend/app` (Next.js 14 / App Router)**
+  - Requestor and owner flows, dashboards, and shared components.
+  - Theming via `frontend/theme/tokens.*.ts`.
+  - REST client wrappers inside `frontend/app/api/apiHelper.ts`.
+- **`infra`**
+  - Dockerfiles and `docker-compose.yml` for local orchestration of PostgreSQL, Redis, Django, Celery, frontend, and Nginx.
+- **`docs`**
+  - Living design documentation, architecture notes, and ADRs.
+
+---
+
+## Data Model Highlights
+The core entities live in `backend/drt/models.py`.
+
+- **`NLink`** – ties dataset metadata (labels, tags) to a negotiation, and stores requestor/owner email links and expiration policy.
+- **`Requestor`** – tracks verification and email identity for inbound requests.
+- **`Negotiation`** – stores request/response JSON payloads, comments, reminders, state machine values, and submission versions.
+- **`Archive`** – append-only history of negotiation snapshots, with `changed_by` and `change_description` metadata.
+- **`SummaryStatistic`** – aggregates negotiation outcomes for analytics.
+
+> Detailed ERDs and flowcharts are available in `docs/` and the linked GitHub design repository (see [Resources](#resources--contacts)).
+
+---
+
+## Environment & Configuration
+
+| Variable | Purpose | Location |
+| --- | --- | --- |
+| `DJANGO_SECRET_KEY` | Core Django secret | `backend/.env` |
+| `DATABASE_URL` or (`POSTGRES_*`, `DB_HOST`, `DB_PORT`) | Database connectivity | `backend/.env`, `backend/local.env` |
+| `REDIS_URL` | Celery broker + cache | `backend/.env` |
+| `FRONTEND_BASE_URL` | Used in emails for deep links | `backend/.env` |
+| `GITHUB_DATASTORE_URL` | Base repository serving questionnaires | `backend/.env` |
+| `EMAIL_*` (`DEFAULT_FROM_EMAIL`, `ETHEREAL_USER`, etc.) | SMTP credentials | `backend/.env` |
+| `NEXT_PUBLIC_API_BASE_URL` | Frontend → API endpoint | `frontend/.env.local` |
+
+**Secrets management**
+- Copy `backend/env.example` to `.env` and populate sensitive values.
+- Copy `frontend/env.local.example` to `.env.local`.
+- When running via Docker Compose, `.env` files at the repository root provide shared defaults.
+
+---
+
+## Local Development
+
+### Option A — Docker Compose
 ```bash
 cd infra
 docker compose up --build
 ```
-The backend will be available on `http://127.0.0.1:8000` and the frontend on `http://127.0.0.1:3000`.
+- Backend: `http://127.0.0.1:8000`
+- Frontend: `http://127.0.0.1:3000`
+- Postgres and Redis volumes persist across runs (`db_data`, `redis_data`).
 
-## Manual Setup
+### Option B — Manual run
 ```bash
 # Backend
 cd backend
 pip install -r requirements.txt
-cp env.example .env            # update secrets as needed
+cp env.example .env
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 
@@ -29,99 +199,40 @@ cp env.local.example .env.local
 npm run dev
 ```
 
----
-
-```mermaid
-graph TD;
-    User[User] --> |Submits Request| DRT_with_Django;
-    DRT_with_Django --> |Reads/Writes Data| PostgreSQL;
-    DRT_with_Django --> |Fetches Data from Cache| Cache;
-    Cache --> |Regularly Updated from GitHub| GitHub;
-    GitHub --Trigger--> Cache;
-    Cache --> DRT_with_Django;
-    DRT_with_Django --> |Updates/Stores Files| GitHub;
-
-    subgraph "DRT System"
-        DRT_with_Django
-        Cache
-        PostgreSQL
-    end
-
-    subgraph "Data Store"
-        GitHub
-    end
+**Celery workers**
+```bash
+celery -A drt_core worker --loglevel=info
+celery -A drt_core beat --loglevel=info
 ```
-
----
-### **Explanation of the Diagram with Cache**:
-
-1. **User Interaction**:
-   - **User** submits a request through the **Django** web service (e.g., filling out a questionnaire).
-
-2. **Cache Layer**:
-   - **Django** first queries the **Cache** to serve **recently accessed** or **frequently used data**.
-   - This improves performance by reducing the need to fetch data directly from **GitHub** each time.
-   
-3. **Cache Update from GitHub**:
-   - **GitHub** serves as the **central data store** for static files like **questionnaires**, **licenses**, and **metadata**. (You can find an example of the data store here: https://github.com/ClimateSmartAgCollab/DRT-DS-test)
-   - **trigger mechanism**: when a file or relevant data in GitHub is modified, GitHub sends an **alert** to DaRT, notifying it to **refresh its cache**. Alternatively, DaRT can periodically check for updates if webhooks aren’t set up in GitHub.
-
-4. **Django to PostgreSQL**:
-   - For dynamic data, such as ongoing negotiations, **Django** reads/writes directly to **PostgreSQL**.
-   - PostgreSQL handles relational data in the DRT system.
-
-5. **Django to GitHub**:
-   - When the output documents (like **licenses** or **completed questionnaires**) are generated, **Django** uploads these to **GitHub** for persistent storage.
-   
-6. **Django Reads from GitHub and Cache**:
-   - When data is requested , **Django** first checks the **Cache**. If the cache is stale or doesn’t contain the needed data, it fetches the **latest version from GitHub** and updates the cache.
-   - This caching system ensures that GitHub is the **source of truth** but minimizes direct requests to GitHub, improving efficiency.
+Use `redis-server` or the Docker container to provide the broker/backend.
 
 ---
 
-### **Entire Workflow of DaRT System with Caching**
-
-1. **User Submits Request**:
-   - The requestor accesses DaRT via a **UUID-based link** and submits a **data request** using a questionnaire.
-   - **Django** handles the user interaction, pulling necessary data from the **Cache** if it is available, or directly from **GitHub** if necessary.
-
-2. **Cache and GitHub Interaction**:
-   - **Cache Layer**: DaRT has a local cache where **recent data** is stored for quicker access.
-   - **Trigger from GitHub**: Whenever a change happens in GitHub, a **trigger** or webhook sends an alert to DaRT, prompting it to **refresh its cache**. (If triggers aren’t set up, DaRT regularly **polls GitHub** for changes.)
-
-3. **Data Fetching from GitHub**:
-   - When new data is needed, Django checks the cache first. If data is not in the cache or is outdated, Django fetches it from GitHub and updates the cache.
-   - This ensures DaRT always has the latest data while avoiding unnecessary traffic to GitHub.
-
-4. **Handling Negotiations**:
-   - **Django** manages **negotiation data** (requestor-owner interactions) by reading/writing negotiation states to **PostgreSQL**.
-   - Each negotiation is tracked in **PostgreSQL**, and related documents (like licenses or query outputs) are stored back into **GitHub** after approval.
-
-5. **Updating GitHub**:
-   - Once a negotiation is completed or a license is generated, **Django** saves the final documents (Archive) into **GitHub** for record-keeping.
-   
-6. **Serving Data Efficiently**:
-   - As DaRT continues to serve requestors and owners, it uses the cache to minimize frequent pulls from GitHub while ensuring that cached data is always up-to-date when changes are made in the GitHub repository.
+## Deployment & Operations
+- **Containers:** Build images from `infra/docker/backend.Dockerfile` (Django/Celery) and `frontend/frontend.Dockerfile`.
+- **Reverse proxy:** Nginx terminates TLS (80/443) and routes traffic to frontend/backend services.
+- **Static files:** `python manage.py collectstatic` prior to production deploy to upload assets.
+- **Email delivery:** external SMTP provider (Ethereal for staging, production provider TBD).
+- **Monitoring hooks:** extendable via Django signals and Celery task logging; integrate with preferred observability stack.
+- **Disaster recovery:** PostgreSQL volume backups plus GitHub as authoritative store for questionnaires/licenses.
 
 ---
 
-# DRT Data Structure
+## Project Structure
+- `backend/` – Django API, Celery apps, static assets, management commands.
+- `frontend/` – Next.js client, shared components, theming, and API helpers.
+- `infra/` – Docker Compose file and Docker build contexts.
+- `docs/` – architecture notes, diagrams, ADRs.
+- `LICENCE` – project licensing.
 
-The following tables are the Data Structure of the DRT system.
+---
 
-## Data Structure Tables
+## Resources & Contacts
+- **Production datastore (example):** [ClimateSmartAgCollab/DRT-DS-test](https://github.com/ClimateSmartAgCollab/DRT-DS-test)
+- **Design documentation:** see `docs/` within this repository.
+- **Support:** `adc@uoguelph.ca`
+- **Project leadership:** reach the Data Request Tool maintainers via the Climate Smart Ag Collaboration working group.
 
-### Requestor Table
-![Flowchart](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/requestor_OTP.png)
+---
 
-### NLink Table
-![Diagram](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/NLink.png)
-
-### Negotiation Table
-![Screenshot](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/Negotiation.png)
-
-### Archive Table
-![Screenshot](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/Archive.png)
-
-### Summary Statistics Table
-![Screenshot](https://github.com/setayesh78/DRT_Design_Document/blob/main/tables%20images/summaryStat.png)
+> Need more context or bespoke onboarding material? Let the maintainers know what would help and we will expand the documentation accordingly.
