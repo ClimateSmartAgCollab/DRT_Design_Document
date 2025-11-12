@@ -2,7 +2,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useState } from "react";
 
 const content = {
@@ -669,14 +668,14 @@ export default function HomePage() {
                 {t.ownersBody2}
               </p>
 
-              <Link
-                href="/negotiation/owner/homepage"
+              <a
+                href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.ownerDashboard}
-              </Link>
+              </a>
             </div>
           </div>
           {/* Data Requestors Card */}
@@ -688,14 +687,14 @@ export default function HomePage() {
               <p className="font-sans text-sm sm:text-base text-gray-800 mb-4">
                 {t.requestorsBody}
               </p>
-              <Link
-                href="/negotiation/homepage"
+              <a
+                href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.requestorDashboard}
-              </Link>
+              </a>
             </div>
           </div>
         </div>

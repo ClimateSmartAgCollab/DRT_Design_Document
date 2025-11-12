@@ -1,12 +1,37 @@
 // app/api/apiHelper.ts
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://drt-test.canadacentral.cloudapp.azure.com';
-// const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
+const DEFAULT_LOCAL_API = "http://127.0.0.1:8000";
+
+const resolveBaseURL = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+
+  if (typeof window !== "undefined") {
+    const { origin, hostname } = window.location;
+
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return DEFAULT_LOCAL_API;
+    }
+
+    return origin;
+  }
+
+  return DEFAULT_LOCAL_API;
+};
 
 const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
   // Handle both datastore and drt endpoints
   // endpoint should start with /datastore/ or /drt/
-  const url = `${baseURL}${endpoint}`;
-  const match = document.cookie.match(/csrftoken=([^;]+)/);
+  const baseURL = resolveBaseURL();
+  const url =
+    endpoint.startsWith("http") || endpoint.startsWith("https")
+      ? endpoint
+      : `${baseURL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const match =
+    typeof document !== "undefined"
+      ? document.cookie.match(/csrftoken=([^;]+)/)
+      : null;
   const csrfToken = match ? match[1] : "";
   const defaultOptions: RequestInit = {
     credentials: "include", // Includes cookies for cross-origin requests
