@@ -1,0 +1,9 @@
+.next/
+
+# Ignore build and static artifacts
+.next/
+static/
+
+# Ignore build and static artifacts
+.next/
+static/
