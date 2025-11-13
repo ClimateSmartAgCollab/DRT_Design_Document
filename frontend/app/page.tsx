@@ -313,7 +313,7 @@ export default function HomePage() {
         document.execCommand("copy");
         setCopied({ field, status: true });
         setTimeout(() => setCopied({ field: "", status: false }), 1200);
-      } catch (err) {
+      } catch {
         // Optionally show an error
       }
       document.body.removeChild(textArea);

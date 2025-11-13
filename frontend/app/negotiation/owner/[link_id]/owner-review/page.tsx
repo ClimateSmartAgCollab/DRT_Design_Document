@@ -158,25 +158,6 @@ export default function OwnerReviewPage() {
             : null
         );
         
-        // Also parse field comments from global comments
-        const parseFieldCommentsFromGlobal = (comments: string) => {
-          const fieldCommentsMatch = comments.match(/Field Comments:\n([\s\S]*)/);
-          if (fieldCommentsMatch) {
-            const fieldCommentsText = fieldCommentsMatch[1];
-            const fieldComments: Record<string, string> = {};
-            const lines = fieldCommentsText.split('\n');
-            lines.forEach(line => {
-              const match = line.match(/Field (\w+): (.+)/);
-              if (match) {
-                fieldComments[match[1]] = match[2];
-              }
-            });
-            return fieldComments;
-          }
-          return {};
-        };
-        
-        // const fieldCommentsFromGlobal = parseFieldCommentsFromGlobal(latestOwnerVersion.comments || '');
         const combinedFieldComments = { ...fieldCommentsFromResponses};
         
         setFieldComments(combinedFieldComments);

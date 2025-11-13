@@ -409,12 +409,10 @@ function getParentSteps(steps: any[]) {
 function QuestionnaireReview({
   parentSteps,
   currentData,
-  isViewingHistory,
   ownerCommentVersions,
 }: {
   parentSteps: any[];
   currentData: any;
-  isViewingHistory: boolean;
   ownerCommentVersions?: OwnerCommentVersion[];
 }) {
   if (
@@ -773,10 +771,6 @@ export default function NegotiationHistoryPage() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     logoutMutation.mutate();
-  };
-
-  const handleNavigate = (index: number) => {
-    setCurrentHistoryIndex(index);
   };
 
   if (isLoading) {
@@ -1623,7 +1617,6 @@ export default function NegotiationHistoryPage() {
                 <QuestionnaireReview
                   parentSteps={parentSteps}
                   currentData={currentData}
-                  isViewingHistory={isViewingHistory}
                   ownerCommentVersions={
                     historyEntries[currentHistoryIndex]?.ownerCommentVersions
                   }

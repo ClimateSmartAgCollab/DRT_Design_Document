@@ -8,51 +8,9 @@ import { useSubmissionMapping } from "./mapping";
 import { StepTreeBuilder } from "../../domain/step-tree";
 
 // The main hook. Returns all values/functions needed by FormWrapper.
-export function useDynamicForm(parsedSteps: Step[]) {
-  if (!parsedSteps || parsedSteps.length === 0) {
+export function useDynamicForm(parsedSteps: Step[] = []) {
+  if (parsedSteps.length === 0) {
     console.warn("useDynamicForm: No valid parsedSteps provided");
-    return {
-      language: "en",
-      setLanguage: () => {},
-      currentStep: 0,
-      visitedSteps: new Set<string>(),
-      formData: {},
-      setFormData: () => {},
-      parentSteps: [],
-      onNavigate: () => {},
-      finishHandler: () => {},
-      cancelHandler: () => {},
-      isParentStep: () => false,
-      setCurrentChildId: () => {},
-      currentChildId: null,
-      setCurrentChildParentId: () => {},
-      currentChildParentId: null,
-      createNewChild: () => ({ id: "", data: {} } as any),
-      pageIndexByStep: {},
-      expandedStep: null,
-      setExpandedStep: () => {},
-      handleNavigate: () => {},
-      handleNextPage: () => {},
-      handlePreviousPage: () => {},
-      goToNextParent: () => {},
-      goToPreviousParent: () => {},
-      isVeryLastPageOfLastStep: false,
-      currentPage: undefined,
-      isLastPageOfThisStep: false,
-      isFirstPageOfThisStep: true,
-      step: undefined,
-      handleFieldChange: () => {},
-      registerFieldRef: () => {},
-      editExistingChild: () => undefined,
-      deleteChild: () => {},
-      reviewOutput: false,
-      setReviewOutput: () => {},
-      handleSubmit: () => {},
-      isNewChild: false,
-      setIsNewChild: () => {},
-      prefillCurrentPageData: () => {},
-      fieldErrors: {},
-    };
   }
 
   const [language, setLanguage] = useState("eng");
@@ -151,7 +109,6 @@ export function useDynamicForm(parsedSteps: Step[]) {
     [
       parsedSteps,
       currentStep,
-      pageIndexByStep,
       language,
       currentChildId,
       currentChildParentId,

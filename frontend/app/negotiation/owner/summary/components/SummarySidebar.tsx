@@ -43,7 +43,7 @@ export function SummarySidebar({
     if (selectedDataLabel && !selectedDataLabels.includes(selectedDataLabel)) {
       setSelectedDataLabels([selectedDataLabel]);
     }
-  }, [selectedDataLabel]);
+  }, [selectedDataLabel, selectedDataLabels]);
 
   // Helper for All option
   const handleAllChange = (type: 'dataLabel' | 'tag' | 'recordLabel', checked: boolean) => {

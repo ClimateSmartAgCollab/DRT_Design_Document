@@ -1,5 +1,4 @@
 // drt_frontend/app/components/Form/hooks/useDynamicForm/mapping.ts
-import type { Question, ChildQuestion, Submission } from "../../../type";
 import { useState, useCallback } from "react";
 import fetchApi from "@/app/api/apiHelper";
 import { SubmissionMapper } from "../../domain/submission-mapper";

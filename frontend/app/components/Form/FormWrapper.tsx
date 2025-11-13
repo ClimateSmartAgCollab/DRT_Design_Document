@@ -45,7 +45,6 @@ export default function FormWrapper({
 }: FormWrapperProps) {
   const theme = useTheme();
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState<
     Record<string, boolean>
   >({});
@@ -101,7 +100,6 @@ export default function FormWrapper({
     isParentStep,
     currentChildId,
     currentChildParentId,
-    createNewChild,
     pageIndexByStep,
     expandedStep,
     setExpandedStep,
@@ -116,11 +114,9 @@ export default function FormWrapper({
     handleFieldChange,
     registerFieldRef,
     editExistingChild,
-    deleteChild,
     reviewOutput,
     setReviewOutput,
     handleSubmit: dynamicHandleSubmit,
-    isNewChild,
     setIsNewChild,
     prefillCurrentPageData,
     fieldErrors,
@@ -300,17 +296,6 @@ export default function FormWrapper({
           >
             Reload Page
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="bg-white p-6 rounded shadow-md max-w-md text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">Loading form...</p>
         </div>
       </div>
     );

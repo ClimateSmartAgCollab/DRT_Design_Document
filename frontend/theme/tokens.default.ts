@@ -2,9 +2,6 @@ import type { StaticImageData } from "next/image";
 import genomeCanLogo from "../app/assets/R.jpg";
 import genomeOntarioLogo from "../app/assets/OIP.png";
 import uogLogo from "../app/assets/UofG_Cornerstone_wTagline_blk_rgb.png";
-import agriLogo from "../app/assets/agri-logo.png";
-import agriLogoWhite from "../app/assets/agri-logo-white.png";
-import researchFundLogo from "../app/assets/research-excellent-fund.png";
 
 export interface FooterLogo {
   src: StaticImageData;

@@ -32,7 +32,7 @@ export default function ChildReview({ field, parsedSteps, language }: ChildRevie
         className="text-md font-semibold"
         style={{ color: theme.colors.primary, fontFamily: theme.fonts.heading }}
       >
-        Child Entries for "{presenter.fieldLabel(field)}"
+        Child Entries for &ldquo;{presenter.fieldLabel(field)}&rdquo;
       </h5>
 
       {children.length === 0 && (

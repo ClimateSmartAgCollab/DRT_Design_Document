@@ -40,7 +40,7 @@ export default function FetchCachedDataPage() {
 
   const { mutate: reload } = useMutation<CachedDataResponse, Error, string>({
     mutationFn: fetchCachedData,
-    onSuccess: (newData, key) => {
+    onSuccess: (newData) => {
       // Replace cache with fresh data
       queryClient.setQueryData(["cachedData"], newData);
     },

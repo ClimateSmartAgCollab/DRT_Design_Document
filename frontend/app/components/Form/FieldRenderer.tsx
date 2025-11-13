@@ -97,6 +97,34 @@ export default function FieldRenderer(props: FieldRendererProps) {
   const theme = useTheme();
   const { createNewChild: ctxCreate, deleteChild: ctxDelete } = useFormData();
 
+  const [datalistInputValue, setDatalistInputValue] = React.useState("");
+  const [numericInputValue, setNumericInputValue] = React.useState<string>(
+    value?.toString() || ""
+  );
+  const [numericError, setNumericError] = React.useState<string | null>(null);
+  const [arrayNumericError, setArrayNumericError] = React.useState<string | null>(null);
+  const [arrayDateTimeError, setArrayDateTimeError] = React.useState<string | null>(
+    null
+  );
+  const [arrayTextError, setArrayTextError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (field.type === "Numeric") {
+      setNumericInputValue(value?.toString() || "");
+      setNumericError(null);
+    } else {
+      setNumericInputValue("");
+      setNumericError(null);
+    }
+  }, [field.type, value]);
+
+  React.useEffect(() => {
+    setDatalistInputValue("");
+    setArrayNumericError(null);
+    setArrayDateTimeError(null);
+    setArrayTextError(null);
+  }, [id]);
+
   const {
     onChange: rhfOnChange,
     onBlur: rhfOnBlur,
@@ -290,8 +318,6 @@ export default function FieldRenderer(props: FieldRendererProps) {
       case 'datalist':
         if (isMulti) {
           // Multi-select datalist with chip input
-          const [inputValue, setInputValue] = React.useState("");
-          
           return (
             <Box>
               {selectedValues.length > 0 && (
@@ -313,28 +339,33 @@ export default function FieldRenderer(props: FieldRendererProps) {
               <TextField
                 fullWidth
                 size="small"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                value={datalistInputValue}
+                onChange={(e) => setDatalistInputValue(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && inputValue.trim()) {
+                  if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (!selectedValues.includes(inputValue.trim())) {
-                      const updated = [...selectedValues, inputValue.trim()];
+                    const currentValue = (e.currentTarget as HTMLInputElement).value.trim();
+                    if (!currentValue) {
+                      return;
+                    }
+                    if (!selectedValues.includes(currentValue)) {
+                      const updated = [...selectedValues, currentValue];
                       onChange(updated);
                       (rhfOnChange as any)({ target: { value: updated } });
                       saveCurrentPageData();
                     }
-                    setInputValue("");
+                    setDatalistInputValue("");
                   }
                 }}
-                onBlur={() => {
-                  if (inputValue.trim() && !selectedValues.includes(inputValue.trim())) {
-                    const updated = [...selectedValues, inputValue.trim()];
+                onBlur={(e) => {
+                  const currentValue = (e.currentTarget as HTMLInputElement).value.trim();
+                  if (currentValue && !selectedValues.includes(currentValue)) {
+                    const updated = [...selectedValues, currentValue];
                     onChange(updated);
                     (rhfOnChange as any)({ target: { value: updated } });
                     saveCurrentPageData();
-                    setInputValue("");
                   }
+                  setDatalistInputValue("");
                 }}
                 placeholder="Type or select, press Enter to add..."
                 slotProps={{ htmlInput: { list: `datalist-${id}` } }}
@@ -775,28 +806,22 @@ if (field.type === "Array[Boolean]") {
 
 // 5) NUMERIC
 if (field.type === "Numeric") {
-  const placeholder = typeof field.placeholder === 'string' 
+  const placeholder =
+    typeof field.placeholder === "string"
     ? field.placeholder 
-    : (field.placeholder?.[language] || "");
-    
-    const [numericError, setNumericError] = React.useState<string | null>(null);
-    const [inputValue, setInputValue] = React.useState<string>(value?.toString() || "");
-    
-    React.useEffect(() => {
-      setInputValue(value?.toString() || "");
-    }, [value]);
+      : field.placeholder?.[language] || "";
     
   return (
         <TextField
-        type="text"  // Changed from "number" to allow format validation
+      type="text" // Changed from "number" to allow format validation
           fullWidth
           size="small"
-        value={inputValue}
+      value={numericInputValue}
         error={!!numericError}
         helperText={numericError}
         onChange={(e) => {
           const inputVal = e.target.value;
-          setInputValue(inputVal);
+        setNumericInputValue(inputVal);
           
           if (!inputVal) {
             setNumericError(null);
@@ -831,16 +856,15 @@ if (field.type === "Numeric") {
 // 6) ARRAY[NUMERIC]
 if (field.type === "Array[Numeric]") {
   const selectedValues = Array.isArray(value) ? value : [];
-  const placeholder = typeof field.placeholder === 'string' 
+  const placeholder =
+    typeof field.placeholder === "string"
     ? field.placeholder 
-    : (field.placeholder?.[language] || "");
-  
-    const [inputError, setInputError] = React.useState<string | null>(null);
+      : field.placeholder?.[language] || "";
     
   return (
         <Box>
           {selectedValues.length > 0 && (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", mb: 1 }}>
               {selectedValues.map((val: number, idx: number) => (
                 <Chip
                   key={idx}
@@ -856,16 +880,16 @@ if (field.type === "Array[Numeric]") {
             </Box>
           )}
           <TextField
-          type="text"  // Changed from "number" to allow validation
+        type="text" // Changed from "number" to allow validation
             fullWidth
             size="small"
             placeholder={placeholder}
-          error={!!inputError}
-          helperText={inputError}
+        error={!!arrayNumericError}
+        helperText={arrayNumericError}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+          if (e.key === "Enter") {
               e.preventDefault();
-              const inputVal = (e.target as HTMLInputElement).value.trim();
+            const inputVal = (e.currentTarget as HTMLInputElement).value.trim();
               
               if (!inputVal) {
                 return;
@@ -876,16 +900,16 @@ if (field.type === "Array[Numeric]") {
               const validationError = FieldValidator.validate(field, inputVal, language);
               
               if (validationError) {
-                setInputError(validationError);
+              setArrayNumericError(validationError);
                 return;
               }
               
-              setInputError(null);
+            setArrayNumericError(null);
               handleFieldChange([...selectedValues, num]);
-              (e.target as HTMLInputElement).value = '';
+            (e.currentTarget as HTMLInputElement).value = "";
             }
           }}
-          onChange={() => setInputError(null)}
+        onChange={() => setArrayNumericError(null)}
       />
     </Box>
 );
@@ -900,8 +924,6 @@ if (field.type === "Array[Numeric]") {
     const placeholder = typeof field.placeholder === 'string' 
       ? field.placeholder 
       : (field.placeholder?.[language] || detectedPlaceholder);
-    
-    const [inputError, setInputError] = React.useState<string | null>(null);
     
     return (
       <Box>
@@ -939,21 +961,21 @@ if (field.type === "Array[Numeric]") {
                   const validationError = FieldValidator.validate(field, val, language);
                   
                   if (validationError) {
-                    setInputError(validationError);
+                    setArrayDateTimeError(validationError);
                     return;
                   }
                   
-                  setInputError(null);
+                  setArrayDateTimeError(null);
                   handleFieldChange([...selectedValues, val]);
                   (e.target as HTMLInputElement).value = '';
                 }
               }
             }}
-            onChange={() => setInputError(null)}
+            onChange={() => setArrayDateTimeError(null)}
           />
-          {inputError && (
+          {arrayDateTimeError && (
             <Typography variant="caption" sx={{ color: theme.colors.secondary, display: 'block', mt: 0.5 }}>
-              {inputError}
+              {arrayDateTimeError}
             </Typography>
           )}
           <Typography variant="caption" sx={{ color: theme.colors.grey[600], display: 'block', mt: 0.5 }}>
@@ -1067,16 +1089,15 @@ if (field.type === "Array[Binary]") {
   // 10) ARRAY[TEXT] (without entry codes)
   if (field.type === "Array[Text]") {
     const selectedValues = Array.isArray(value) ? value : [];
-    const placeholder = typeof field.placeholder === 'string' 
+    const placeholder =
+      typeof field.placeholder === "string"
       ? field.placeholder 
-      : (field.placeholder?.[language] || "");
-    
-    const [inputError, setInputError] = React.useState<string | null>(null);
+        : field.placeholder?.[language] || "";
     
     return (
       <Box>
         {selectedValues.length > 0 && (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: 1 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", mb: 1 }}>
             {selectedValues.map((val: string, idx: number) => (
               <Chip
                 key={idx}
@@ -1095,27 +1116,27 @@ if (field.type === "Array[Binary]") {
           fullWidth
           size="small"
           placeholder={placeholder}
-          error={!!inputError}
-          helperText={inputError}
+          error={!!arrayTextError}
+          helperText={arrayTextError}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === "Enter") {
               e.preventDefault();
-              const val = (e.target as HTMLInputElement).value.trim();
+              const val = (e.currentTarget as HTMLInputElement).value.trim();
               if (val) {
                 const validationError = FieldValidator.validate(field, val, language);
                 
                 if (validationError) {
-                  setInputError(validationError);
+                  setArrayTextError(validationError);
                   return;
                 }
                 
-                setInputError(null);
+                setArrayTextError(null);
                 handleFieldChange([...selectedValues, val]);
-                (e.target as HTMLInputElement).value = '';
+                (e.currentTarget as HTMLInputElement).value = "";
               }
             }
           }}
-          onChange={() => setInputError(null)}
+          onChange={() => setArrayTextError(null)}
         />
       </Box>
     );

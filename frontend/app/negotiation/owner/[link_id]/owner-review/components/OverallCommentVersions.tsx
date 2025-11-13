@@ -20,31 +20,10 @@ export function OverallCommentVersions({
     return null;
   }
 
-  // Parse field comments from the global comments field
-  const parseFieldComments = (comments: string) => {
-    const fieldCommentsMatch = comments.match(/Field Comments:\n([\s\S]*)/);
-    if (fieldCommentsMatch) {
-      const fieldCommentsText = fieldCommentsMatch[1];
-      const fieldComments: Record<string, string> = {};
-      const lines = fieldCommentsText.split('\n');
-      lines.forEach(line => {
-        const match = line.match(/Field (\w+): (.+)/);
-        if (match) {
-          fieldComments[match[1]] = match[2];
-        }
-      });
-      return fieldComments;
-    }
-    return {};
-  };
-
   return (
     <div className="mt-6 space-y-3">
       <h4 className="font-semibold text-gray-700">Overall Comments History</h4>
       {relevantVersions.map((version, index) => {
-        const fieldComments = parseFieldComments(version.comments || '');
-        const hasFieldComments = Object.keys(fieldComments).length > 0;
-        
         return (
           <div key={`overall-${version.timestamp}-${index}`} className="bg-gray-50 p-4 rounded border">
             <div className="flex items-center justify-between mb-2">

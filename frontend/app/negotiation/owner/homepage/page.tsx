@@ -18,14 +18,6 @@ type LoadResponse = {
   data?: any;
 };
 
-async function fetchWhoami(): Promise<WhoamiResponse> {
-  const res = await fetchApi("/drt/owner/whoami/");
-  if (!res.ok) {
-    throw new Error("Not authenticated");
-  }
-  return res.json();
-}
-
 async function fetchLoadData(): Promise<LoadResponse> {
   const res = await fetchApi("/datastore/load-data/");
   if (!res.ok) {

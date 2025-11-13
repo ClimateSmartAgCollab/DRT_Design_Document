@@ -21,9 +21,6 @@ export function NegotiationItem({
   onToggleSelect,
   onReload,
 }: NegotiationItemProps) {
-  const canArchive =
-    !n.archived && ["accepted", "abandoned", "rejected"].includes(n.state);
-  
   const canAbandon = !n.archived && ["requestor_open", "owner_open"].includes(n.state);
   
   const abandonMutation = useMutation({

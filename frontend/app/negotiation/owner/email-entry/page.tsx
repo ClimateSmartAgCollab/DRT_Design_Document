@@ -2,12 +2,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
 export default function OwnerEmailEntry() {
-  const router = useRouter();
   const [email, setEmail] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
@@ -165,7 +163,7 @@ export default function OwnerEmailEntry() {
           Verify Your Email
         </h1>
         <p className="text-gray-600">
-          We'll send you a Access link to access the dashboard.
+          We&rsquo;ll send you an access link to access the dashboard.
         </p>
 
         {/* Validation & Errors */}

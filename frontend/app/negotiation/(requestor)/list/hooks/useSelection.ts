@@ -6,7 +6,11 @@ export function useSelection<T extends string>() {
   const toggleSelect = useCallback((id: T) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }, []);

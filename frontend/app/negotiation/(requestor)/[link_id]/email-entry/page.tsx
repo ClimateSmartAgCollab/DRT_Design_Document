@@ -2,19 +2,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
 export default function EmailEntry() {
   const [email, setEmail] = useState("");
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [resendError, setResendError] = useState<string | null>(null);
-  const router = useRouter();
   const { link_id } = useParams(); // Access `link_id` with `useParams`
 
   function getCSRFToken(): string {
@@ -30,6 +28,7 @@ export default function EmailEntry() {
     mutate: sendMagicLink,
     isPending,
     isError,
+    error: mutationError,
   } = useMutation<void, Error, string>({
     mutationFn: async (emailToSend: string) => {
       const res = await fetchApi(`/drt/verify/requestor/${link_id}/`, {
@@ -153,11 +152,13 @@ export default function EmailEntry() {
           Verify Your Email
         </h1>
         <p className="text-gray-600">
-          We'll send you a Access link to access the questionnaire.
+          We&rsquo;ll send you an access link to access the questionnaire.
         </p>
 
         {/* Validation & Errors */}
-        {isError && error && <p className="text-red-600 text-sm">{error}</p>}
+        {isError && mutationError && (
+          <p className="text-red-600 text-sm">{mutationError.message}</p>
+        )}
         {!isValidEmail && email && (
           <p className="text-yellow-600 text-sm">
             Please enter a valid email address.

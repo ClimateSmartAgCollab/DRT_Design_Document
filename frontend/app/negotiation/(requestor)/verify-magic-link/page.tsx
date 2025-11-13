@@ -44,7 +44,7 @@ function VerifyMagicLinkContent() {
           setStatus('error');
           setErrorMessage(errorData.error || 'Verification failed');
         }
-      } catch (error) {
+      } catch {
         setStatus('error');
         setErrorMessage('Network error. Please try again.');
       }

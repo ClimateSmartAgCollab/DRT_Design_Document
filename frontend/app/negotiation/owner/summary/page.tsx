@@ -111,7 +111,7 @@ export default function OwnerSummaryPage() {
   });
 
   // ——— filter state ———
-  const allData = summaryQuery.data ?? [];
+  const allData = useMemo(() => summaryQuery.data ?? [], [summaryQuery.data]);
 
   const [dataLabel, setDataLabel] = useState<string>("");
   const [tag, setTag] = useState<string[]>([]);

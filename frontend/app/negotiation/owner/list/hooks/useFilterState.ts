@@ -79,7 +79,7 @@ export function useFilterState() {
   useEffect(() => {
     const newFilters = { ...filters, searchTerm: debouncedSearchTerm };
     updateURL(newFilters);
-  }, [debouncedSearchTerm, updateURL]);
+  }, [debouncedSearchTerm, updateURL, filters]);
 
   // Update filters (without URL update for search term)
   const updateFilters = useCallback((updates: Partial<FilterState>) => {

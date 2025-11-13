@@ -7,6 +7,7 @@ interface SidebarProps {
   statusFilter: Status[];
   onToggleStatus: (s: Status) => void;
   archivedFilter: ArchivedFilter;
+  onArchivedChange: (value: ArchivedFilter) => void;
   startDate: string;
   endDate: string;
   onDateChange: (field: "start" | "end", value: string) => void;
@@ -21,6 +22,7 @@ export function Sidebar({
   statusFilter,
   onToggleStatus,
   archivedFilter,
+  onArchivedChange,
   startDate,
   endDate,
   onDateChange,
@@ -44,6 +46,26 @@ export function Sidebar({
           placeholder="Negotiation or Conversation ID…"
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
+      </div>
+
+      {/* Archived */}
+      <div className="mb-6">
+        <h3 className="mb-2 text-sm font-medium text-gray-700">Archived</h3>
+        <select
+          value={archivedFilter}
+          onChange={(e) => onArchivedChange(e.target.value as ArchivedFilter)}
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          <option className="font-sans text-sm" value="all">
+            All records
+          </option>
+          <option className="font-sans text-sm" value="active">
+            Active only
+          </option>
+          <option className="font-sans text-sm" value="archived">
+            Archived only
+          </option>
+        </select>
       </div>
 
       {/* Status */}

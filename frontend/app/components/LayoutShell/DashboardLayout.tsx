@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
@@ -250,12 +251,15 @@ export default function DashboardLayout({
                 href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0"
+                className="relative block h-full w-full shrink-0"
               >
-                <img
+                <Image
                   src="/CS-DCC_Logo-EN_Colour.png"
-                  alt="Logo"
-                  className="w-full h-full rounded-full bg-blue-200 object-contain"
+                  alt="Climate Smart Data Collaboration Centre logo"
+                  fill
+                  sizes="(min-width: 1024px) 9rem, (min-width: 768px) 8rem, (min-width: 640px) 7rem, 6rem"
+                  className="rounded-full bg-blue-200 object-contain"
+                  priority
                 />
               </a>
             </div>

@@ -1,5 +1,4 @@
 import { Field, ArgumentType } from "../../type";
-import { OverlayData } from "../types/parser-types";
 import { OverlaySnapshot } from "../overlays/overlay-extractor";
 
 /** Creates Field objects from an OverlaySnapshot (pure, testable). */

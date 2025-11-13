@@ -1,10 +1,10 @@
 "use client";
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useNegotiations } from "./hooks/useNegotiations";
 import { useFilterState } from "./hooks/useFilterState";
-import { Status, ArchivedFilter, SortOption } from "./types";
+import { Status } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { BulkActionBar } from "./components/BulkActionBar";
 import { NegotiationItem } from "./components/NegotiationItem";
@@ -17,11 +17,10 @@ import Image from "next/image";
 
 export default function OwnerNegotiationListContent() {
   const router = useRouter();
-  const { link_id } = useParams();
   const qc = useQueryClient();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { data: negs, error, isLoading, reload, isFetching } = useNegotiations();
+  const { data: negs, error, isLoading, reload } = useNegotiations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectedTag, setSelectedTag] = useState<string[]>([]);
   const [selectedRecordLabel, setSelectedRecordLabel] = useState<string[]>([]);
@@ -92,7 +91,11 @@ export default function OwnerNegotiationListContent() {
   const handleToggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }, []);
@@ -192,7 +195,7 @@ export default function OwnerNegotiationListContent() {
   // Refresh page data when component mounts to ensure latest data
   useEffect(() => {
     reload();
-  }, []);
+  }, [reload]);
 
   return (
     <Providers>

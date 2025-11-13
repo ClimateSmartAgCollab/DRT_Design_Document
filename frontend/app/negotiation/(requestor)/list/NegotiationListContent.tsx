@@ -10,7 +10,6 @@ import { Status } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { BulkActionBar } from "./components/BulkActionBar";
 import { NegotiationItem } from "./components/NegotiationItem";
-import { deleteOldNegotiations } from "./services/negotiationApi";
 import fetchApi from "@/app/api/apiHelper";
 import { Providers } from "@/app/providers";
 import Image from "next/image";
@@ -20,7 +19,7 @@ export default function NegotiationListContent() {
   const queryClient = useQueryClient();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { data: negs, error, reload, isFetching } = useNegotiations();
+  const { data: negs, error, reload } = useNegotiations();
   const {
     filters,
     setSearchTerm,
@@ -32,11 +31,6 @@ export default function NegotiationListContent() {
   } = useFilterState();
   const { selected, toggleSelect, clearSelection } = useSelection<string>();
   const { deleteSelected } = useBulkDeleteNegotiations();
-
-  const deleteOld = useMutation({
-    mutationFn: () => deleteOldNegotiations(),
-    onSuccess: () => { reload(); },
-  });
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -114,10 +108,6 @@ export default function NegotiationListContent() {
     return arr;
   }, [filtered, filters.sortOption]);
 
-  const hasOld = negs.some(
-    (n) => Date.now() - new Date(n.timestamps).getTime() > 30 * 24 * 60 * 60 * 1000
-  );
-
   // Authentication check
   const whoamiQuery = useQuery({
     queryKey: ["requestor", "whoami"],
@@ -137,7 +127,7 @@ export default function NegotiationListContent() {
   // Refresh page data when component mounts to ensure latest data
   React.useEffect(() => {
     reload();
-  }, []);
+  }, [reload]);
 
   return (
     <Providers>
@@ -329,6 +319,7 @@ export default function NegotiationListContent() {
               statusFilter={filters.statusFilter}
               onToggleStatus={toggleStatus}
               archivedFilter={filters.archivedFilter}
+              onArchivedChange={setArchivedFilter}
               startDate={filters.startDate}
               endDate={filters.endDate}
               onDateChange={setDateRange}

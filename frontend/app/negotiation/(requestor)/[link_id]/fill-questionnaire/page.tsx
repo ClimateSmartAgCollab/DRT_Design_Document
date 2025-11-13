@@ -66,11 +66,7 @@ export default function FillQuestionnairePage() {
     enabled: !!linkId, // only run when linkId exists
   });
 
-  const { mutateAsync, isPending: isSubmitting } = useMutation<
-    void,
-    Error,
-    SubmitQuestionnairePayload
-  >({
+  const { mutateAsync } = useMutation<void, Error, SubmitQuestionnairePayload>({
     mutationFn: async (payload: SubmitQuestionnairePayload) =>
       submitQuestionnaire(linkId!, payload),
     onSuccess: (_data, variables) => {
@@ -169,7 +165,7 @@ export default function FillQuestionnairePage() {
       setRedirecting(true);
       router.replace(`/negotiation/${linkId}/email-entry`);
     }
-  }, [loadError, loadErrorObj, router]);
+  }, [loadError, loadErrorObj, router, linkId]);
 
   if (
     redirecting ||

@@ -1,5 +1,5 @@
 // drt_frontend/app/components/parser/relationships/relationship-parser.ts
-import { Bundle, Dependency, AdcForm } from "../../type";
+import { Bundle, Dependency } from "../../type";
 import { RelationshipMap, RelationshipNode } from "../types/parser-types";
 import { EntityLocator, DefaultEntityLocator } from "../utils/entity-lookup";
 

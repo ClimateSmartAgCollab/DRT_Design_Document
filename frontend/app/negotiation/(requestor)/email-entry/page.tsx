@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
@@ -13,7 +12,6 @@ export default function ReqEmailEntry() {
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [resendError, setResendError] = useState<string | null>(null);
-  const router = useRouter();
 
   function getCSRFToken(): string {
     return (
@@ -156,7 +154,7 @@ export default function ReqEmailEntry() {
           Verify Your Email
         </h1>
         <p className="text-gray-600">
-          We'll send you a Access link to access the dashboard.
+          We&rsquo;ll send you an access link to access the dashboard.
         </p>
 
         {/* Validation & Errors */}
