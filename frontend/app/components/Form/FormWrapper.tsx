@@ -46,6 +46,9 @@ export default function FormWrapper({
   const theme = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<
+    Record<string, boolean>
+  >({});
 
   const parsedSteps = useMemo(() => {
     if (questionnaireJson) {
@@ -444,6 +447,18 @@ export default function FormWrapper({
                     const wasTouched = (touchedFields as any)?.[step.id]?.[
                       field.id
                     ] as boolean | undefined;
+                    const descriptionMap = field.description ?? {};
+                    const description =
+                      (typeof descriptionMap === "object" &&
+                        (descriptionMap as Record<string, string>)[language]) ||
+                      (descriptionMap as Record<string, string>)?.eng ||
+                      (typeof descriptionMap === "object"
+                        ? Object.values(descriptionMap)[0]
+                        : undefined);
+                    const isLongDescription =
+                      typeof description === "string" && description.length > 200;
+                    const isExpanded =
+                      !!expandedDescriptions[`${step.id}.${field.id}`];
 
                     return (
                       <div key={field.id} className="mb-4">
@@ -465,6 +480,45 @@ export default function FormWrapper({
                             </span>
                           )}
                         </label>
+
+                        {description && (
+                          <div className="mb-2">
+                            <p
+                              className="text-sm"
+                              style={{
+                                color: theme.colors.grey[600],
+                                whiteSpace: "pre-wrap",
+                                ...(isLongDescription && !isExpanded
+                                  ? {
+                                      display: "-webkit-box",
+                                      WebkitLineClamp: 3,
+                                      WebkitBoxOrient: "vertical",
+                                      overflow: "hidden",
+                                    }
+                                  : {}),
+                              }}
+                            >
+                              {description}
+                            </p>
+                            {isLongDescription && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedDescriptions((prev) => ({
+                                    ...prev,
+                                    [`${step.id}.${field.id}`]: !prev[
+                                      `${step.id}.${field.id}`
+                                    ],
+                                  }))
+                                }
+                                className="text-xs font-medium"
+                                style={{ color: theme.colors.primary }}
+                              >
+                                {isExpanded ? "Show less" : "Show more"}
+                              </button>
+                            )}
+                          </div>
+                        )}
 
                         <FieldRenderer
                           id={name}
