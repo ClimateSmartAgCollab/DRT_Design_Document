@@ -1,10 +1,24 @@
-# DRT (Data Request Tracker)
+# DRT (Data Request Tracker) — Data Hub Implementation
 
-DRT is an end-to-end platform for managing data access negotiations between requestors and dataset owners. It streamlines how research teams discover questionnaires, submit structured requests, collaborate with owners, negotiate license terms, and archive the final agreements. The project is delivered as a full-stack monorepo that contains the production application, infrastructure assets, and supporting documentation.
+> **Note:** This repository contains a **specific implementation** of the DRT platform for the Data Hub. The DRT platform itself is a general-purpose solution that can be deployed by any organization, data space, or research group. 
+
+## Implementing Your Own DRT Instance
+
+**Want to deploy DRT for your organization?** See the comprehensive **[Implementation Guide](docs/IMPLEMENTATION_GUIDE.md)** for step-by-step instructions on:
+- Setting up your GitHub datastore
+- Configuring backend and frontend
+- Customizing branding and theming
+- Deploying to production
+- And much more
+
+For information about the general DRT concept, see the [DRT landing page](https://github.com/ClimateSmartAgCollab/DRT_ad) or contact us to form a partnership.
+
+DRT is an end-to-end platform for managing data access negotiations between requestors and dataset owners. It streamlines how research teams discover questionnaires, submit structured requests, collaborate with owners, negotiate license terms, and archive the final agreements. This repository contains the Data Hub's production implementation, delivered as a full-stack monorepo that contains the production application, infrastructure assets, and supporting documentation.
 
 ---
 
 ## Table of Contents
+- [Implementing Your Own DRT Instance](#-implementing-your-own-drt-instance)
 - [Core Problem DRT Solves](#core-problem-it-solves)
 - [Core Value Proposition](#core-value-proposition)
 - [System Architecture](#system-architecture)
@@ -161,7 +175,8 @@ The core entities live in `backend/drt/models.py`.
 | `DATABASE_URL` or (`POSTGRES_*`, `DB_HOST`, `DB_PORT`) | Database connectivity | `backend/.env`, `backend/local.env` |
 | `REDIS_URL` | Celery broker + cache | `backend/.env` |
 | `FRONTEND_BASE_URL` | Used in emails for deep links | `backend/.env` |
-| `GITHUB_DATASTORE_URL` | Base repository serving questionnaires | `backend/.env` |
+| `GITHUB_API_URL` | GitHub API URL for datastore repository (format: `https://api.github.com/repos/OWNER/REPO/contents`) | `backend/.env` |
+| `GITHUB_TOKEN` | GitHub personal access token for datastore access | `backend/.env` |
 | `EMAIL_*` (`DEFAULT_FROM_EMAIL`, `ETHEREAL_USER`, etc.) | SMTP credentials | `backend/.env` |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend → API endpoint | `frontend/.env.local` |
 
@@ -228,6 +243,7 @@ Use `redis-server` or the Docker container to provide the broker/backend.
 ---
 
 ## Resources & Contacts
+- **Implementation Guide:** [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) - Complete guide for deploying your own DRT instance
 - **Production datastore (example):** [ClimateSmartAgCollab/DRT-DS-test](https://github.com/ClimateSmartAgCollab/DRT-DS-test)
 - **Design documentation:** see `docs/` within this repository.
 - **Support:** `adc@uoguelph.ca`

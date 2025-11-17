@@ -7,14 +7,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework import status
 from ..models import NLink, Negotiation
 import uuid
 import datetime
 import logging
 import json
 import traceback
-from django.conf import settings
-from .utils import owner_auth_required, requestor_auth_required
+from .utils import requestor_auth_required
 from ..tasks import (
     send_notification_emails_task, 
     fetch_questionnaire_task, 
@@ -25,6 +25,13 @@ from ..tasks import (
 from drt.services.history import create_archive_snapshot
 
 logger = logging.getLogger(__name__)
+
+# Import fetch_questionnaire_json with error handling
+try:
+    from datastore.views import fetch_questionnaire_json
+except ImportError as e:
+    logger.error(f"Failed to import fetch_questionnaire_json: {e}")
+    fetch_questionnaire_json = None
 
 @csrf_exempt
 @api_view(['GET'])
@@ -85,6 +92,88 @@ def request_access(request, link_id):
     questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
     return Response({'status': 'Link sent successfully!', 'link': questionnaire_url})
+
+
+@csrf_exempt
+@api_view(['GET'])
+def preview_questionnaire(_request):
+    """
+    Preview endpoint for questionnaires - no authentication required.
+    Returns a demo questionnaire for preview purposes.
+    """
+    PREFERRED_QUESTIONNAIRE_ID = 'q-004-test'
+    CACHE_TIMEOUT = 24 * 60 * 60  # 24 hours
+    
+    try:
+        if fetch_questionnaire_json is None:
+            logger.error("Preview: fetch_questionnaire_json function not available")
+            return Response({
+                'error': 'Questionnaire fetch function not available. Check datastore app configuration.',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        questionnaire_table = cache.get('questionnaire_table')
+        if not questionnaire_table:
+            logger.error("Preview: questionnaire_table cache is empty")
+            return Response({
+                'error': 'Questionnaire table not found in cache. Please load GitHub data first.',
+                'hint': 'Call /datastore/load_github_data/ to populate the cache'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        available_questionnaire_ids = list(questionnaire_table.keys())
+        if not available_questionnaire_ids:
+            logger.error("Preview: questionnaire_table is empty")
+            return Response({
+                'error': 'No questionnaires available in questionnaire table.',
+                'hint': 'Call /datastore/load_github_data/ to populate the cache'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Try to load questionnaire (preferred first, then fallback)
+        questionnaire_id = PREFERRED_QUESTIONNAIRE_ID
+        questionnaire_json = None
+        
+        cache_key = f'questionnaire_json_{questionnaire_id}'
+        cached_json = cache.get(cache_key)
+        if cached_json:
+            questionnaire_json = cached_json
+            logger.info(f"Preview: Using cached questionnaire {questionnaire_id}")
+        else:
+            questionnaire_ids_to_try = [questionnaire_id] + [
+                qid for qid in available_questionnaire_ids if qid != questionnaire_id
+            ]
+            
+            for qid in questionnaire_ids_to_try:
+                logger.info(f"Preview: Fetching questionnaire {qid}")
+                fetched_json = fetch_questionnaire_json(qid)
+                
+                if fetched_json and not fetched_json.get('_loading'):
+                    questionnaire_id = qid
+                    questionnaire_json = fetched_json
+                    cache.set(f'questionnaire_json_{qid}', fetched_json, timeout=CACHE_TIMEOUT)
+                    logger.info(f"Preview: Successfully fetched and cached questionnaire {qid}")
+                    break
+            
+            if not questionnaire_json:
+                logger.error(f"Preview: Failed to load any questionnaire. Tried {len(questionnaire_ids_to_try)} questionnaires.")
+                return Response({
+                    'error': f'Failed to load questionnaire from GitHub. Tried {len(questionnaire_ids_to_try)} available questionnaires.',
+                    'preferred_questionnaire': PREFERRED_QUESTIONNAIRE_ID,
+                    'available_questionnaires': available_questionnaire_ids,
+                    'hint': 'Check that the questionnaire files exist in GitHub at source_library/questionnaires/ and the GITHUB_TOKEN is configured correctly'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'questionnaire': questionnaire_json,
+            'saved_responses': {},
+            'owner_responses': "{}",
+            'comments': "",
+            'is_preview': True,
+        })
+    except Exception as e:
+        logger.error(f"Preview: Unexpected error in preview_questionnaire: {e}", exc_info=True)
+        return Response({
+            'error': f'Unexpected error: {str(e)}',
+            'type': type(e).__name__
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @csrf_exempt

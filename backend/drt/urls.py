@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_view, request_access,
-                    fill_questionnaire, verify_req_magic_link, negotiation_list_api_req,
+                    fill_questionnaire, preview_questionnaire, verify_req_magic_link, negotiation_list_api_req,
                     owner_email_entry, verify_owner_magic_link, owner_review, archive_view,
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
@@ -55,6 +55,11 @@ urlpatterns = [
     path('fill_questionnaire/<str:link_id>/',
          fill_questionnaire,
          name='fill_questionnaire'),
+
+    # Preview endpoint (no authentication required)
+    path('preview-questionnaire/',
+         preview_questionnaire,
+         name='preview_questionnaire'),
 
     path('req_negotiations/',
          negotiation_list_api_req,
