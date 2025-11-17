@@ -7,7 +7,7 @@ import fetchApi from "@/app/api/apiHelper";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { parseJsonToFormStructure } from "@/app/components/parser";
 import { Providers } from "@/app/providers";
-import Image from "next/image";
+import Header from "@/app/components/Header";
 
 interface CommentCycle {
   id: string;
@@ -647,7 +647,6 @@ export default function NegotiationHistoryPage() {
   const searchParams = useSearchParams();
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(0);
   const [isViewingHistory, setIsViewingHistory] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const linkIdStr = Array.isArray(link_id) ? link_id[0] : link_id;
@@ -773,385 +772,40 @@ export default function NegotiationHistoryPage() {
     logoutMutation.mutate();
   };
 
-  if (isLoading) {
-    return (
-      <Providers>
-        <main className="min-h-dvh bg-white flex flex-col">
-          {/* Header Bar */}
-          <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
-            <div className="container-default section-y w-full">
-              <div className="flex items-start justify-between gap-4 min-w-0">
-                {/* Title / Help */}
-                <div className="flex-1 min-w-0">
-                  <div>
-                    <span className="block text-white font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight">
-                      Negotiation History
-                    </span>
-                  </div>
-                  {/* Homepage Link */}
-                  <div className="mt-4 sm:mt-6 md:mt-8 lg:mt-10 md:pl-6 lg:pl-10">
-                    <button
-                      onClick={() => router.push("/negotiation/homepage")}
-                      className="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors px-3 py-2 rounded-md hover:bg-white hover:bg-opacity-10"
-                    >
-                      <svg 
-                        className="w-5 h-5" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth={2} 
-                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
-                        />
-                      </svg>
-                      <span className="font-sans font-medium text-sm sm:text-base">
-                        Homepage
-                      </span>
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2 sm:gap-4 min-w-0 flex-shrink-0">
-                  {/* User Avatar Dropdown */}
-                  <div className="relative flex-shrink-0">
-                    {whoamiQuery.isLoading ? (
-                      <div className="flex items-center space-x-2 text-white">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                        <span className="text-sm">Loading...</span>
-                      </div>
-                    ) : whoamiQuery.data?.email ? (
-                      <div className="relative">
-                        <button
-                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                          className="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors focus:outline-none"
-                        >
-                          <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                            <svg 
-                              className="w-4 h-4" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              viewBox="0 0 24 24"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                              />
-                            </svg>
-                          </div>
-                          <svg 
-                            className={`w-3 h-3 transition-transform ${isDropdownOpen ? 'rotate-180' : ''} flex-shrink-0`}
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M19 9l-7 7-7-7" 
-                            />
-                          </svg>
-                        </button>
+  // Common Header component props
+  const headerProps = {
+    title: "Negotiation History",
+    homepageLink: {
+      href: "/negotiation/homepage",
+      onClick: () => router.push("/negotiation/homepage"),
+    },
+    userDropdown: {
+      email: whoamiQuery.data?.email || "",
+      role: "requestor" as const,
+      isLoading: whoamiQuery.isLoading,
+      isLoggingOut: isLoggingOut,
+      onLogout: handleLogout,
+    },
+  };
 
-                        {isDropdownOpen && (
-                          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                            <div className="p-4 border-b border-gray-100">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-[#216b96] rounded-full flex items-center justify-center text-white">
-                                  <svg 
-                                    className="w-5 h-5" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path 
-                                      strokeLinecap="round" 
-                                      strokeLinejoin="round" 
-                                      strokeWidth={2} 
-                                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                                    />
-                                  </svg>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">{whoamiQuery.data.email}</p>
-                                  <p className="text-xs text-gray-500 capitalize">requestor</p>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="p-2">
-                              <button
-                                onClick={handleLogout}
-                                disabled={isLoggingOut}
-                                className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {isLoggingOut ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                                    <span>Logging out...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <svg 
-                                      className="w-4 h-4" 
-                                      fill="none" 
-                                      stroke="currentColor" 
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        strokeWidth={2} 
-                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-                                      />
-                                    </svg>
-                                    <span>Log out</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-white opacity-75">
-                        Not authenticated
-                      </div>
-                    )}
-                  </div>
+  const totalEntries = historyEntries.length;
 
-                  {/* Logo */}
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-60 lg:h-60 flex-shrink-0">
-                    <a
-                      href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0"
-                    >
-                      <Image
-                        src="/CS-DCC_Logo-EN_Colour.png"
-                        alt="Logo"
-                        width={240}
-                        height={240}
-                        className="rounded-full bg-blue-200 object-contain"
-                      />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
+  return (
+    <Providers>
+      <main className="min-h-dvh bg-white flex flex-col">
+        {/* Header Bar */}
+        <Header {...headerProps} />
 
-            {/* Dropdown backdrop */}
-            {isDropdownOpen && (
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setIsDropdownOpen(false)}
-              />
-            )}
-          </header>
-
-          <div className="flex flex-col items-center w-full px-2 sm:px-4 py-6 sm:py-8 md:py-10">
-            <div className="max-w-6xl w-full">
+        <div className="flex flex-col items-center w-full px-2 sm:px-4 py-6 sm:py-8 md:py-10">
+          <div className="max-w-6xl w-full">
+            {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 <span className="ml-3 text-gray-600">
                   Loading negotiation history...
                 </span>
               </div>
-            </div>
-          </div>
-        </main>
-      </Providers>
-    );
-  }
-
-  if (error) {
-    return (
-      <Providers>
-        <main className="min-h-dvh bg-white flex flex-col">
-          {/* Header Bar */}
-          <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
-            <div className="container-default section-y w-full">
-              <div className="flex items-start justify-between gap-4 min-w-0">
-                {/* Title / Help */}
-                <div className="flex-1 min-w-0">
-                  <div>
-                    <span className="block text-white font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight">
-                      Negotiation History
-                    </span>
-                  </div>
-                  {/* Homepage Link */}
-                  <div className="mt-4 sm:mt-6 md:mt-8 lg:mt-10 md:pl-6 lg:pl-10">
-                    <button
-                      onClick={() => router.push("/negotiation/homepage")}
-                      className="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors px-3 py-2 rounded-md hover:bg-white hover:bg-opacity-10"
-                    >
-                      <svg 
-                        className="w-5 h-5" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth={2} 
-                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
-                        />
-                      </svg>
-                      <span className="font-sans font-medium text-sm sm:text-base">
-                        Homepage
-                      </span>
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2 sm:gap-4 min-w-0 flex-shrink-0">
-                  {/* User Avatar Dropdown */}
-                  <div className="relative flex-shrink-0">
-                    {whoamiQuery.isLoading ? (
-                      <div className="flex items-center space-x-2 text-white">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                        <span className="text-sm">Loading...</span>
-                      </div>
-                    ) : whoamiQuery.data?.email ? (
-                      <div className="relative">
-                        <button
-                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                          className="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors focus:outline-none"
-                        >
-                          <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                            <svg 
-                              className="w-4 h-4" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              viewBox="0 0 24 24"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                              />
-                            </svg>
-                          </div>
-                          <svg 
-                            className={`w-3 h-3 transition-transform ${isDropdownOpen ? 'rotate-180' : ''} flex-shrink-0`}
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M19 9l-7 7-7-7" 
-                            />
-                          </svg>
-                        </button>
-
-                        {isDropdownOpen && (
-                          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                            <div className="p-4 border-b border-gray-100">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-[#216b96] rounded-full flex items-center justify-center text-white">
-                                  <svg 
-                                    className="w-5 h-5" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path 
-                                      strokeLinecap="round" 
-                                      strokeLinejoin="round" 
-                                      strokeWidth={2} 
-                                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                                    />
-                                  </svg>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">{whoamiQuery.data.email}</p>
-                                  <p className="text-xs text-gray-500 capitalize">requestor</p>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="p-2">
-                              <button
-                                onClick={handleLogout}
-                                disabled={isLoggingOut}
-                                className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {isLoggingOut ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                                    <span>Logging out...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <svg 
-                                      className="w-4 h-4" 
-                                      fill="none" 
-                                      stroke="currentColor" 
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        strokeWidth={2} 
-                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-                                      />
-                                    </svg>
-                                    <span>Log out</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-white opacity-75">
-                        Not authenticated
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Logo */}
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-60 lg:h-60 flex-shrink-0">
-                    <a
-                      href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0"
-                    >
-                      <Image
-                        src="/CS-DCC_Logo-EN_Colour.png"
-                        alt="Logo"
-                        width={240}
-                        height={240}
-                        className="rounded-full bg-blue-200 object-contain"
-                      />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Dropdown backdrop */}
-            {isDropdownOpen && (
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setIsDropdownOpen(false)}
-              />
-            )}
-          </header>
-
-          <div className="flex flex-col items-center w-full px-2 sm:px-4 py-6 sm:py-8 md:py-10">
-            <div className="max-w-6xl w-full">
+            ) : error ? (
               <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
                 <p className="text-red-600">
                   Error loading negotiation history: {error.message}
@@ -1163,515 +817,139 @@ export default function NegotiationHistoryPage() {
                   Go Back
                 </button>
               </div>
-            </div>
-          </div>
-        </main>
-      </Providers>
-    );
-  }
-
-  if (!history) {
-    return (
-      <Providers>
-        <main className="min-h-dvh bg-white flex flex-col">
-          {/* Header Bar */}
-          <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
-            <div className="container-default section-y w-full">
-              <div className="flex items-start justify-between gap-4 min-w-0">
-                {/* Title / Help */}
-                <div className="flex-1 min-w-0">
-                  <div>
-                    <span className="block text-white font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight">
-                      Negotiation History
-                    </span>
-                  </div>
-                  {/* Homepage Link */}
-                  <div className="mt-4 sm:mt-6 md:mt-8 lg:mt-10 md:pl-6 lg:pl-10">
-                    <button
-                      onClick={() => router.push("/negotiation/homepage")}
-                      className="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors px-3 py-2 rounded-md hover:bg-white hover:bg-opacity-10"
-                    >
-                      <svg 
-                        className="w-5 h-5" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth={2} 
-                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
-                        />
-                      </svg>
-                      <span className="font-sans font-medium text-sm sm:text-base">
-                        Homepage
-                      </span>
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2 sm:gap-4 min-w-0 flex-shrink-0">
-                  {/* User Avatar Dropdown */}
-                  <div className="relative flex-shrink-0">
-                    {whoamiQuery.isLoading ? (
-                      <div className="flex items-center space-x-2 text-white">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                        <span className="text-sm">Loading...</span>
-                      </div>
-                    ) : whoamiQuery.data?.email ? (
-                      <div className="relative">
-                        <button
-                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                          className="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors focus:outline-none"
-                        >
-                          <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                            <svg 
-                              className="w-4 h-4" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              viewBox="0 0 24 24"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                              />
-                            </svg>
-                          </div>
-                          <svg 
-                            className={`w-3 h-3 transition-transform ${isDropdownOpen ? 'rotate-180' : ''} flex-shrink-0`}
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M19 9l-7 7-7-7" 
-                            />
-                          </svg>
-                        </button>
-
-                        {isDropdownOpen && (
-                          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                            <div className="p-4 border-b border-gray-100">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-[#216b96] rounded-full flex items-center justify-center text-white">
-                                  <svg 
-                                    className="w-5 h-5" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path 
-                                      strokeLinecap="round" 
-                                      strokeLinejoin="round" 
-                                      strokeWidth={2} 
-                                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                                    />
-                                  </svg>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">{whoamiQuery.data.email}</p>
-                                  <p className="text-xs text-gray-500 capitalize">requestor</p>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="p-2">
-                              <button
-                                onClick={handleLogout}
-                                disabled={isLoggingOut}
-                                className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {isLoggingOut ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                                    <span>Logging out...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <svg 
-                                      className="w-4 h-4" 
-                                      fill="none" 
-                                      stroke="currentColor" 
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        strokeWidth={2} 
-                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-                                      />
-                                    </svg>
-                                    <span>Log out</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-white opacity-75">
-                        Not authenticated
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Logo */}
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-60 lg:h-60 flex-shrink-0">
-                    <a
-                      href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0"
-                    >
-                      <Image
-                        src="/CS-DCC_Logo-EN_Colour.png"
-                        alt="Logo"
-                        width={240}
-                        height={240}
-                        className="rounded-full bg-blue-200 object-contain"
-                      />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Dropdown backdrop */}
-            {isDropdownOpen && (
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setIsDropdownOpen(false)}
-              />
-            )}
-          </header>
-
-          <div className="flex flex-col items-center w-full px-2 sm:px-4 py-6 sm:py-8 md:py-10">
-            <div className="max-w-6xl w-full">
+            ) : !history ? (
               <p className="text-gray-500">
                 No history found for this negotiation.
               </p>
-            </div>
-          </div>
-        </main>
-      </Providers>
-    );
-  }
-
-  const totalEntries = historyEntries.length;
-
-  return (
-    <Providers>
-      <main className="min-h-dvh bg-white flex flex-col">
-        {/* Header Bar */}
-        <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
-          <div className="container-default section-y w-full">
-            <div className="flex items-start justify-between gap-4 min-w-0">
-              {/* Title / Help */}
-              <div className="flex-1 min-w-0">
-                <div>
-                  <span className="block text-white font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight">
-                    Negotiation History
-                  </span>
-                </div>
-                {/* Homepage Link */}
-                <div className="mt-4 sm:mt-6 md:mt-8 lg:mt-10 md:pl-6 lg:pl-10">
-                  <button
-                    onClick={() => router.push("/negotiation/homepage")}
-                    className="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors px-3 py-2 rounded-md hover:bg-white hover:bg-opacity-10"
-                  >
-                    <svg 
-                      className="w-5 h-5" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
-                      />
-                    </svg>
-                    <span className="font-sans font-medium text-sm sm:text-base">
-                      Homepage
-                    </span>
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 sm:gap-4 min-w-0 flex-shrink-0">
-                {/* User Avatar Dropdown */}
-                <div className="relative flex-shrink-0">
-                  {whoamiQuery.isLoading ? (
-                    <div className="flex items-center space-x-2 text-white">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                      <span className="text-sm">Loading...</span>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                        Negotiation History
+                      </h1>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>
+                          <strong>ID:</strong> {history.negotiation_id}
+                        </p>
+                        <p>
+                          <strong>State:</strong> {history.state}
+                        </p>
+                        <p>
+                          <strong>Created:</strong>{" "}
+                          {new Date(history.timestamps).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                  ) : whoamiQuery.data?.email ? (
-                    <div className="relative">
-                      <button
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="flex items-center space-x-2 text-white hover:text-gray-200 transition-colors focus:outline-none"
-                      >
-                        <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                          <svg 
-                            className="w-4 h-4" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                            />
-                          </svg>
-                        </div>
-                        <svg 
-                          className={`w-3 h-3 transition-transform ${isDropdownOpen ? 'rotate-180' : ''} flex-shrink-0`}
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth={2} 
-                            d="M19 9l-7 7-7-7" 
-                          />
-                        </svg>
-                      </button>
 
-                      {isDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                          <div className="p-4 border-b border-gray-100">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-[#216b96] rounded-full flex items-center justify-center text-white">
-                                <svg 
-                                  className="w-5 h-5" 
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    strokeWidth={2} 
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                                  />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{whoamiQuery.data.email}</p>
-                                <p className="text-xs text-gray-500 capitalize">requestor</p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="p-2">
-                            <button
-                              onClick={handleLogout}
-                              disabled={isLoggingOut}
-                              className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isLoggingOut ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                                  <span>Logging out...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg 
-                                    className="w-4 h-4" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path 
-                                      strokeLinecap="round" 
-                                      strokeLinejoin="round" 
-                                      strokeWidth={2} 
-                                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-                                    />
-                                  </svg>
-                                  <span>Log out</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
+                    <div className="flex space-x-3">
+                      {cameFromQuestionnaire ? (
+                        <button
+                          onClick={() => router.push(`/negotiation/${linkIdStr}/fill-questionnaire`)}
+                          className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        >
+                          Back to Questionnaire
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => router.push("/negotiation/list")}
+                          className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        >
+                          Back to List
+                        </button>
                       )}
                     </div>
-                  ) : (
-                    <div className="text-sm text-white opacity-75">
-                      Not authenticated
+                  </div>
+                </div>
+
+                {totalEntries > 0 ? (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-gray-800">
+                        Archive History
+                      </h2>
+                      {isViewingHistory && (
+                        <button
+                          onClick={() => handleHistoryNavigate(totalEntries - 1)}
+                          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                        >
+                          Back to Latest
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Logo */}
-                <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-60 lg:h-60 flex-shrink-0">
-                  <a
-                    href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0"
-                  >
-                    <Image
-                      src="/CS-DCC_Logo-EN_Colour.png"
-                      alt="Logo"
-                      width={240}
-                      height={240}
-                      className="rounded-full bg-blue-200 object-contain"
-                    />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
+                    {totalEntries > 1 && (
+                      <CommentNavigation
+                        currentIndex={currentHistoryIndex}
+                        totalCycles={totalEntries}
+                        onNavigate={handleHistoryNavigate}
+                      />
+                    )}
 
-          {/* Dropdown backdrop */}
-          {isDropdownOpen && (
-            <div 
-              className="fixed inset-0 z-40" 
-              onClick={() => setIsDropdownOpen(false)}
-            />
-          )}
-        </header>
+                    {currentData?.requestor_responses &&
+                    Object.keys(currentData.requestor_responses).length > 0 ? (
+                      <>
+                        <QuestionnaireReview
+                          parentSteps={parentSteps}
+                          currentData={currentData}
+                          ownerCommentVersions={
+                            historyEntries[currentHistoryIndex]?.ownerCommentVersions
+                          }
+                        />
 
-        <div className="flex flex-col items-center w-full px-2 sm:px-4 py-6 sm:py-8 md:py-10">
-          <div className="max-w-6xl w-full">
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                Negotiation History
-              </h1>
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>
-                  <strong>ID:</strong> {history.negotiation_id}
-                </p>
-                <p>
-                  <strong>State:</strong> {history.state}
-                </p>
-                <p>
-                  <strong>Created:</strong>{" "}
-                  {new Date(history.timestamps).toLocaleString()}
-                </p>
-              </div>
-            </div>
+                        {historyEntries[currentHistoryIndex]?.ownerCommentVersions &&
+                        historyEntries[currentHistoryIndex].ownerCommentVersions
+                          .length > 0 ? (
+                          <OverallCommentVersions
+                            ownerCommentVersions={
+                              historyEntries[currentHistoryIndex].ownerCommentVersions
+                            }
+                          />
+                        ) : currentData.comments ? (
+                          <div className="mt-6">
+                            <label className="block font-medium mb-1">
+                              Overall Comments
+                            </label>
+                            <div className="bg-gray-50 p-4 rounded border">
+                              <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                                {currentData.comments}
+                              </pre>
+                            </div>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No questionnaire data available to review.</p>
+                        <p className="text-sm mt-2">
+                          This negotiation may not have any responses yet.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <p className="text-gray-500 text-center">
+                      No submission history found for this negotiation.
+                    </p>
+                  </div>
+                )}
 
-            <div className="flex space-x-3">
-              {cameFromQuestionnaire ? (
-                <button
-                  onClick={() => router.push(`/negotiation/${linkIdStr}/fill-questionnaire`)}
-                  className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
-                >
-                  Back to Questionnaire
-                </button>
-              ) : (
-                <button
-                  onClick={() => router.push("/negotiation/list")}
-                  className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
-                >
-                  Back to List
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {totalEntries > 0 ? (
-          <>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">
-                Archive History
-              </h2>
-              {isViewingHistory && (
-                <button
-                  onClick={() => handleHistoryNavigate(totalEntries - 1)}
-                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                >
-                  Back to Latest
-                </button>
-              )}
-            </div>
-
-            {totalEntries > 1 && (
-              <CommentNavigation
-                currentIndex={currentHistoryIndex}
-                totalCycles={totalEntries}
-                onNavigate={handleHistoryNavigate}
-              />
-            )}
-
-            {currentData?.requestor_responses &&
-            Object.keys(currentData.requestor_responses).length > 0 ? (
-              <>
-                <QuestionnaireReview
-                  parentSteps={parentSteps}
-                  currentData={currentData}
-                  ownerCommentVersions={
-                    historyEntries[currentHistoryIndex]?.ownerCommentVersions
-                  }
-                />
-
-                {historyEntries[currentHistoryIndex]?.ownerCommentVersions &&
-                historyEntries[currentHistoryIndex].ownerCommentVersions
-                  .length > 0 ? (
-                  <OverallCommentVersions
-                    ownerCommentVersions={
-                      historyEntries[currentHistoryIndex].ownerCommentVersions
-                    }
-                  />
-                ) : currentData.comments ? (
-                  <div className="mt-6">
-                    <label className="block font-medium mb-1">
-                      Overall Comments
-                    </label>
-                    <div className="bg-gray-50 p-4 rounded border">
-                      <pre className="whitespace-pre-wrap text-sm text-gray-800">
-                        {currentData.comments}
+                {currentData?.state === "rejected" && currentData?.rationale && (
+                  <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+                    <h3 className="font-semibold text-gray-700 mb-3">
+                      Rejection Rationale
+                    </h3>
+                    <div className="bg-red-50 p-4 rounded border border-red-200">
+                      <pre className="whitespace-pre-wrap text-sm text-red-800">
+                        {currentData.rationale}
                       </pre>
                     </div>
                   </div>
-                ) : null}
+                )}
               </>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>No questionnaire data available to review.</p>
-                <p className="text-sm mt-2">
-                  This negotiation may not have any responses yet.
-                </p>
-              </div>
             )}
-          </>
-        ) : (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <p className="text-gray-500 text-center">
-              No submission history found for this negotiation.
-            </p>
-          </div>
-        )}
-
-        {currentData?.state === "rejected" && currentData?.rationale && (
-          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-            <h3 className="font-semibold text-gray-700 mb-3">
-              Rejection Rationale
-            </h3>
-            <div className="bg-red-50 p-4 rounded border border-red-200">
-              <pre className="whitespace-pre-wrap text-sm text-red-800">
-                {currentData.rationale}
-              </pre>
-            </div>
-          </div>
-        )}
           </div>
         </div>
       </main>

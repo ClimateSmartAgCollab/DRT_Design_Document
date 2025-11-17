@@ -1,8 +1,9 @@
 // app/page.tsx
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
+import Image from "next/image";
+import Header from "@/app/components/Header";
 
 const content = {
   EN: {
@@ -331,95 +332,16 @@ export default function HomePage() {
         {t.testingBanner}
       </div>
       {/* Header Bar */}
-      <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
-        <div className="container-default section-y w-full">
-          <div className="flex items-start justify-between gap-4 min-w-0">
-            {/* Title / Help */}
-            <div className="flex-1 min-w-0">
-              <div>
-                <span className="block text-white font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight">
-                  {t.headerTitle}
-                </span>
-                <span className="block text-white font-sans font-light text-lg sm:text-xl md:text-2xl mt-1 ml-1">
-                  {t.headerSubtitle}
-                </span>
-              </div>
-
-              <div className="mt-4 sm:mt-6 md:mt-8 lg:mt-10 md:pl-6 lg:pl-10">
-                <h2 className="text-white font-bold text-lg sm:text-xl md:text-2xl font-sans">
-                  {t.headerHelp}
-                </h2>
-                <p className="text-white font-sans text-sm sm:text-base mt-2">
-                  {t.headerDesc}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2 sm:gap-4 min-w-0 flex-shrink-0">
-              {/* Language Dropdown */}
-              <div className="relative group flex-shrink-0">
-                <button
-                  className="flex items-center px-2 sm:px-4 py-1 sm:py-2 bg-[#216b96] text-white font-sans text-sm sm:text-lg rounded hover:bg-[#50809cd7] focus:outline-none"
-                  aria-haspopup="listbox"
-                  aria-expanded={false}
-                  tabIndex={0}
-                >
-                  {lang}
-                  <svg
-                    className="ml-1 sm:ml-2 w-3 h-3 sm:w-4 sm:h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-                <div className="absolute left-0 mt-1 w-full bg-[#216b96] border-gray-200 rounded shadow-[0_4px_24px_rgba(0,0,0,0.35)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
-                  <ul className="py-1">
-                    <li>
-                      <button
-                        className="block w-full text-left px-2 sm:px-4 py-1 sm:py-2 text-white rounded hover:bg-[#50809cd7] font-sans text-sm sm:text-base"
-                        onClick={() => setLang("EN")}
-                      >
-                        EN
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        className="block w-full text-left px-2 sm:px-4 py-1 sm:py-2 text-white rounded hover:bg-[#50809cd7] font-sans text-sm sm:text-base"
-                        onClick={() => setLang("FR")}
-                      >
-                        FR
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              {/* Logo */}
-              <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-60 lg:h-60 flex-shrink-0">
-                <a
-                  href="https://genomecanada.ca/project/climate-smart-data-collaboration-centre-cs-dcc/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0"
-                >
-                  <Image
-                    src="/CS-DCC_Logo-EN_Colour.png"
-                    alt="Logo"
-                    width={240}
-                    height={240}
-                    className="rounded-full bg-blue-200 object-contain"
-                  />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header
+        title={t.headerTitle}
+        subtitle={t.headerSubtitle}
+        helpTitle={t.headerHelp}
+        helpDesc={t.headerDesc}
+        languageDropdown={{
+          currentLang: lang,
+          onLangChange: setLang,
+        }}
+      />
       <div className="flex flex-col items-center w-full px-2 sm:px-4 py-6 sm:py-8 md:py-10">
         <div className="max-w-3xl w-full">
           {/* Attention Testers Card */}
