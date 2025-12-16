@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db.models import F, Count, Q
 from django.utils.translation import gettext_lazy as _
+from django.utils.dateparse import parse_datetime, parse_date
 from ..models import NLink, Archive, SummaryStatistic, Negotiation
 from django.db import transaction
 from django.db.models.signals import post_save
@@ -15,6 +16,7 @@ from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 import json
 import logging
+import datetime
 from ..tasks import handle_negotiation_archive_and_summary_task, send_reopen_notification_email_task
 from drt.services.history import get_archive_history, map_archives_to_versions
 from datastore.views import fetch_questionnaire_json, fetch_license_template
@@ -26,7 +28,7 @@ from .questionnaire import create_archive_snapshot
 logger = logging.getLogger(__name__)
 
 
-def export_summary_to_drt_view(request):
+def export_summary_to_drt_view(_request):
     """
     HTTP GET → run the per-dataset export_summary_to_drt and return JSON status.
     """
@@ -385,6 +387,45 @@ def negotiation_list_api(request):
 
     email = request.owner_email
 
+    include_questionnaire = str(
+        request.GET.get("include_questionnaire", "false")
+    ).lower() in ("1", "true", "yes")
+
+    # Lightweight mode omits heavy JSON fields that are not needed for the
+    # owner list UI; it can be disabled when a fuller payload is required.
+    lightweight = str(
+        request.GET.get("lightweight", "true")
+    ).lower() in ("1", "true", "yes")
+
+    owner_link_filter = request.GET.get("owner_link")
+
+    # Filter parameters
+    status_filter = request.GET.getlist("status")
+    archived_filter = request.GET.get("archived", "all")
+    start_date = request.GET.get("startDate")
+    end_date = request.GET.get("endDate")
+    tags_filter = request.GET.getlist("tags")
+    record_label_filter = request.GET.getlist("record_label")
+    search_term = request.GET.get("search", "").strip()
+
+    # Pagination parameters
+    try:
+        page = int(request.GET.get("page", "1"))
+    except ValueError:
+        page = 1
+    try:
+        page_size = int(request.GET.get("page_size", "10"))
+    except ValueError:
+        page_size = 10
+
+    page = max(page, 1)
+    if page_size <= 0:
+        page_size = 10
+    page_size = min(page_size, 200)
+
+    # Sort option 
+    sort_option = request.GET.get("sort", "created_desc")
+
     cache_data = cache.get("owner_table") or {}
 
     if not email:
@@ -399,43 +440,140 @@ def negotiation_list_api(request):
     qs = Negotiation.objects.select_related('link') \
         .filter(link__owner_id__in=owner_ids)
 
+    if owner_link_filter:
+        qs = qs.filter(link__owner_link=owner_link_filter)
+
+    # Apply filters BEFORE pagination
+    if status_filter:
+        qs = qs.filter(state__in=status_filter)
+
+    if archived_filter == "archived":
+        qs = qs.filter(archived=True)
+    elif archived_filter == "active":
+        qs = qs.filter(archived=False)
+
+    if start_date:
+        try:
+            start_dt = parse_datetime(start_date)
+            if not start_dt:
+                start_date_obj = parse_date(start_date)
+                if start_date_obj:
+                    start_dt = timezone.make_aware(
+                        datetime.datetime.combine(start_date_obj, datetime.time.min)
+                    )
+            if start_dt:
+                qs = qs.filter(timestamps__gte=start_dt)
+        except (ValueError, TypeError):
+            pass
+
+    if end_date:
+        try:
+            end_dt = parse_datetime(end_date)
+            if not end_dt:
+                end_date_obj = parse_date(end_date)
+                if end_date_obj:
+                    end_dt = timezone.make_aware(
+                        datetime.datetime.combine(end_date_obj, datetime.time.max)
+                    )
+            if end_dt:
+                qs = qs.filter(timestamps__lte=end_dt)
+        except (ValueError, TypeError):
+            pass
+
+    if tags_filter:
+        # Filter negotiations where link.tags contains any of the specified tags
+        tag_q = Q()
+        for tag in tags_filter:
+            tag_q |= Q(link__tags__contains=[tag])
+        qs = qs.filter(tag_q)
+
+    if record_label_filter:
+        qs = qs.filter(link__record_label__in=record_label_filter)
+
+    if search_term:
+        # Search in negotiation_id and conversation_id
+        qs = qs.filter(
+            Q(negotiation_id__icontains=search_term) |
+            Q(conversation_id__icontains=search_term)
+        )
+
+    # Apply sorting
+    if sort_option == "created_asc":
+        qs = qs.order_by("timestamps")
+    elif sort_option == "created_desc":
+        qs = qs.order_by("-timestamps")
+    elif sort_option == "status_asc":
+        qs = qs.order_by("state")
+    elif sort_option == "status_desc":
+        qs = qs.order_by("-state")
+    else:
+        # Default to newest first
+        qs = qs.order_by("-timestamps")
+
+    total = qs.count()
+
+    if not owner_link_filter:
+        start = (page - 1) * page_size
+        end = start + page_size
+        qs = qs[start:end]
+
     data = []
     for n in qs:
         link = getattr(n, 'link', None)
-        
+
         questionnaire_json = None
-        try:
-            cache_key = f'questionnaire_json_{n.questionnaire_SAID}'
-            cached_json = cache.get(cache_key)
-            
-            if cached_json:
-                questionnaire_json = cached_json
-            else:
-                
-                questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
-        except Exception as e:
-            print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
-            questionnaire_json = None
-        
-        data.append({
+        if include_questionnaire and n.questionnaire_SAID:
+            try:
+                cache_key = f'questionnaire_json_{n.questionnaire_SAID}'
+                cached_json = cache.get(cache_key)
+
+                if cached_json is not None:
+                    questionnaire_json = cached_json
+                else:
+                    questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
+                    # Cache the questionnaire JSON so subsequent calls are faster.
+                    if questionnaire_json is not None:
+                        cache.set(cache_key, questionnaire_json)
+            except Exception as e:
+                print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
+                questionnaire_json = None
+
+        item = {
             'negotiation_id':     str(n.negotiation_id),
             'conversation_id':    str(n.conversation_id),
-            'requestor_responses': n.requestor_responses,
-            'owner_responses':    n.owner_responses,
-            'comments':           n.comments,
             'state':              n.state,
             'reminder_sent':      n.reminder_sent,
             'questionnaire_SAID': n.questionnaire_SAID,
-            'questionnaire':      questionnaire_json,  # Add questionnaire JSON
+            'questionnaire':      questionnaire_json,
             'timestamps':         n.timestamps.isoformat(),
             'archived':           n.archived,
             'owner_link':         str(link.owner_link) if link else None,
             'rationale':          n.rationale,
             'tags': link.tags if link else [],
             'record_label': link.record_label if link else "",
-        })
+        }
 
-    return JsonResponse(data, safe=False)
+        # Heavy fields included only when lightweight mode is disabled
+        if not lightweight:
+            item.update({
+                'requestor_responses': n.requestor_responses,
+                'owner_responses':    n.owner_responses,
+                'comments':           n.comments,
+            })
+
+        data.append(item)
+
+    total_pages = (total + page_size - 1) // page_size if page_size else 1
+
+    response_payload = {
+        "results": data,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": total_pages,
+    }
+
+    return JsonResponse(response_payload)
 
 
 # @api_view(['POST'])
