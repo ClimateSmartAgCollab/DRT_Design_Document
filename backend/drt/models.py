@@ -110,14 +110,24 @@ class SummaryStatistic(models.Model):
         db_column="owner_id",       # ← tie to the existing column
         null=False,                 # ← enforce NOT NULL
         related_name="summary_statistics",
+        db_index=True,  # Index on FK for JOIN performance
     )
-    summary_date = models.DateTimeField(auto_now_add=True)
+    summary_date = models.DateTimeField(auto_now_add=True, db_index=True)
     datasets_requested = models.JSONField()
     overall_stat = models.JSONField()
-    data_label = models.CharField(max_length=255, default='')
+    data_label = models.CharField(max_length=255, default='', db_index=True)
     # blank==ALL for the aggregate row
-    tag = models.CharField(max_length=64, blank=True)
-    record_label = models.CharField(max_length=255, default='', blank=True)
+    tag = models.CharField(max_length=64, blank=True, db_index=True)
+    record_label = models.CharField(max_length=255, default='', blank=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            # filter by owner_id and order by date
+            models.Index(fields=['owner_id', '-summary_date'], name='summarystat_owner_date_idx'),
+            # index for update_or_create lookups in export_summary_to_drt
+            models.Index(fields=['owner_id', 'data_label', 'tag', 'record_label'], name='summarystat_lookup_idx'),
+        ]
+        ordering = ['-summary_date']  # Default ordering: newest first
 
     def __str__(self):
         return f"Statistics for Owner: {self.owner_id} on {self.summary_date}"
