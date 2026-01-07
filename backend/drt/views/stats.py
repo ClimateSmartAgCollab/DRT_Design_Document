@@ -41,14 +41,22 @@ def export_summary_to_drt_view(_request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-def export_summary_to_drt():
+def export_summary_to_drt(owner_id=None):
     """
     Aggregate and store anonymized summary statistics per (owner, dataset_ID, data_label),
     and then break out per tag with correct, per-tag counts.
     """
+    # Filter by owner_id if provided, otherwise process all owners
+    if owner_id:
+        nlink_filter = Q(owner_id=owner_id)
+        logger.info(f"Generating summary statistics for owner_id={owner_id}")
+    else:
+        nlink_filter = Q()
+        logger.info("Generating summary statistics for all owners")
 
     per_group_stats = (
         NLink.objects
+        .filter(nlink_filter)
         .values('owner_id', 'dataset_ID', 'data_label', 'record_label')
         .annotate(
             total_requests=Count('negotiation'),
@@ -110,7 +118,7 @@ def export_summary_to_drt():
             owner_id=nlink,
             datasets_requested=datasets_list,
             data_label=ds_label,
-            tag='',  # empty string = "no tag"
+            tag='',  # empty string = "no tag", all tags combined
             record_label=record_label,
             defaults={'overall_stat': overall_stat, 'record_label': record_label},
         )
@@ -212,10 +220,9 @@ def owner_links_api(request):
 
 @owner_auth_required
 def summary_statistics_view(request):
-    """Endpoint for retrieving summary statistics based on the provided owner_id (string)."""
+    """ Endpoint for retrieving summary statistics with optional tag filtering."""
 
     email = request.owner_email
-
     cache_data = cache.get("owner_table") or {}
 
     if not email:
@@ -229,36 +236,133 @@ def summary_statistics_view(request):
 
     owner_id = owner_ids[0] if owner_ids else None
 
+    # Get filter parameters
+    tags_filter = request.GET.getlist("tags")  # Multiple tags = AND logic
+    data_label_filter = request.GET.get("data_label")
+    record_label_filter = request.GET.getlist("record_label")
+    include_all_tags = request.GET.get("include_all_tags", "false").lower() == "true" 
+
     try:
-        stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
-        if not stats_qs.exists():
-            logger.warning(
-                f"No SummaryStatistic found for owner_id={owner_id}")
-            return JsonResponse({'error': 'No summary statistics found.'}, status=404)
+        if include_all_tags:
+            stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
+            
+            if not stats_qs.exists():
+                logger.warning(
+                    f"No SummaryStatistic found for owner_id={owner_id}")
+                return JsonResponse({'error': 'No summary statistics found.'}, status=404)
 
-        statistics_data = []
-        for stat in stats_qs:
+            statistics_data = []
+            for stat in stats_qs:
+                stats_block = stat.overall_stat or {}
+                statistics_data.append({
+                    'data_label': stat.data_label,
+                    'tag': stat.tag or '',
+                    'record_label': getattr(stat, 'record_label', ''),
+                    'total_requests': stats_block.get('total_requests', 0),
+                    'accepted_requests': stats_block.get('accepted_requests', 0),
+                    'rejected_requests': stats_block.get('rejected_requests', 0),
+                    'requestor_open': stats_block.get('requestor_open', 0),
+                    'owner_open': stats_block.get('owner_open', 0),
+                    'generated_at': stat.summary_date.isoformat(),
+                })
 
-            stats_block = stat.overall_stat or {}
-            statistics_data.append({
-                'data_label':               stat.data_label,
-                'tag':                     stat.tag or '',
-                'record_label':            getattr(stat, 'record_label', ''),
-                'total_requests':           stats_block.get('total_requests', 0),
-                'accepted_requests':        stats_block.get('accepted_requests', 0),
-                'rejected_requests':        stats_block.get('rejected_requests', 0),
-                'requestor_open':           stats_block.get('requestor_open', 0),
-                'owner_open':               stats_block.get('owner_open', 0),
-                # 'average_response_time':    stats_block.get('average_response_time', 'N/A'),
-                'generated_at':             stat.summary_date.isoformat(),
-            })
+            return JsonResponse({'summary_statistics': statistics_data})
+        
+        # If tags are provided, query NLink directly with AND logic to avoid double-counting
+        if tags_filter:
+            nlink_filter = Q(owner_id=owner_id)
+            
+            # Strip whitespace from tags (database may have tags with leading/trailing spaces)
+            tags_filter_cleaned = [tag.strip() for tag in tags_filter]
+            
+            for tag in tags_filter_cleaned:
+                tag_q = Q(tags__contains=[tag]) | Q(tags__contains=[f' {tag}']) | Q(tags__contains=[f'{tag} ']) | Q(tags__contains=[f' {tag} '])
+                nlink_filter = nlink_filter & tag_q
+            
+            if data_label_filter:
+                nlink_filter &= Q(data_label=data_label_filter)
+            
+            if record_label_filter:
+                nlink_filter &= Q(record_label__in=record_label_filter)
+            
+            if data_label_filter and record_label_filter and len(record_label_filter) == 1:
+                stats = NLink.objects.filter(nlink_filter).aggregate(
+                    total_requests=Count('negotiation'),
+                    accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
+                    rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
+                    requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
+                    owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
+                )
+                
+                statistics_data = [{
+                    'data_label': data_label_filter,
+                    'tag': ', '.join(sorted(tags_filter_cleaned)), 
+                    'record_label': record_label_filter[0],
+                    'total_requests': stats['total_requests'],
+                    'accepted_requests': stats['accepted_requests'],
+                    'rejected_requests': stats['rejected_requests'],
+                    'requestor_open': stats['requestor_open'],
+                    'owner_open': stats['owner_open'],
+                    'generated_at': timezone.now().isoformat(),
+                }]
+            else:
+                # Multiple groups or no filters: sum across all data_labels and record_labels
+                stats = NLink.objects.filter(nlink_filter).aggregate(
+                    total_requests=Count('negotiation'),
+                    accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
+                    rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
+                    requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
+                    owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
+                )
+                
+                statistics_data = [{
+                    'data_label': '',
+                    'tag': ', '.join(sorted(tags_filter_cleaned)), 
+                    'record_label': '',
+                    'total_requests': stats['total_requests'],
+                    'accepted_requests': stats['accepted_requests'],
+                    'rejected_requests': stats['rejected_requests'],
+                    'requestor_open': stats['requestor_open'],
+                    'owner_open': stats['owner_open'],
+                    'generated_at': timezone.now().isoformat(),
+                }]
+        else:
+            # No tags: use existing SummaryStatistic records
+            stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
+            
+            if data_label_filter:
+                stats_qs = stats_qs.filter(data_label=data_label_filter)
+            if record_label_filter:
+                stats_qs = stats_qs.filter(record_label__in=record_label_filter)
+            
+            stats_qs = stats_qs.filter(tag='')
+            
+            if not stats_qs.exists():
+                logger.warning(
+                    f"No SummaryStatistic found for owner_id={owner_id}")
+                return JsonResponse({'error': 'No summary statistics found.'}, status=404)
+
+            statistics_data = []
+            for stat in stats_qs:
+                stats_block = stat.overall_stat or {}
+                statistics_data.append({
+                    'data_label': stat.data_label,
+                    'tag': stat.tag or '',
+                    'record_label': getattr(stat, 'record_label', ''),
+                    'total_requests': stats_block.get('total_requests', 0),
+                    'accepted_requests': stats_block.get('accepted_requests', 0),
+                    'rejected_requests': stats_block.get('rejected_requests', 0),
+                    'requestor_open': stats_block.get('requestor_open', 0),
+                    'owner_open': stats_block.get('owner_open', 0),
+                    'generated_at': stat.summary_date.isoformat(),
+                })
 
         return JsonResponse({'summary_statistics': statistics_data})
 
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'Owner statistics not found.'}, status=404)
     except Exception as e:
-        logger.error(f"Error in summary_statistics_view: {e}")
+        logger.error(f"Error in summary_statistics_view: {e}", exc_info=True)
         return JsonResponse({'error': 'Internal server error.'}, status=500)
 
 
@@ -312,14 +416,23 @@ def generate_summary_statistics_duplicate(sender, instance, **kwargs):
         handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
 
 
-def handle_negotiation_archive_and_summary_async(negotiation):
-    """Archives the negotiation and exports summary statistics asynchronously."""
+def handle_negotiation_archive_and_summary_async(negotiation, owner_id=None):
+    """
+    Archives the negotiation and exports summary statistics asynchronously.
+    """
     try:
+        if owner_id is None and hasattr(negotiation, 'link') and negotiation.link:
+            owner_id = negotiation.link.owner_id
+            logger.info(f"Extracted owner_id={owner_id} from negotiation {negotiation.negotiation_id}")
+        elif owner_id is None:
+            logger.warning(f"Could not extract owner_id from negotiation {negotiation.negotiation_id}, processing all owners")
+        
         with transaction.atomic():
-            export_summary_to_drt()
+            # Only regenerate stats for the affected owner
+            export_summary_to_drt(owner_id=owner_id)
             if not negotiation.archived:
                 archive_negotiation(negotiation)
-        logger.info(f"Successfully processed negotiation {negotiation.negotiation_id} asynchronously")
+        logger.info(f"Successfully processed negotiation {negotiation.negotiation_id} asynchronously for owner_id={owner_id}")
     except Exception as e:
         logger.error(f"Error processing negotiation {negotiation.negotiation_id} asynchronously: {e}")
 

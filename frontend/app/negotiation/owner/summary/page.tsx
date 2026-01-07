@@ -32,7 +32,7 @@ ChartJS.register(
 
 interface SummaryStat {
   data_label: string;
-  tag: string; // still a plain string
+  tag: string; 
   record_label?: string;
   total_requests: number;
   accepted_requests: number;
@@ -42,8 +42,26 @@ interface SummaryStat {
   generated_at: string; // ISO timestamp
 }
 
-async function fetchSummaryStats(): Promise<SummaryStat[]> {
-  const res = await fetchApi("/drt/summary-statistics/");
+async function fetchSummaryStats(tags?: string[], dataLabel?: string, recordLabels?: string[], includeAllTags?: boolean): Promise<SummaryStat[]> {
+
+  const params = new URLSearchParams();
+  if (tags && tags.length > 0) {
+    tags.forEach(tag => params.append('tags', tag));
+  }
+  if (dataLabel) {
+    params.set('data_label', dataLabel);
+  }
+  if (recordLabels && recordLabels.length > 0) {
+    recordLabels.forEach(rl => params.append('record_label', rl));
+  }
+  if (includeAllTags) {
+    params.set('include_all_tags', 'true');
+  }
+  
+  const queryString = params.toString();
+  const url = queryString ? `/drt/summary-statistics/?${queryString}` : "/drt/summary-statistics/";
+  
+  const res = await fetchApi(url);
   const json = await res.json();
   if (!res.ok) {
     throw new Error(json.error || `Status ${res.status}`);
@@ -99,125 +117,171 @@ export default function OwnerSummaryPage() {
     logoutMutation.mutate();
   };
 
-  // ——— React Query: load summary stats ———
-  const summaryQuery = useQuery<SummaryStat[], Error>({
-    queryKey: ["owner", "summary-statistics"],
-    queryFn: fetchSummaryStats,
-    staleTime: 1000 * 60 * 5, // 5m
-    retry: 1,
-    enabled: !!whoamiQuery.data, // Only fetch if authenticated
-  });
-
   // ——— filter state ———
-  const allData = useMemo(() => summaryQuery.data ?? [], [summaryQuery.data]);
-
   const [dataLabel, setDataLabel] = useState<string>("");
   const [tag, setTag] = useState<string[]>([]);
   const [recordLabel, setRecordLabel] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
-  // ——— Derive filter options ———
+  // ——— React Query: load summary stats with filters ———
+  const summaryQuery = useQuery<SummaryStat[], Error>({
+    queryKey: ["owner", "summary-statistics", tag, dataLabel, recordLabel],
+    queryFn: () => fetchSummaryStats(tag, dataLabel || undefined, recordLabel.length > 0 ? recordLabel : undefined),
+    staleTime: 1000 * 60 * 5, // 5m
+    retry: 1,
+    enabled: !!whoamiQuery.data, // Only fetch if authenticated
+  });
+
+  // ——— React Query: load all summary stats (unfiltered) for filter options ———
+  const allStatsQuery = useQuery<SummaryStat[], Error>({
+    queryKey: ["owner", "summary-statistics", "all", "options"],
+    queryFn: () => fetchSummaryStats(undefined, undefined, undefined, true), 
+    staleTime: 1000 * 60 * 5, 
+    retry: 1,
+    enabled: !!whoamiQuery.data, 
+  });
+
+  const allData = useMemo(() => summaryQuery.data ?? [], [summaryQuery.data]);
+  const allStatsForOptions = useMemo(() => allStatsQuery.data ?? [], [allStatsQuery.data]);
+
+  // ——— Derive filter options from unfiltered data ———
   const dataLabelOptions = useMemo(
-    () => Array.from(new Set(allData.map((d) => d.data_label))),
-    [allData]
+    () => Array.from(new Set(allStatsForOptions.map((d) => d.data_label).filter((dl): dl is string => Boolean(dl)))),
+    [allStatsForOptions]
   );
   const tagOptions = useMemo(
-    () => Array.from(new Set(allData.map((d) => d.tag).filter((t): t is string => typeof t === 'string' && Boolean(t)))),
-    [allData]
+    () => {
+      // Extract individual tags from tag field
+      const allTags = new Set<string>();
+      allStatsForOptions.forEach(d => {
+        if (d.tag && d.tag.trim()) {
+          // Handle comma-separated tags from backend
+          const tags = d.tag.split(',').map(t => t.trim()).filter(t => t);
+          tags.forEach(t => allTags.add(t));
+        }
+      });
+      return Array.from(allTags).sort();
+    },
+    [allStatsForOptions]
   );
   const recordLabelOptions = useMemo(
-    () => Array.from(new Set(allData.map((d) => typeof d.record_label === 'string' && d.record_label ? d.record_label : undefined).filter((l): l is string => typeof l === 'string' && Boolean(l)))),
-    [allData]
+    () => Array.from(new Set(allStatsForOptions.map((d) => typeof d.record_label === 'string' && d.record_label ? d.record_label : undefined).filter((l): l is string => typeof l === 'string' && Boolean(l)))),
+    [allStatsForOptions]
   );
 
-  // ——— apply filters client-side ———
+  // ——— apply date filters client-side ———
   const filteredData = useMemo(() => {
     return allData.filter((d) => {
-      if (dataLabel && d.data_label !== dataLabel) return false;
-      if (tag.length > 0 && !tag.includes(d.tag || "")) return false;
-      if (recordLabel.length > 0 && !recordLabel.includes(d.record_label || "")) return false;
       const genDate = new Date(d.generated_at);
       if (startDate && genDate < new Date(startDate)) return false;
       if (endDate && genDate > new Date(endDate)) return false;
       return true;
     });
-  }, [allData, dataLabel, tag, recordLabel, startDate, endDate]);
+  }, [allData, startDate, endDate]);
 
-  // Group filteredData by both record_label and data_label, merging tags and summing numeric fields
+
   const groupedData = useMemo(() => {
-    const map = new Map<string, {
-      record_label: string;
-      data_label: string;
-      tags: Set<string>;
-      total_requests: number;
-      accepted_requests: number;
-      rejected_requests: number;
-      requestor_open: number;
-      owner_open: number;
-      generated_at: string; // Use latest
-    }>();
-    filteredData.forEach(d => {
-      const key = `${d.record_label || ""}|${d.data_label}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          record_label: d.record_label || "",
-          data_label: d.data_label,
-          tags: new Set(),
-          total_requests: 0,
-          accepted_requests: 0,
-          rejected_requests: 0,
-          requestor_open: 0,
-          owner_open: 0,
-          generated_at: d.generated_at,
-        });
-      }
-      const entry = map.get(key)!;
-      if (d.tag) entry.tags.add(d.tag);
-      entry.total_requests += d.total_requests;
-      entry.accepted_requests += d.accepted_requests;
-      entry.rejected_requests += d.rejected_requests;
-      entry.requestor_open += d.requestor_open;
-      entry.owner_open += d.owner_open;
-      // Use latest generated_at
-      if (new Date(d.generated_at) > new Date(entry.generated_at)) {
-        entry.generated_at = d.generated_at;
-      }
-    });
-    return Array.from(map.values()).map(entry => ({
-      ...entry,
-      tags: Array.from(entry.tags).join(", "),
-    }));
-  }, [filteredData]);
+    const isTagView = tag.length > 0;
+    
+    if (!isTagView) {
+      // Default view: Group by record_label and data_label as safeguard against duplicates, group to handle edge cases
+      const map = new Map<string, {
+        record_label: string;
+        data_label: string;
+        total_requests: number;
+        accepted_requests: number;
+        rejected_requests: number;
+        requestor_open: number;
+        owner_open: number;
+        generated_at: string;
+      }>();
+      
+      filteredData.forEach(d => {
+        const key = `${d.record_label || ""}|${d.data_label}`;
+        
+        if (!map.has(key)) {
+          map.set(key, {
+            record_label: d.record_label || "",
+            data_label: d.data_label,
+            total_requests: d.total_requests,
+            accepted_requests: d.accepted_requests,
+            rejected_requests: d.rejected_requests,
+            requestor_open: d.requestor_open,
+            owner_open: d.owner_open,
+            generated_at: d.generated_at,
+          });
+        } else {
+          // Sum if duplicates exist
+          const entry = map.get(key)!;
+          entry.total_requests += d.total_requests;
+          entry.accepted_requests += d.accepted_requests;
+          entry.rejected_requests += d.rejected_requests;
+          entry.requestor_open += d.requestor_open;
+          entry.owner_open += d.owner_open;
+          if (new Date(d.generated_at) > new Date(entry.generated_at)) {
+            entry.generated_at = d.generated_at;
+          }
+        }
+      });
+      
+      return Array.from(map.values());
+    } else {
+      if (filteredData.length === 0) return [];
+      
+      const tagData = filteredData[0]; // Backend returns single combined row
+      const tagsList = tagData.tag ? tagData.tag.split(',').map(t => t.trim()) : tag;
+      
+      return [{
+        tags: tagsList,
+        total_requests: tagData.total_requests,
+        accepted_requests: tagData.accepted_requests,
+        rejected_requests: tagData.rejected_requests,
+        requestor_open: tagData.requestor_open,
+        owner_open: tagData.owner_open,
+        generated_at: tagData.generated_at,
+      }];
+    }
+  }, [filteredData, tag]);
 
-  // Use groupedData for table and chart
+  // Chart data
   const chartData = useMemo(
-    () => ({
-      labels: groupedData.map((d) => `${d.data_label} - ${d.record_label || "All"}`),
-      datasets: [
-        {
-          label: "Total",
-          data: groupedData.map((d) => d.total_requests),
-        },
-        {
-          label: "Accepted",
-          data: groupedData.map((d) => d.accepted_requests),
-        },
-        {
-          label: "Rejected",
-          data: groupedData.map((d) => d.rejected_requests),
-        },
-        {
-          label: "Req. Open",
-          data: groupedData.map((d) => d.requestor_open),
-        },
-        {
-          label: "Own. Open",
-          data: groupedData.map((d) => d.owner_open),
-        },
-      ],
-    }),
-    [groupedData]
+    () => {
+      const isTagView = tag.length > 0;
+      return {
+        labels: groupedData.map((d) => {
+          if (isTagView) {
+            // Show all selected tags as label
+            return (d as any).tags.join(", ");
+          } else {
+            return `${(d as any).data_label} - ${(d as any).record_label || "All"}`;
+          }
+        }),
+        datasets: [
+          {
+            label: "Total",
+            data: groupedData.map((d) => d.total_requests),
+          },
+          {
+            label: "Accepted",
+            data: groupedData.map((d) => d.accepted_requests),
+          },
+          {
+            label: "Rejected",
+            data: groupedData.map((d) => d.rejected_requests),
+          },
+          {
+            label: "Req. Open",
+            data: groupedData.map((d) => d.requestor_open),
+          },
+          {
+            label: "Own. Open",
+            data: groupedData.map((d) => d.owner_open),
+          },
+        ],
+      };
+    },
+    [groupedData, tag]
   );
 
   if (whoamiQuery.isLoading) {
@@ -313,43 +377,115 @@ export default function OwnerSummaryPage() {
                   />
                 </section>
 
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 rounded">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <span className="text-blue-400 text-lg">ℹ️</span>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-700">
+                        {tag.length > 0 ? (
+                          <>
+                            <strong>Tag-Filtered View:</strong> All selected tags are combined into a single row. 
+                            Statistics from all selected tags are <strong>summed together</strong> across all data labels 
+                            and record labels to show the total combined statistics.
+                          </>
+                        ) : (
+                          <>
+                            <strong>Record Label View:</strong> Statistics are grouped by record label and data label, 
+                            showing all records (no tag filtering applied).
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <section className="overflow-x-auto">
                   <table className="min-w-full bg-white border">
                     <thead>
                       <tr className="bg-gray-100">
-                        {[
-                          "Record Label",
-                          "Data Label",
-                          "Tag",
-                          "Total",
-                          "Accepted",
-                          "Rejected",
-                          "Req. Open",
-                          "Own. Open",
-                          "Generated At",
-                        ].map((h) => (
-                          <th key={h} className="border px-4 py-2">
-                            {h}
-                          </th>
-                        ))}
+                        {tag.length > 0 ? (
+                          // Tag view headers (grouped by tag only, no data_label)
+                          [
+                            "Tag",
+                            "Total",
+                            "Accepted",
+                            "Rejected",
+                            "Req. Open",
+                            "Own. Open",
+                            "Generated At",
+                          ].map((header) => (
+                            <th key={header} className="border px-4 py-2">
+                              {header}
+                            </th>
+                          ))
+                        ) : (
+                          // Record label view headers
+                          [
+                            "Record Label",
+                            "Data Label",
+                            "Total",
+                            "Accepted",
+                            "Rejected",
+                            "Req. Open",
+                            "Own. Open",
+                            "Generated At",
+                          ].map((header) => (
+                            <th key={header} className="border px-4 py-2">
+                              {header}
+                            </th>
+                          ))
+                        )}
                       </tr>
                     </thead>
                     <tbody>
-                      {groupedData.map((d) => (
-                        <tr key={`${d.record_label}-${d.data_label}-${d.generated_at}`}>
-                          <td className="border px-4 py-2">{d.record_label || "All"}</td>
-                          <td className="border px-4 py-2">{d.data_label}</td>
-                          <td className="border px-4 py-2">{d.tags || "All"}</td>
-                          <td className="border px-4 py-2">{d.total_requests}</td>
-                          <td className="border px-4 py-2">{d.accepted_requests}</td>
-                          <td className="border px-4 py-2">{d.rejected_requests}</td>
-                          <td className="border px-4 py-2">{d.requestor_open}</td>
-                          <td className="border px-4 py-2">{d.owner_open}</td>
-                          <td className="border px-4 py-2">
-                            {new Date(d.generated_at).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
+                      {groupedData.map((d, idx) => {
+                        if (tag.length > 0) {
+                          // Tag view rows
+                          const tagData = d as { tags: string[]; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; generated_at: string; };
+                          return (
+                            <tr key={`tags-${tagData.tags.join("-")}-${idx}`}>
+                              <td className="border px-4 py-2">
+                                <div className="flex flex-wrap gap-1">
+                                  {tagData.tags.map((t, tagIdx) => (
+                                    <span
+                                      key={tagIdx}
+                                      className="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="border px-4 py-2">{tagData.total_requests}</td>
+                              <td className="border px-4 py-2">{tagData.accepted_requests}</td>
+                              <td className="border px-4 py-2">{tagData.rejected_requests}</td>
+                              <td className="border px-4 py-2">{tagData.requestor_open}</td>
+                              <td className="border px-4 py-2">{tagData.owner_open}</td>
+                              <td className="border px-4 py-2">
+                                {new Date(tagData.generated_at).toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        } else {
+                          // Record label view rows
+                          const recordData = d as { record_label: string; data_label: string; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; generated_at: string; };
+                          return (
+                            <tr key={`record-${recordData.record_label}-${recordData.data_label}-${idx}`}>
+                              <td className="border px-4 py-2">{recordData.record_label || "All"}</td>
+                              <td className="border px-4 py-2">{recordData.data_label}</td>
+                              <td className="border px-4 py-2">{recordData.total_requests}</td>
+                              <td className="border px-4 py-2">{recordData.accepted_requests}</td>
+                              <td className="border px-4 py-2">{recordData.rejected_requests}</td>
+                              <td className="border px-4 py-2">{recordData.requestor_open}</td>
+                              <td className="border px-4 py-2">{recordData.owner_open}</td>
+                              <td className="border px-4 py-2">
+                                {new Date(recordData.generated_at).toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        }
+                      })}
                     </tbody>
                   </table>
                 </section>
