@@ -39,9 +39,9 @@ interface SummaryStat {
   rejected_requests: number;
   requestor_open: number;
   owner_open: number;
-  generated_at: string; // ISO timestamp (kept for backward compatibility)
-  last_updated?: string; // Last updated timestamp (when summary was generated)
-  last_activity?: string | null; // Latest negotiation activity (when negotiations were last modified)
+  generated_at: string; 
+  last_updated?: string; 
+  last_activity?: string | null; 
   negotiation_date_range?: {
     min_date: string | null;
     max_date: string | null;
@@ -269,7 +269,6 @@ export default function OwnerSummaryPage() {
     [allStatsForOptions]
   );
 
-  // ——— Backend now handles date filtering, so no client-side filtering needed ———
   const filteredData = useMemo(() => {
     return allData; // Backend handles date filtering via API
   }, [allData]);
@@ -322,11 +321,11 @@ export default function OwnerSummaryPage() {
           if (new Date(lastUpdated) > new Date(entry.last_updated)) {
             entry.last_updated = lastUpdated;
           }
-          // Take the latest activity date
+
           if (lastActivity && (!entry.last_activity || new Date(lastActivity) > new Date(entry.last_activity))) {
             entry.last_activity = lastActivity;
           }
-          // Merge date ranges (take the widest range)
+
           if (d.negotiation_date_range) {
             if (!entry.negotiation_date_range) {
               entry.negotiation_date_range = d.negotiation_date_range;
