@@ -2,7 +2,7 @@ from django.urls import NoReverseMatch, reverse
 from django.http import HttpResponse, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-from django.db.models import F, Count, Q
+from django.db.models import F, Count, Q, Min, Max
 from django.utils.translation import gettext_lazy as _
 from django.utils.dateparse import parse_datetime, parse_date
 from ..models import NLink, Archive, SummaryStatistic, Negotiation
@@ -103,6 +103,17 @@ def export_summary_to_drt(owner_id=None):
             for row in domain_qs
         }
 
+        date_range = NLink.objects.filter(
+            owner_id=owner_pk, 
+            dataset_ID=ds_id, 
+            data_label=ds_label, 
+            record_label=record_label
+        ).aggregate(
+            min_date=Min('negotiation__timestamps'),
+            max_date=Max('negotiation__timestamps'),
+            last_activity=Max('last_activity')
+        )
+
         overall_stat = {
             'total_requests':    grp['total_requests'],
             'accepted_requests': grp['accepted_requests'],
@@ -111,6 +122,11 @@ def export_summary_to_drt(owner_id=None):
             'owner_open':        grp['owner_open'],
             'requestor_domains': requestor_domains,
             'generated_at':      timezone.now().isoformat(),
+            'negotiation_date_range': {
+                'min_date': date_range['min_date'].isoformat() if date_range['min_date'] else None,
+                'max_date': date_range['max_date'].isoformat() if date_range['max_date'] else None,
+            },
+            'last_activity': date_range['last_activity'].isoformat() if date_range['last_activity'] else None,
         }
         datasets_list = [ds_id]
 
@@ -130,13 +146,9 @@ def export_summary_to_drt(owner_id=None):
         tags = sorted(tags)
 
         for t in tags:
-            tag_stats = NLink.objects.filter(
-                owner_id=owner_pk,
-                dataset_ID=ds_id,
-                data_label=ds_label,
-                record_label=record_label,
-                tags__contains=[t],
-            ).aggregate(
+            tag_filter = Q(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label, tags__contains=[t])
+            
+            tag_stats = NLink.objects.filter(tag_filter).aggregate(
                 total_requests=Count('negotiation'),
                 accepted_requests=Count('negotiation', filter=Q(
                     negotiation__state='accepted')),
@@ -147,6 +159,13 @@ def export_summary_to_drt(owner_id=None):
                 owner_open=Count('negotiation',        filter=Q(
                     negotiation__state='owner_open')),
             )
+            
+            # Calculate date range and latest activity for this tag
+            tag_date_range = NLink.objects.filter(tag_filter).aggregate(
+                min_date=Min('negotiation__timestamps'),
+                max_date=Max('negotiation__timestamps'),
+                last_activity=Max('last_activity')
+            )
 
             tag_stat_payload = {
                 'total_requests':    tag_stats['total_requests'],
@@ -156,6 +175,11 @@ def export_summary_to_drt(owner_id=None):
                 'owner_open':        tag_stats['owner_open'],
                 'requestor_domains': requestor_domains,
                 'generated_at':      timezone.now().isoformat(),
+                'negotiation_date_range': {
+                    'min_date': tag_date_range['min_date'].isoformat() if tag_date_range['min_date'] else None,
+                    'max_date': tag_date_range['max_date'].isoformat() if tag_date_range['max_date'] else None,
+                },
+                'last_activity': tag_date_range['last_activity'].isoformat() if tag_date_range['last_activity'] else None,
             }
 
             SummaryStatistic.objects.update_or_create(
@@ -240,7 +264,16 @@ def summary_statistics_view(request):
     tags_filter = request.GET.getlist("tags")  # Multiple tags = AND logic
     data_label_filter = request.GET.get("data_label")
     record_label_filter = request.GET.getlist("record_label")
-    include_all_tags = request.GET.get("include_all_tags", "false").lower() == "true" 
+    include_all_tags = request.GET.get("include_all_tags", "false").lower() == "true"
+    
+    # Get date filter parameters (for negotiation dates)
+    start_date = request.GET.get("startDate")
+    end_date = request.GET.get("endDate")
+    
+    has_date_filter = bool(start_date or end_date)
+    has_tag_filter = bool(tags_filter)
+    
+    use_direct_query = has_date_filter or has_tag_filter
 
     try:
         if include_all_tags:
@@ -254,6 +287,8 @@ def summary_statistics_view(request):
             statistics_data = []
             for stat in stats_qs:
                 stats_block = stat.overall_stat or {}
+                date_range = stats_block.get('negotiation_date_range', {})
+                last_activity = stats_block.get('last_activity')
                 statistics_data.append({
                     'data_label': stat.data_label,
                     'tag': stat.tag or '',
@@ -264,26 +299,56 @@ def summary_statistics_view(request):
                     'requestor_open': stats_block.get('requestor_open', 0),
                     'owner_open': stats_block.get('owner_open', 0),
                     'generated_at': stat.summary_date.isoformat(),
+                    'last_updated': stat.summary_date.isoformat(),
+                    'last_activity': last_activity,  
+                    'negotiation_date_range': date_range,
                 })
 
             return JsonResponse({'summary_statistics': statistics_data})
         
-        # If tags are provided, query NLink directly with AND logic to avoid double-counting
-        if tags_filter:
+        if use_direct_query:
             nlink_filter = Q(owner_id=owner_id)
             
-            # Strip whitespace from tags (database may have tags with leading/trailing spaces)
-            tags_filter_cleaned = [tag.strip() for tag in tags_filter]
-            
-            for tag in tags_filter_cleaned:
-                tag_q = Q(tags__contains=[tag]) | Q(tags__contains=[f' {tag}']) | Q(tags__contains=[f'{tag} ']) | Q(tags__contains=[f' {tag} '])
-                nlink_filter = nlink_filter & tag_q
+            if tags_filter:
+                tags_filter_cleaned = [tag.strip() for tag in tags_filter]
+                for tag in tags_filter_cleaned:
+                    tag_q = Q(tags__contains=[tag]) | Q(tags__contains=[f' {tag}']) | Q(tags__contains=[f'{tag} ']) | Q(tags__contains=[f' {tag} '])
+                    nlink_filter = nlink_filter & tag_q
             
             if data_label_filter:
                 nlink_filter &= Q(data_label=data_label_filter)
             
             if record_label_filter:
                 nlink_filter &= Q(record_label__in=record_label_filter)
+            
+            # Apply date filters on negotiation timestamps 
+            if start_date:
+                try:
+                    start_dt = parse_datetime(start_date)
+                    if not start_dt:
+                        start_date_obj = parse_date(start_date)
+                        if start_date_obj:
+                            start_dt = timezone.make_aware(
+                                datetime.datetime.combine(start_date_obj, datetime.time.min)
+                            )
+                    if start_dt:
+                        nlink_filter &= Q(negotiation__timestamps__gte=start_dt)
+                except (ValueError, TypeError):
+                    pass
+
+            if end_date:
+                try:
+                    end_dt = parse_datetime(end_date)
+                    if not end_dt:
+                        end_date_obj = parse_date(end_date)
+                        if end_date_obj:
+                            end_dt = timezone.make_aware(
+                                datetime.datetime.combine(end_date_obj, datetime.time.max)
+                            )
+                    if end_dt:
+                        nlink_filter &= Q(negotiation__timestamps__lte=end_dt)
+                except (ValueError, TypeError):
+                    pass
             
             if data_label_filter and record_label_filter and len(record_label_filter) == 1:
                 stats = NLink.objects.filter(nlink_filter).aggregate(
@@ -294,9 +359,16 @@ def summary_statistics_view(request):
                     owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
                 )
                 
+                # Calculate actual date range and latest activity of filtered negotiations
+                date_range = NLink.objects.filter(nlink_filter).aggregate(
+                    min_date=Min('negotiation__timestamps'),
+                    max_date=Max('negotiation__timestamps'),
+                    last_activity=Max('last_activity')
+                )
+                
                 statistics_data = [{
                     'data_label': data_label_filter,
-                    'tag': ', '.join(sorted(tags_filter_cleaned)), 
+                    'tag': ', '.join(sorted(tags_filter_cleaned)) if tags_filter else '',
                     'record_label': record_label_filter[0],
                     'total_requests': stats['total_requests'],
                     'accepted_requests': stats['accepted_requests'],
@@ -304,30 +376,51 @@ def summary_statistics_view(request):
                     'requestor_open': stats['requestor_open'],
                     'owner_open': stats['owner_open'],
                     'generated_at': timezone.now().isoformat(),
+                    'last_updated': timezone.now().isoformat(),
+                    'last_activity': date_range['last_activity'].isoformat() if date_range['last_activity'] else None,
+                    'negotiation_date_range': {
+                        'min_date': date_range['min_date'].isoformat() if date_range['min_date'] else None,
+                        'max_date': date_range['max_date'].isoformat() if date_range['max_date'] else None,
+                    }
                 }]
             else:
-                # Multiple groups or no filters: sum across all data_labels and record_labels
-                stats = NLink.objects.filter(nlink_filter).aggregate(
-                    total_requests=Count('negotiation'),
-                    accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
-                    rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
-                    requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
-                    owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
+                grouped_stats = (
+                    NLink.objects
+                    .filter(nlink_filter)
+                    .values('data_label', 'record_label')
+                    .annotate(
+                        total_requests=Count('negotiation'),
+                        accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
+                        rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
+                        requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
+                        owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
+                        min_date=Min('negotiation__timestamps'),
+                        max_date=Max('negotiation__timestamps'),
+                        last_activity=Max('last_activity'),
+                    )
                 )
                 
-                statistics_data = [{
-                    'data_label': '',
-                    'tag': ', '.join(sorted(tags_filter_cleaned)), 
-                    'record_label': '',
-                    'total_requests': stats['total_requests'],
-                    'accepted_requests': stats['accepted_requests'],
-                    'rejected_requests': stats['rejected_requests'],
-                    'requestor_open': stats['requestor_open'],
-                    'owner_open': stats['owner_open'],
-                    'generated_at': timezone.now().isoformat(),
-                }]
+                statistics_data = []
+                for grp in grouped_stats:
+                    statistics_data.append({
+                        'data_label': grp['data_label'] or '',
+                        'tag': ', '.join(sorted(tags_filter_cleaned)) if tags_filter else '',
+                        'record_label': grp['record_label'] or '',
+                        'total_requests': grp['total_requests'],
+                        'accepted_requests': grp['accepted_requests'],
+                        'rejected_requests': grp['rejected_requests'],
+                        'requestor_open': grp['requestor_open'],
+                        'owner_open': grp['owner_open'],
+                        'generated_at': timezone.now().isoformat(),
+                        'last_updated': timezone.now().isoformat(),
+                        'last_activity': grp['last_activity'].isoformat() if grp['last_activity'] else None,
+                        'negotiation_date_range': {
+                            'min_date': grp['min_date'].isoformat() if grp['min_date'] else None,
+                            'max_date': grp['max_date'].isoformat() if grp['max_date'] else None,
+                        }
+                    })
         else:
-            # No tags: use existing SummaryStatistic records
+            # use pre-aggregated SummaryStatistic records 
             stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
             
             if data_label_filter:
@@ -345,6 +438,8 @@ def summary_statistics_view(request):
             statistics_data = []
             for stat in stats_qs:
                 stats_block = stat.overall_stat or {}
+                date_range = stats_block.get('negotiation_date_range', {})
+                last_activity = stats_block.get('last_activity')
                 statistics_data.append({
                     'data_label': stat.data_label,
                     'tag': stat.tag or '',
@@ -355,6 +450,9 @@ def summary_statistics_view(request):
                     'requestor_open': stats_block.get('requestor_open', 0),
                     'owner_open': stats_block.get('owner_open', 0),
                     'generated_at': stat.summary_date.isoformat(),
+                    'last_updated': stat.summary_date.isoformat(),
+                    'last_activity': last_activity,  
+                    'negotiation_date_range': date_range,
                 })
 
         return JsonResponse({'summary_statistics': statistics_data})
@@ -404,13 +502,6 @@ def archive_view(request, negotiation_id):
 
 @receiver(post_save, sender=Negotiation)
 def generate_summary_statistics(sender, instance, **kwargs):
-    """Generate summary statistics and archive negotiation upon state change."""
-    if instance.state in ['accepted', 'canceled', 'rejected']:
-        handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
-
-
-@receiver(post_save, sender=Negotiation)
-def generate_summary_statistics_duplicate(sender, instance, **kwargs):
     """Auto-archive and export statistics when a negotiation is accepted, canceled, or rejected."""
     if instance.state in ['accepted', 'canceled', 'rejected'] and not instance.archived:
         handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
