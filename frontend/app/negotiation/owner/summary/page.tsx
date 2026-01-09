@@ -39,10 +39,23 @@ interface SummaryStat {
   rejected_requests: number;
   requestor_open: number;
   owner_open: number;
-  generated_at: string; // ISO timestamp
+  generated_at: string; // ISO timestamp (kept for backward compatibility)
+  last_updated?: string; // Last updated timestamp (when summary was generated)
+  last_activity?: string | null; // Latest negotiation activity (when negotiations were last modified)
+  negotiation_date_range?: {
+    min_date: string | null;
+    max_date: string | null;
+  };
 }
 
-async function fetchSummaryStats(tags?: string[], dataLabel?: string, recordLabels?: string[], includeAllTags?: boolean): Promise<SummaryStat[]> {
+async function fetchSummaryStats(
+  tags?: string[], 
+  dataLabel?: string, 
+  recordLabels?: string[], 
+  includeAllTags?: boolean,
+  startDate?: string,
+  endDate?: string
+): Promise<SummaryStat[]> {
 
   const params = new URLSearchParams();
   if (tags && tags.length > 0) {
@@ -57,6 +70,12 @@ async function fetchSummaryStats(tags?: string[], dataLabel?: string, recordLabe
   if (includeAllTags) {
     params.set('include_all_tags', 'true');
   }
+  if (startDate) {
+    params.set('startDate', startDate);
+  }
+  if (endDate) {
+    params.set('endDate', endDate);
+  }
   
   const queryString = params.toString();
   const url = queryString ? `/drt/summary-statistics/?${queryString}` : "/drt/summary-statistics/";
@@ -67,6 +86,79 @@ async function fetchSummaryStats(tags?: string[], dataLabel?: string, recordLabe
     throw new Error(json.error || `Status ${res.status}`);
   }
   return json.summary_statistics as SummaryStat[];
+}
+
+// Helper component to display activity and date information
+function ActivityDatesCell({
+  lastActivity,
+  lastUpdated,
+  dateRange,
+}: {
+  lastActivity?: string | null;
+  lastUpdated: string;
+  dateRange?: { min_date: string | null; max_date: string | null };
+}) {
+  const dateRangeDisplay = dateRange && dateRange.min_date && dateRange.max_date
+    ? (dateRange.min_date === dateRange.max_date
+        ? { single: true, date: new Date(dateRange.min_date).toLocaleDateString() }
+        : { 
+            single: false, 
+            first: new Date(dateRange.min_date).toLocaleDateString(),
+            last: new Date(dateRange.max_date).toLocaleDateString()
+          })
+    : null;
+  const lastActivityText = lastActivity 
+    ? new Date(lastActivity).toLocaleString()
+    : null;
+
+  return (
+    <div className="space-y-2">
+      {lastActivityText ? (
+        <>
+          <div className="space-y-1">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Last Modified
+            </div>
+            <div className="text-sm text-gray-900">
+              {lastActivityText}
+            </div>
+          </div>
+          {dateRangeDisplay && (
+            <div className="pt-2 border-t border-gray-200">
+              {dateRangeDisplay.single ? (
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Created
+                  </div>
+                  <div className="text-xs text-gray-700">
+                    {dateRangeDisplay.date}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Created
+                  </div>
+                  <div className="text-xs text-gray-700 space-y-0.5">
+                    <div>
+                      <span className="text-gray-500">First:</span> {dateRangeDisplay.first}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Last:</span> {dateRangeDisplay.last}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="text-sm text-gray-600">
+          {new Date(lastUpdated).toLocaleString()}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function OwnerSummaryPage() {
@@ -126,8 +218,15 @@ export default function OwnerSummaryPage() {
 
   // ——— React Query: load summary stats with filters ———
   const summaryQuery = useQuery<SummaryStat[], Error>({
-    queryKey: ["owner", "summary-statistics", tag, dataLabel, recordLabel],
-    queryFn: () => fetchSummaryStats(tag, dataLabel || undefined, recordLabel.length > 0 ? recordLabel : undefined),
+    queryKey: ["owner", "summary-statistics", tag, dataLabel, recordLabel, startDate, endDate],
+    queryFn: () => fetchSummaryStats(
+      tag, 
+      dataLabel || undefined, 
+      recordLabel.length > 0 ? recordLabel : undefined, 
+      false,
+      startDate || undefined, 
+      endDate || undefined
+    ),
     staleTime: 1000 * 60 * 5, // 5m
     retry: 1,
     enabled: !!whoamiQuery.data, // Only fetch if authenticated
@@ -170,15 +269,10 @@ export default function OwnerSummaryPage() {
     [allStatsForOptions]
   );
 
-  // ——— apply date filters client-side ———
+  // ——— Backend now handles date filtering, so no client-side filtering needed ———
   const filteredData = useMemo(() => {
-    return allData.filter((d) => {
-      const genDate = new Date(d.generated_at);
-      if (startDate && genDate < new Date(startDate)) return false;
-      if (endDate && genDate > new Date(endDate)) return false;
-      return true;
-    });
-  }, [allData, startDate, endDate]);
+    return allData; // Backend handles date filtering via API
+  }, [allData]);
 
 
   const groupedData = useMemo(() => {
@@ -194,11 +288,15 @@ export default function OwnerSummaryPage() {
         rejected_requests: number;
         requestor_open: number;
         owner_open: number;
-        generated_at: string;
+        last_updated: string;
+        last_activity: string | null;
+        negotiation_date_range?: { min_date: string | null; max_date: string | null };
       }>();
       
       filteredData.forEach(d => {
         const key = `${d.record_label || ""}|${d.data_label}`;
+        const lastUpdated = d.last_updated || d.generated_at;
+        const lastActivity = d.last_activity;
         
         if (!map.has(key)) {
           map.set(key, {
@@ -209,7 +307,9 @@ export default function OwnerSummaryPage() {
             rejected_requests: d.rejected_requests,
             requestor_open: d.requestor_open,
             owner_open: d.owner_open,
-            generated_at: d.generated_at,
+            last_updated: lastUpdated,
+            last_activity: lastActivity || null,
+            negotiation_date_range: d.negotiation_date_range,
           });
         } else {
           // Sum if duplicates exist
@@ -219,8 +319,27 @@ export default function OwnerSummaryPage() {
           entry.rejected_requests += d.rejected_requests;
           entry.requestor_open += d.requestor_open;
           entry.owner_open += d.owner_open;
-          if (new Date(d.generated_at) > new Date(entry.generated_at)) {
-            entry.generated_at = d.generated_at;
+          if (new Date(lastUpdated) > new Date(entry.last_updated)) {
+            entry.last_updated = lastUpdated;
+          }
+          // Take the latest activity date
+          if (lastActivity && (!entry.last_activity || new Date(lastActivity) > new Date(entry.last_activity))) {
+            entry.last_activity = lastActivity;
+          }
+          // Merge date ranges (take the widest range)
+          if (d.negotiation_date_range) {
+            if (!entry.negotiation_date_range) {
+              entry.negotiation_date_range = d.negotiation_date_range;
+            } else {
+              const existing = entry.negotiation_date_range;
+              const incoming = d.negotiation_date_range;
+              if (incoming.min_date && (!existing.min_date || incoming.min_date < existing.min_date)) {
+                existing.min_date = incoming.min_date;
+              }
+              if (incoming.max_date && (!existing.max_date || incoming.max_date > existing.max_date)) {
+                existing.max_date = incoming.max_date;
+              }
+            }
           }
         }
       });
@@ -239,7 +358,9 @@ export default function OwnerSummaryPage() {
         rejected_requests: tagData.rejected_requests,
         requestor_open: tagData.requestor_open,
         owner_open: tagData.owner_open,
-        generated_at: tagData.generated_at,
+        last_updated: tagData.last_updated || tagData.generated_at,
+        last_activity: tagData.last_activity || null,
+        negotiation_date_range: tagData.negotiation_date_range,
       }];
     }
   }, [filteredData, tag]);
@@ -413,7 +534,7 @@ export default function OwnerSummaryPage() {
                             "Rejected",
                             "Req. Open",
                             "Own. Open",
-                            "Generated At",
+                            "Activity & Dates",
                           ].map((header) => (
                             <th key={header} className="border px-4 py-2">
                               {header}
@@ -429,7 +550,7 @@ export default function OwnerSummaryPage() {
                             "Rejected",
                             "Req. Open",
                             "Own. Open",
-                            "Generated At",
+                            "Activity & Dates",
                           ].map((header) => (
                             <th key={header} className="border px-4 py-2">
                               {header}
@@ -442,7 +563,7 @@ export default function OwnerSummaryPage() {
                       {groupedData.map((d, idx) => {
                         if (tag.length > 0) {
                           // Tag view rows
-                          const tagData = d as { tags: string[]; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; generated_at: string; };
+                          const tagData = d as { tags: string[]; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
                           return (
                             <tr key={`tags-${tagData.tags.join("-")}-${idx}`}>
                               <td className="border px-4 py-2">
@@ -463,13 +584,17 @@ export default function OwnerSummaryPage() {
                               <td className="border px-4 py-2">{tagData.requestor_open}</td>
                               <td className="border px-4 py-2">{tagData.owner_open}</td>
                               <td className="border px-4 py-2">
-                                {new Date(tagData.generated_at).toLocaleString()}
+                                <ActivityDatesCell
+                                  lastActivity={tagData.last_activity}
+                                  lastUpdated={tagData.last_updated}
+                                  dateRange={tagData.negotiation_date_range}
+                                />
                               </td>
                             </tr>
                           );
                         } else {
                           // Record label view rows
-                          const recordData = d as { record_label: string; data_label: string; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; generated_at: string; };
+                          const recordData = d as { record_label: string; data_label: string; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
                           return (
                             <tr key={`record-${recordData.record_label}-${recordData.data_label}-${idx}`}>
                               <td className="border px-4 py-2">{recordData.record_label || "All"}</td>
@@ -480,7 +605,11 @@ export default function OwnerSummaryPage() {
                               <td className="border px-4 py-2">{recordData.requestor_open}</td>
                               <td className="border px-4 py-2">{recordData.owner_open}</td>
                               <td className="border px-4 py-2">
-                                {new Date(recordData.generated_at).toLocaleString()}
+                                <ActivityDatesCell
+                                  lastActivity={recordData.last_activity}
+                                  lastUpdated={recordData.last_updated}
+                                  dateRange={recordData.negotiation_date_range}
+                                />
                               </td>
                             </tr>
                           );
