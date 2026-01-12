@@ -278,7 +278,7 @@ export default function OwnerSummaryPage() {
     const isTagView = tag.length > 0;
     
     if (!isTagView) {
-      // Default view: Group by record_label and data_label as safeguard against duplicates, group to handle edge cases
+      // Default view: Group by record_label and data_label
       const map = new Map<string, {
         record_label: string;
         data_label: string;
@@ -292,8 +292,25 @@ export default function OwnerSummaryPage() {
         negotiation_date_range?: { min_date: string | null; max_date: string | null };
       }>();
       
+      // Separate no-tag (aggregate) records from tagged records
+      const noTagRecords = filteredData.filter(d => !d.tag || d.tag === '');
+      const taggedRecords = filteredData.filter(d => d.tag && d.tag !== '');
+      
+      const groupsWithTags = new Set<string>();
+      taggedRecords.forEach(d => {
+        const key = `${d.record_label || ""}|${d.data_label}`;
+        groupsWithTags.add(key);
+      });
+      
       filteredData.forEach(d => {
         const key = `${d.record_label || ""}|${d.data_label}`;
+        const isNoTagRecord = !d.tag || d.tag === '';
+        const hasTaggedRecords = groupsWithTags.has(key);
+        
+        if (isNoTagRecord && hasTaggedRecords) {
+          return;
+        }
+        
         const lastUpdated = d.last_updated || d.generated_at;
         const lastActivity = d.last_activity;
         
@@ -311,7 +328,7 @@ export default function OwnerSummaryPage() {
             negotiation_date_range: d.negotiation_date_range,
           });
         } else {
-          // Sum if duplicates exist
+          // Sum tagged records for the same group
           const entry = map.get(key)!;
           entry.total_requests += d.total_requests;
           entry.accepted_requests += d.accepted_requests;
