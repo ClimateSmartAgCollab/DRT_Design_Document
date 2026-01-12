@@ -65,11 +65,16 @@ interface OwnerCommentVersion {
 async function fetchNegotiationHistory(
   linkId: string
 ): Promise<NegotiationHistory> {
-  const negotiationsRes = await fetchApi("/drt/negotiations/");
+  const negotiationsRes = await fetchApi(
+    `/drt/negotiations/?owner_link=${encodeURIComponent(linkId)}&lightweight=true`
+  );
   if (!negotiationsRes.ok) throw new Error("Failed to load negotiations");
-  const negotiations = await negotiationsRes.json();
+  const negotiationsPayload = await negotiationsRes.json();
+  const negotiations = Array.isArray(negotiationsPayload?.results)
+    ? negotiationsPayload.results
+    : negotiationsPayload;
 
-  const negotiation = negotiations.find((n: any) => n.owner_link === linkId);
+  const negotiation = negotiations && negotiations[0];
   if (!negotiation) {
     throw new Error("Negotiation not found");
   }
