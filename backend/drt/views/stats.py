@@ -320,6 +320,72 @@ def owner_links_api(request):
     return JsonResponse({"links": entries})
 
 
+def _group_summary_statistics(statistics_data):
+    """
+    Group summary statistics by (record_label, data_label) 
+    """
+    no_tag_records = [d for d in statistics_data if not d.get('tag') or d.get('tag') == '']
+    tagged_records = [d for d in statistics_data if d.get('tag') and d.get('tag') != '']
+    
+    groups_with_tags = set()
+    for d in tagged_records:
+        key = f"{d.get('record_label', '')}|{d.get('data_label', '')}"
+        groups_with_tags.add(key)
+    
+    grouped_map = {}
+    
+    for d in statistics_data:
+        key = f"{d.get('record_label', '')}|{d.get('data_label', '')}"
+        is_no_tag_record = not d.get('tag') or d.get('tag') == ''
+        has_tagged_records = key in groups_with_tags
+        
+        
+        if is_no_tag_record and has_tagged_records:
+            continue
+        
+        if key not in grouped_map:
+            grouped_map[key] = {
+                'record_label': d.get('record_label', ''),
+                'data_label': d.get('data_label', ''),
+                'total_requests': d.get('total_requests', 0),
+                'accepted_requests': d.get('accepted_requests', 0),
+                'rejected_requests': d.get('rejected_requests', 0),
+                'requestor_open': d.get('requestor_open', 0),
+                'owner_open': d.get('owner_open', 0),
+                'last_updated': d.get('last_updated') or d.get('generated_at', ''),
+                'last_activity': d.get('last_activity'),
+                'negotiation_date_range': d.get('negotiation_date_range', {}),
+            }
+        else:
+            entry = grouped_map[key]
+            entry['total_requests'] += d.get('total_requests', 0)
+            entry['accepted_requests'] += d.get('accepted_requests', 0)
+            entry['rejected_requests'] += d.get('rejected_requests', 0)
+            entry['requestor_open'] += d.get('requestor_open', 0)
+            entry['owner_open'] += d.get('owner_open', 0)
+            
+            current_updated = d.get('last_updated') or d.get('generated_at', '')
+            if current_updated and current_updated > entry['last_updated']:
+                entry['last_updated'] = current_updated
+            
+            current_activity = d.get('last_activity')
+            if current_activity and (not entry['last_activity'] or current_activity > entry['last_activity']):
+                entry['last_activity'] = current_activity
+            
+            incoming_range = d.get('negotiation_date_range', {})
+            if incoming_range:
+                if not entry['negotiation_date_range']:
+                    entry['negotiation_date_range'] = incoming_range
+                else:
+                    existing = entry['negotiation_date_range']
+                    if incoming_range.get('min_date') and (not existing.get('min_date') or incoming_range['min_date'] < existing['min_date']):
+                        existing['min_date'] = incoming_range['min_date']
+                    if incoming_range.get('max_date') and (not existing.get('max_date') or incoming_range['max_date'] > existing['max_date']):
+                        existing['max_date'] = incoming_range['max_date']
+    
+    return list(grouped_map.values())
+
+
 @owner_auth_required
 def summary_statistics_view(request):
     """ Endpoint for retrieving summary statistics with optional tag filtering."""
@@ -343,6 +409,7 @@ def summary_statistics_view(request):
     data_label_filter = request.GET.get("data_label")
     record_label_filter = request.GET.getlist("record_label")
     include_all_tags = request.GET.get("include_all_tags", "false").lower() == "true"
+    group_by = request.GET.get("group_by", "false").lower() == "true"
     
     # Get date filter parameters (for negotiation dates)
     start_date = request.GET.get("startDate")
@@ -532,6 +599,9 @@ def summary_statistics_view(request):
                     'last_activity': last_activity,  
                     'negotiation_date_range': date_range,
                 })
+        
+        if group_by and not use_direct_query:
+            statistics_data = _group_summary_statistics(statistics_data)
 
         return JsonResponse({'summary_statistics': statistics_data})
 

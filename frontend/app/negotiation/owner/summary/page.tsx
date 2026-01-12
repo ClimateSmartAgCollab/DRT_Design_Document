@@ -54,7 +54,8 @@ async function fetchSummaryStats(
   recordLabels?: string[], 
   includeAllTags?: boolean,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  groupBy?: boolean
 ): Promise<SummaryStat[]> {
 
   const params = new URLSearchParams();
@@ -75,6 +76,9 @@ async function fetchSummaryStats(
   }
   if (endDate) {
     params.set('endDate', endDate);
+  }
+  if (groupBy) {
+    params.set('group_by', 'true');
   }
   
   const queryString = params.toString();
@@ -225,7 +229,8 @@ export default function OwnerSummaryPage() {
       recordLabel.length > 0 ? recordLabel : undefined, 
       false,
       startDate || undefined, 
-      endDate || undefined
+      endDate || undefined,
+      true  // Request grouped data from backend
     ),
     staleTime: 1000 * 60 * 5, // 5m
     retry: 1,
@@ -278,89 +283,7 @@ export default function OwnerSummaryPage() {
     const isTagView = tag.length > 0;
     
     if (!isTagView) {
-      // Default view: Group by record_label and data_label
-      const map = new Map<string, {
-        record_label: string;
-        data_label: string;
-        total_requests: number;
-        accepted_requests: number;
-        rejected_requests: number;
-        requestor_open: number;
-        owner_open: number;
-        last_updated: string;
-        last_activity: string | null;
-        negotiation_date_range?: { min_date: string | null; max_date: string | null };
-      }>();
-      
-      // Separate no-tag (aggregate) records from tagged records
-      const noTagRecords = filteredData.filter(d => !d.tag || d.tag === '');
-      const taggedRecords = filteredData.filter(d => d.tag && d.tag !== '');
-      
-      const groupsWithTags = new Set<string>();
-      taggedRecords.forEach(d => {
-        const key = `${d.record_label || ""}|${d.data_label}`;
-        groupsWithTags.add(key);
-      });
-      
-      filteredData.forEach(d => {
-        const key = `${d.record_label || ""}|${d.data_label}`;
-        const isNoTagRecord = !d.tag || d.tag === '';
-        const hasTaggedRecords = groupsWithTags.has(key);
-        
-        if (isNoTagRecord && hasTaggedRecords) {
-          return;
-        }
-        
-        const lastUpdated = d.last_updated || d.generated_at;
-        const lastActivity = d.last_activity;
-        
-        if (!map.has(key)) {
-          map.set(key, {
-            record_label: d.record_label || "",
-            data_label: d.data_label,
-            total_requests: d.total_requests,
-            accepted_requests: d.accepted_requests,
-            rejected_requests: d.rejected_requests,
-            requestor_open: d.requestor_open,
-            owner_open: d.owner_open,
-            last_updated: lastUpdated,
-            last_activity: lastActivity || null,
-            negotiation_date_range: d.negotiation_date_range,
-          });
-        } else {
-          // Sum tagged records for the same group
-          const entry = map.get(key)!;
-          entry.total_requests += d.total_requests;
-          entry.accepted_requests += d.accepted_requests;
-          entry.rejected_requests += d.rejected_requests;
-          entry.requestor_open += d.requestor_open;
-          entry.owner_open += d.owner_open;
-          if (new Date(lastUpdated) > new Date(entry.last_updated)) {
-            entry.last_updated = lastUpdated;
-          }
-
-          if (lastActivity && (!entry.last_activity || new Date(lastActivity) > new Date(entry.last_activity))) {
-            entry.last_activity = lastActivity;
-          }
-
-          if (d.negotiation_date_range) {
-            if (!entry.negotiation_date_range) {
-              entry.negotiation_date_range = d.negotiation_date_range;
-            } else {
-              const existing = entry.negotiation_date_range;
-              const incoming = d.negotiation_date_range;
-              if (incoming.min_date && (!existing.min_date || incoming.min_date < existing.min_date)) {
-                existing.min_date = incoming.min_date;
-              }
-              if (incoming.max_date && (!existing.max_date || incoming.max_date > existing.max_date)) {
-                existing.max_date = incoming.max_date;
-              }
-            }
-          }
-        }
-      });
-      
-      return Array.from(map.values());
+      return filteredData;
     } else {
       if (filteredData.length === 0) return [];
       
