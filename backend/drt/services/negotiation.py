@@ -1,7 +1,7 @@
 from django.utils import timezone
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
-from ..models import Negotiation, NLink
+from ..models import Negotiation
 import datetime
 import logging
 from django.core.cache import cache
@@ -16,8 +16,14 @@ logger = logging.getLogger(__name__)
 def handle_negotiation_archive_and_summary(negotiation):
     """Archives the negotiation and exports summary statistics."""
     try:
+        # Extract owner_id from negotiation if available
+        owner_id = None
+        if hasattr(negotiation, 'link') and negotiation.link:
+            owner_id = negotiation.link.owner_id
+        
         with transaction.atomic():
-            stats.export_summary_to_drt()
+            # Only regenerate stats for the affected owner
+            stats.export_summary_to_drt(owner_id=owner_id)
             if not negotiation.archived:
                 stats.archive_negotiation(negotiation)
     except Exception as e:
@@ -127,7 +133,6 @@ def mark_negotiation_abandoned(negotiation):
     """Mark a negotiation as abandoned and archive it."""
     try:
         with transaction.atomic():
-            
             create_archive_snapshot(
                 negotiation,
                 changed_by="system",
@@ -140,7 +145,6 @@ def mark_negotiation_abandoned(negotiation):
             
             nlink = negotiation.link
             if nlink and nlink.requestor_email:
-                
                 send_abandonment_notification_email_task.delay(
                     nlink.requestor_email,
                     str(nlink.requestor_link),

@@ -1,6 +1,6 @@
 from django.urls import NoReverseMatch, reverse
 from django.http import HttpResponse, JsonResponse
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils import timezone
 from django.db.models import F, Count, Q, Min, Max
 from django.utils.translation import gettext_lazy as _
@@ -70,7 +70,8 @@ def export_summary_to_drt(owner_id=None):
                 negotiation__state='owner_open')),
         )
     )
-    logger.info(f"Found {per_group_stats.count()} owner/dataset/record_label groups")
+    stats_count = per_group_stats.count()
+    logger.info(f"Found {stats_count} owner/dataset/record_label groups")
 
     for grp in per_group_stats:
         owner_pk = grp['owner_id']
@@ -130,15 +131,54 @@ def export_summary_to_drt(owner_id=None):
         }
         datasets_list = [ds_id]
 
-        SummaryStatistic.objects.update_or_create(
-            owner_id=nlink,
-            datasets_requested=datasets_list,
-            data_label=ds_label,
-            tag='',  # empty string = "no tag", all tags combined
-            record_label=record_label,
-            defaults={'overall_stat': overall_stat, 'record_label': record_label},
-        )
-        logger.info(f"Upserted no‐tag summary for NLink pk={nlink.pk}")
+        # Handle potential duplicates by getting the most recent one first
+        try:
+            stat_obj, created = SummaryStatistic.objects.update_or_create(
+                owner_id=nlink,
+                datasets_requested=datasets_list,
+                data_label=ds_label,
+                tag='',  
+                record_label=record_label,
+                defaults={'overall_stat': overall_stat, 'record_label': record_label},
+            )
+            action = "Created" if created else "Updated"
+        except MultipleObjectsReturned:
+            # Handle duplicate records - get the most recent one and delete others
+            existing_stats = SummaryStatistic.objects.filter(
+                owner_id=nlink,
+                datasets_requested=datasets_list,
+                data_label=ds_label,
+                tag='',
+                record_label=record_label
+            ).order_by('-summary_date')
+            
+            # Keep the most recent one
+            stat_obj = existing_stats.first()
+            if stat_obj is None:
+                stat_obj = SummaryStatistic.objects.create(
+                    owner_id=nlink,
+                    datasets_requested=datasets_list,
+                    data_label=ds_label,
+                    tag='',
+                    record_label=record_label,
+                    overall_stat=overall_stat
+                )
+                created = True
+                action = "Created (after cleanup error)"
+            else:
+                all_stat_ids = list(existing_stats.values_list('id', flat=True))
+                duplicate_ids = all_stat_ids[1:]  
+                
+                if duplicate_ids:
+                    SummaryStatistic.objects.filter(id__in=duplicate_ids).delete()
+                
+                stat_obj.overall_stat = overall_stat
+                stat_obj.record_label = record_label
+                stat_obj.save()
+                created = False
+                action = "Updated (after cleanup)"
+        
+        logger.info(f"{action} no‐tag summary for NLink pk={nlink.pk}")
 
         tags = set()
         for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label):
@@ -182,15 +222,53 @@ def export_summary_to_drt(owner_id=None):
                 'last_activity': tag_date_range['last_activity'].isoformat() if tag_date_range['last_activity'] else None,
             }
 
-            SummaryStatistic.objects.update_or_create(
-                owner_id=nlink,
-                datasets_requested=datasets_list,
-                data_label=ds_label,
-                tag=t,
-                record_label=record_label,
-                defaults={'overall_stat': tag_stat_payload, 'record_label': record_label},
-            )
-            logger.info(f"Upserted tag={t!r} summary for NLink pk={nlink.pk}")
+            try:
+                tag_stat_obj, tag_created = SummaryStatistic.objects.update_or_create(
+                    owner_id=nlink,
+                    datasets_requested=datasets_list,
+                    data_label=ds_label,
+                    tag=t,
+                    record_label=record_label,
+                    defaults={'overall_stat': tag_stat_payload, 'record_label': record_label},
+                )
+                tag_action = "Created" if tag_created else "Updated"
+            except MultipleObjectsReturned:
+                # Handle duplicate records - get the most recent one and delete others
+                existing_tag_stats = SummaryStatistic.objects.filter(
+                    owner_id=nlink,
+                    datasets_requested=datasets_list,
+                    data_label=ds_label,
+                    tag=t,
+                    record_label=record_label
+                ).order_by('-summary_date')
+                
+                # Keep the most recent one
+                tag_stat_obj = existing_tag_stats.first()
+                if tag_stat_obj is None:
+                    tag_stat_obj = SummaryStatistic.objects.create(
+                        owner_id=nlink,
+                        datasets_requested=datasets_list,
+                        data_label=ds_label,
+                        tag=t,
+                        record_label=record_label,
+                        overall_stat=tag_stat_payload
+                    )
+                    tag_created = True
+                    tag_action = "Created (after cleanup error)"
+                else:
+                    all_tag_stat_ids = list(existing_tag_stats.values_list('id', flat=True))
+                    tag_duplicate_ids = all_tag_stat_ids[1:]  
+                    
+                    if tag_duplicate_ids:
+                        SummaryStatistic.objects.filter(id__in=tag_duplicate_ids).delete()
+                    
+                    tag_stat_obj.overall_stat = tag_stat_payload
+                    tag_stat_obj.record_label = record_label
+                    tag_stat_obj.save()
+                    tag_created = False
+                    tag_action = "Updated (after cleanup)"
+            
+            logger.info(f"{tag_action} tag={t!r} summary for NLink pk={nlink.pk}")
 
 
 def delete_old_negotiations_view(request):
@@ -466,6 +544,13 @@ def summary_statistics_view(request):
 
 def archive_negotiation(negotiation):
     """Archive the negotiation and save relevant data."""
+    # Check if archive already exists
+    existing_archive = Archive.objects.filter(negotiation=negotiation).first()
+    if existing_archive:
+        negotiation.archived = True
+        negotiation.save()
+        return
+    
     Archive.objects.create(
         negotiation=negotiation,
         archived_data={
@@ -511,6 +596,8 @@ def handle_negotiation_archive_and_summary_async(negotiation, owner_id=None):
     """
     Archives the negotiation and exports summary statistics asynchronously.
     """
+    negotiation.refresh_from_db()
+    
     try:
         if owner_id is None and hasattr(negotiation, 'link') and negotiation.link:
             owner_id = negotiation.link.owner_id
@@ -518,14 +605,24 @@ def handle_negotiation_archive_and_summary_async(negotiation, owner_id=None):
         elif owner_id is None:
             logger.warning(f"Could not extract owner_id from negotiation {negotiation.negotiation_id}, processing all owners")
         
-        with transaction.atomic():
-            # Only regenerate stats for the affected owner
-            export_summary_to_drt(owner_id=owner_id)
-            if not negotiation.archived:
-                archive_negotiation(negotiation)
+        try:
+            with transaction.atomic():
+                export_summary_to_drt(owner_id=owner_id)
+        except Exception as stats_error:
+            logger.error(f"Error calculating summary stats for negotiation {negotiation.negotiation_id}: {stats_error}")
+            raise  
+        
+        # Archive negotiation in a separate transaction
+        if not negotiation.archived:
+            try:
+                with transaction.atomic():
+                    archive_negotiation(negotiation)
+            except Exception as archive_error:
+                logger.error(f"Error archiving negotiation {negotiation.negotiation_id}: {archive_error}")
+        
         logger.info(f"Successfully processed negotiation {negotiation.negotiation_id} asynchronously for owner_id={owner_id}")
     except Exception as e:
-        logger.error(f"Error processing negotiation {negotiation.negotiation_id} asynchronously: {e}")
+        logger.error(f"Error processing negotiation {negotiation.negotiation_id} asynchronously: {e}", exc_info=True)
 
 
 def delete_negotiation_files(request, negotiation_id):
@@ -959,13 +1056,12 @@ def reopen_negotiation_view(request, negotiation_id):
     """Reopen a previously Accepted/Rejected/Abandoned negotiation"""
     try:
         negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+        previous_state = negotiation.state
         
         if negotiation.state not in ['accepted', 'rejected', 'abandoned']:
             return JsonResponse({
                 'error': 'Only Accepted, Rejected, or Abandoned negotiations can be reopened'
             }, status=400)
-        
-        previous_state = negotiation.state
         
         new_state = 'owner_open'
         
@@ -977,7 +1073,22 @@ def reopen_negotiation_view(request, negotiation_id):
         )
         
         negotiation.state = new_state
+        # Un-archive when reopening so it can be edited again
+        if negotiation.archived:
+            negotiation.archived = False
         negotiation.save()
+        
+        # Recalculate summary statistics when reopening from final states
+        if previous_state in ['accepted', 'rejected', 'canceled', 'abandoned']:
+            try:
+                owner_id = None
+                if hasattr(negotiation, 'link') and negotiation.link:
+                    owner_id = negotiation.link.owner_id
+                
+                with transaction.atomic():
+                    export_summary_to_drt(owner_id=owner_id)
+            except Exception as stats_error:
+                logger.error(f"Error recalculating stats for reopened negotiation {negotiation_id}: {stats_error}", exc_info=True)
         
         # Send email notification to requestor
         if hasattr(negotiation, 'link') and negotiation.link:
