@@ -288,15 +288,16 @@ export default function OwnerSummaryPage() {
   const groupedData = useMemo(() => {
     const isTagView = tag.length > 0;
     
+    let data;
     if (!isTagView) {
-      return filteredData;
+      data = filteredData;
     } else {
       if (filteredData.length === 0) return [];
       
       const tagData = filteredData[0]; // Backend returns single combined row
       const tagsList = tagData.tag ? tagData.tag.split(',').map(t => t.trim()) : tag;
       
-      return [{
+      data = [{
         tags: tagsList,
         total_requests: tagData.total_requests,
         accepted_requests: tagData.accepted_requests,
@@ -308,6 +309,28 @@ export default function OwnerSummaryPage() {
         negotiation_date_range: tagData.negotiation_date_range,
       }];
     }
+
+    // Sort by date (most recent first)
+    return [...data].sort((a, b) => {
+      const getDateValue = (item: any): number => {
+        if (item.last_activity) {
+          return new Date(item.last_activity).getTime();
+        }
+        if (item.last_updated) {
+          return new Date(item.last_updated).getTime();
+        }
+        if (item.negotiation_date_range?.max_date) {
+          return new Date(item.negotiation_date_range.max_date).getTime();
+        }
+        return 0;
+      };
+
+      const dateA = getDateValue(a);
+      const dateB = getDateValue(b);
+      
+      // Sort descending (most recent first)
+      return dateB - dateA;
+    });
   }, [filteredData, tag]);
 
   // Chart data
