@@ -246,7 +246,13 @@ export default function OwnerSummaryPage() {
     enabled: !!whoamiQuery.data, 
   });
 
-  const allData = useMemo(() => summaryQuery.data ?? [], [summaryQuery.data]);
+  const hasNoDataError = summaryQuery.isError && 
+    summaryQuery.error?.message?.toLowerCase().includes('no summary statistics found');
+  
+  const allData = useMemo(() => {
+    if (hasNoDataError) return [];
+    return summaryQuery.data ?? [];
+  }, [summaryQuery.data, hasNoDataError]);
   const allStatsForOptions = useMemo(() => allStatsQuery.data ?? [], [allStatsQuery.data]);
 
   // ——— Derive filter options from unfiltered data ———
@@ -308,6 +314,34 @@ export default function OwnerSummaryPage() {
   const chartData = useMemo(
     () => {
       const isTagView = tag.length > 0;
+      // Handle empty data case
+      if (groupedData.length === 0) {
+        return {
+          labels: [],
+          datasets: [
+            {
+              label: "Total",
+              data: [],
+            },
+            {
+              label: "Accepted",
+              data: [],
+            },
+            {
+              label: "Rejected",
+              data: [],
+            },
+            {
+              label: "Req. Open",
+              data: [],
+            },
+            {
+              label: "Own. Open",
+              data: [],
+            },
+          ],
+        };
+      }
       return {
         labels: groupedData.map((d) => {
           if (isTagView) {
@@ -386,7 +420,7 @@ export default function OwnerSummaryPage() {
                 <p>Loading summary statistics…</p>
               </div>
             </div>
-          ) : summaryQuery.isError ? (
+          ) : summaryQuery.isError && !hasNoDataError ? (
             <div className="flex items-center justify-center min-h-screen">
               <div className="bg-red-50 border-l-4 border-red-400 p-4 text-red-700 max-w-2xl">
                 ⚠️ {summaryQuery.error.message}
@@ -499,7 +533,17 @@ export default function OwnerSummaryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {groupedData.map((d, idx) => {
+                      {groupedData.length === 0 ? (
+                        <tr>
+                          <td 
+                            colSpan={tag.length > 0 ? 7 : 8} 
+                            className="border px-4 py-8 text-center text-gray-500"
+                          >
+                            No data available
+                          </td>
+                        </tr>
+                      ) : (
+                        groupedData.map((d, idx) => {
                         if (tag.length > 0) {
                           // Tag view rows
                           const tagData = d as { tags: string[]; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
@@ -553,7 +597,8 @@ export default function OwnerSummaryPage() {
                             </tr>
                           );
                         }
-                      })}
+                      })
+                      )}
                     </tbody>
                   </table>
                 </section>
