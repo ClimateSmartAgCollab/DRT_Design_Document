@@ -39,12 +39,19 @@ interface SummaryStat {
   rejected_requests: number;
   requestor_open: number;
   owner_open: number;
+  abandoned_requests: number;
+  archived_requests: number;
   generated_at: string; 
   last_updated?: string; 
   last_activity?: string | null; 
   negotiation_date_range?: {
     min_date: string | null;
     max_date: string | null;
+  };
+  validation_status?: {
+    is_valid: boolean;
+    message: string | null;
+    difference?: number;
   };
 }
 
@@ -304,6 +311,8 @@ export default function OwnerSummaryPage() {
         rejected_requests: tagData.rejected_requests,
         requestor_open: tagData.requestor_open,
         owner_open: tagData.owner_open,
+        abandoned_requests: tagData.abandoned_requests || 0,
+        archived_requests: tagData.archived_requests || 0,
         last_updated: tagData.last_updated || tagData.generated_at,
         last_activity: tagData.last_activity || null,
         negotiation_date_range: tagData.negotiation_date_range,
@@ -362,6 +371,14 @@ export default function OwnerSummaryPage() {
               label: "Own. Open",
               data: [],
             },
+            {
+              label: "Abandoned",
+              data: [],
+            },
+            {
+              label: "Archived",
+              data: [],
+            },
           ],
         };
       }
@@ -394,6 +411,14 @@ export default function OwnerSummaryPage() {
           {
             label: "Own. Open",
             data: groupedData.map((d) => d.owner_open),
+          },
+          {
+            label: "Abandoned",
+            data: groupedData.map((d) => d.abandoned_requests || 0),
+          },
+          {
+            label: "Archived",
+            data: groupedData.map((d) => d.archived_requests || 0),
           },
         ],
       };
@@ -530,6 +555,8 @@ export default function OwnerSummaryPage() {
                             "Rejected",
                             "Req. Open",
                             "Own. Open",
+                            "Abandoned",
+                            "Archived",
                             "Activity & Dates",
                           ].map((header) => (
                             <th key={header} className="border px-4 py-2">
@@ -546,6 +573,8 @@ export default function OwnerSummaryPage() {
                             "Rejected",
                             "Req. Open",
                             "Own. Open",
+                            "Abandoned",
+                            "Archived",
                             "Activity & Dates",
                           ].map((header) => (
                             <th key={header} className="border px-4 py-2">
@@ -559,7 +588,7 @@ export default function OwnerSummaryPage() {
                       {groupedData.length === 0 ? (
                         <tr>
                           <td 
-                            colSpan={tag.length > 0 ? 7 : 8} 
+                            colSpan={tag.length > 0 ? 9 : 10} 
                             className="border px-4 py-8 text-center text-gray-500"
                           >
                             No data available
@@ -569,7 +598,7 @@ export default function OwnerSummaryPage() {
                         groupedData.map((d, idx) => {
                         if (tag.length > 0) {
                           // Tag view rows
-                          const tagData = d as { tags: string[]; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
+                          const tagData = d as { tags: string[]; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; abandoned_requests?: number; archived_requests?: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
                           return (
                             <tr key={`tags-${tagData.tags.join("-")}-${idx}`}>
                               <td className="border px-4 py-2">
@@ -589,6 +618,8 @@ export default function OwnerSummaryPage() {
                               <td className="border px-4 py-2">{tagData.rejected_requests}</td>
                               <td className="border px-4 py-2">{tagData.requestor_open}</td>
                               <td className="border px-4 py-2">{tagData.owner_open}</td>
+                              <td className="border px-4 py-2">{tagData.abandoned_requests || 0}</td>
+                              <td className="border px-4 py-2">{tagData.archived_requests || 0}</td>
                               <td className="border px-4 py-2">
                                 <ActivityDatesCell
                                   lastActivity={tagData.last_activity}
@@ -600,7 +631,7 @@ export default function OwnerSummaryPage() {
                           );
                         } else {
                           // Record label view rows
-                          const recordData = d as { record_label: string; data_label: string; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
+                          const recordData = d as { record_label: string; data_label: string; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; abandoned_requests?: number; archived_requests?: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
                           return (
                             <tr key={`record-${recordData.record_label}-${recordData.data_label}-${idx}`}>
                               <td className="border px-4 py-2">{recordData.record_label || "All"}</td>
@@ -610,6 +641,8 @@ export default function OwnerSummaryPage() {
                               <td className="border px-4 py-2">{recordData.rejected_requests}</td>
                               <td className="border px-4 py-2">{recordData.requestor_open}</td>
                               <td className="border px-4 py-2">{recordData.owner_open}</td>
+                              <td className="border px-4 py-2">{recordData.abandoned_requests || 0}</td>
+                              <td className="border px-4 py-2">{recordData.archived_requests || 0}</td>
                               <td className="border px-4 py-2">
                                 <ActivityDatesCell
                                   lastActivity={recordData.last_activity}

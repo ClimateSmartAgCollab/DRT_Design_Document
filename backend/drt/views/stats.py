@@ -68,6 +68,10 @@ def export_summary_to_drt(owner_id=None):
                 negotiation__state='requestor_open')),
             owner_open=Count('negotiation',        filter=Q(
                 negotiation__state='owner_open')),
+            abandoned_requests=Count('negotiation', filter=Q(
+                negotiation__state='abandoned')),
+            archived_requests=Count('negotiation', filter=Q(
+                negotiation__state='archived')),
         )
     )
     stats_count = per_group_stats.count()
@@ -121,6 +125,8 @@ def export_summary_to_drt(owner_id=None):
             'rejected_requests': grp['rejected_requests'],
             'requestor_open':    grp['requestor_open'],
             'owner_open':        grp['owner_open'],
+            'abandoned_requests': grp['abandoned_requests'],
+            'archived_requests': grp['archived_requests'],
             'requestor_domains': requestor_domains,
             'generated_at':      timezone.now().isoformat(),
             'negotiation_date_range': {
@@ -198,6 +204,10 @@ def export_summary_to_drt(owner_id=None):
                     negotiation__state='requestor_open')),
                 owner_open=Count('negotiation',        filter=Q(
                     negotiation__state='owner_open')),
+                abandoned_requests=Count('negotiation', filter=Q(
+                    negotiation__state='abandoned')),
+                archived_requests=Count('negotiation', filter=Q(
+                    negotiation__state='archived')),
             )
             
             # Calculate date range and latest activity for this tag
@@ -213,6 +223,8 @@ def export_summary_to_drt(owner_id=None):
                 'rejected_requests': tag_stats['rejected_requests'],
                 'requestor_open':    tag_stats['requestor_open'],
                 'owner_open':        tag_stats['owner_open'],
+                'abandoned_requests': tag_stats['abandoned_requests'],
+                'archived_requests': tag_stats['archived_requests'],
                 'requestor_domains': requestor_domains,
                 'generated_at':      timezone.now().isoformat(),
                 'negotiation_date_range': {
@@ -320,6 +332,37 @@ def owner_links_api(request):
     return JsonResponse({"links": entries})
 
 
+def _validate_summary_stats(stat):
+    """
+    Validate that all state counts sum exactly to total_requests.
+    """
+    total = stat.get('total_requests', 0)
+    accepted = stat.get('accepted_requests', 0)
+    rejected = stat.get('rejected_requests', 0)
+    requestor_open = stat.get('requestor_open', 0)
+    owner_open = stat.get('owner_open', 0)
+    abandoned = stat.get('abandoned_requests', 0)
+    archived = stat.get('archived_requests', 0)
+    
+    sum_of_all_states = (
+        accepted + rejected + requestor_open + owner_open + abandoned + archived
+    )
+    
+    if sum_of_all_states != total:
+        difference = abs(total - sum_of_all_states)
+        return {
+            'is_valid': False,
+            'message': f'Data inconsistency: State counts ({sum_of_all_states}) do not match total requests ({total}). Difference: {difference}',
+            'difference': difference
+        }
+    else:
+        return {
+            'is_valid': True,
+            'message': None,
+            'difference': 0
+        }
+
+
 def _group_summary_statistics(statistics_data):
     """
     Group summary statistics by (record_label, data_label) 
@@ -352,6 +395,8 @@ def _group_summary_statistics(statistics_data):
                 'rejected_requests': d.get('rejected_requests', 0),
                 'requestor_open': d.get('requestor_open', 0),
                 'owner_open': d.get('owner_open', 0),
+                'abandoned_requests': d.get('abandoned_requests', 0),
+                'archived_requests': d.get('archived_requests', 0),
                 'last_updated': d.get('last_updated') or d.get('generated_at', ''),
                 'last_activity': d.get('last_activity'),
                 'negotiation_date_range': d.get('negotiation_date_range', {}),
@@ -363,6 +408,8 @@ def _group_summary_statistics(statistics_data):
             entry['rejected_requests'] += d.get('rejected_requests', 0)
             entry['requestor_open'] += d.get('requestor_open', 0)
             entry['owner_open'] += d.get('owner_open', 0)
+            entry['abandoned_requests'] += d.get('abandoned_requests', 0)
+            entry['archived_requests'] += d.get('archived_requests', 0)
             
             current_updated = d.get('last_updated') or d.get('generated_at', '')
             if current_updated and current_updated > entry['last_updated']:
@@ -383,7 +430,18 @@ def _group_summary_statistics(statistics_data):
                     if incoming_range.get('max_date') and (not existing.get('max_date') or incoming_range['max_date'] > existing['max_date']):
                         existing['max_date'] = incoming_range['max_date']
     
-    return list(grouped_map.values())
+    # Validate each grouped entry and add validation status
+    result = []
+    for entry in grouped_map.values():
+        validation = _validate_summary_stats(entry)
+        if not validation['is_valid']:
+            logger.warning(
+                f"Invalid stats for {entry.get('record_label', '')}/{entry.get('data_label', '')}: {validation['message']}"
+            )
+        entry['validation_status'] = validation
+        result.append(entry)
+    
+    return result
 
 
 @owner_auth_required
@@ -418,7 +476,7 @@ def summary_statistics_view(request):
     has_date_filter = bool(start_date or end_date)
     has_tag_filter = bool(tags_filter)
     
-    use_direct_query = has_date_filter or has_tag_filter
+    use_direct_query = has_date_filter or has_tag_filter or group_by
 
     try:
         if include_all_tags:
@@ -434,7 +492,7 @@ def summary_statistics_view(request):
                 stats_block = stat.overall_stat or {}
                 date_range = stats_block.get('negotiation_date_range', {})
                 last_activity = stats_block.get('last_activity')
-                statistics_data.append({
+                stat_entry = {
                     'data_label': stat.data_label,
                     'tag': stat.tag or '',
                     'record_label': getattr(stat, 'record_label', ''),
@@ -443,11 +501,14 @@ def summary_statistics_view(request):
                     'rejected_requests': stats_block.get('rejected_requests', 0),
                     'requestor_open': stats_block.get('requestor_open', 0),
                     'owner_open': stats_block.get('owner_open', 0),
+                    'abandoned_requests': stats_block.get('abandoned_requests', 0),
+                    'archived_requests': stats_block.get('archived_requests', 0),
                     'generated_at': stat.summary_date.isoformat(),
                     'last_updated': stat.summary_date.isoformat(),
                     'last_activity': last_activity,  
                     'negotiation_date_range': date_range,
-                })
+                }
+                statistics_data.append(stat_entry)
 
             return JsonResponse({'summary_statistics': statistics_data})
         
@@ -502,6 +563,8 @@ def summary_statistics_view(request):
                     rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
                     requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
                     owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
+                    abandoned_requests=Count('negotiation', filter=Q(negotiation__state='abandoned')),
+                    archived_requests=Count('negotiation', filter=Q(negotiation__state='archived')),
                 )
                 
                 # Calculate actual date range and latest activity of filtered negotiations
@@ -520,6 +583,8 @@ def summary_statistics_view(request):
                     'rejected_requests': stats['rejected_requests'],
                     'requestor_open': stats['requestor_open'],
                     'owner_open': stats['owner_open'],
+                    'abandoned_requests': stats['abandoned_requests'],
+                    'archived_requests': stats['archived_requests'],
                     'generated_at': timezone.now().isoformat(),
                     'last_updated': timezone.now().isoformat(),
                     'last_activity': date_range['last_activity'].isoformat() if date_range['last_activity'] else None,
@@ -539,6 +604,8 @@ def summary_statistics_view(request):
                         rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
                         requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
                         owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
+                        abandoned_requests=Count('negotiation', filter=Q(negotiation__state='abandoned')),
+                        archived_requests=Count('negotiation', filter=Q(negotiation__state='archived')),
                         min_date=Min('negotiation__timestamps'),
                         max_date=Max('negotiation__timestamps'),
                         last_activity=Max('last_activity'),
@@ -556,6 +623,8 @@ def summary_statistics_view(request):
                         'rejected_requests': grp['rejected_requests'],
                         'requestor_open': grp['requestor_open'],
                         'owner_open': grp['owner_open'],
+                        'abandoned_requests': grp['abandoned_requests'],
+                        'archived_requests': grp['archived_requests'],
                         'generated_at': timezone.now().isoformat(),
                         'last_updated': timezone.now().isoformat(),
                         'last_activity': grp['last_activity'].isoformat() if grp['last_activity'] else None,
@@ -585,7 +654,7 @@ def summary_statistics_view(request):
                 stats_block = stat.overall_stat or {}
                 date_range = stats_block.get('negotiation_date_range', {})
                 last_activity = stats_block.get('last_activity')
-                statistics_data.append({
+                stat_entry = {
                     'data_label': stat.data_label,
                     'tag': stat.tag or '',
                     'record_label': getattr(stat, 'record_label', ''),
@@ -594,13 +663,16 @@ def summary_statistics_view(request):
                     'rejected_requests': stats_block.get('rejected_requests', 0),
                     'requestor_open': stats_block.get('requestor_open', 0),
                     'owner_open': stats_block.get('owner_open', 0),
+                    'abandoned_requests': stats_block.get('abandoned_requests', 0),
+                    'archived_requests': stats_block.get('archived_requests', 0),
                     'generated_at': stat.summary_date.isoformat(),
                     'last_updated': stat.summary_date.isoformat(),
                     'last_activity': last_activity,  
                     'negotiation_date_range': date_range,
-                })
+                }
+                statistics_data.append(stat_entry)
         
-        if group_by and not use_direct_query:
+        if group_by:
             statistics_data = _group_summary_statistics(statistics_data)
 
         return JsonResponse({'summary_statistics': statistics_data})
@@ -647,18 +719,18 @@ def archive_negotiation(negotiation):
 def archive_view(request, negotiation_id):
     """Manually archive a negotiation if it meets the required state."""
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
-    if negotiation.state in ['accepted', 'canceled', 'rejected']:
+    if negotiation.state in ['accepted', 'canceled', 'rejected', 'abandoned']:
         return handle_negotiation_archive_and_summary(negotiation)
     else:
         return JsonResponse(
-            {'message': _('Only accepted, canceled, or rejected negotiations can be archived')}, status=400
+            {'message': _('Only accepted, canceled,  rejected, or abandoned negotiations can be archived')}, status=400
         )
 
 
 @receiver(post_save, sender=Negotiation)
 def generate_summary_statistics(sender, instance, **kwargs):
-    """Auto-archive and export statistics when a negotiation is accepted, canceled, or rejected."""
-    if instance.state in ['accepted', 'canceled', 'rejected'] and not instance.archived:
+    """Auto-archive and export statistics when a negotiation is accepted, canceled, rejected, or abandoned."""
+    if instance.state in ['accepted', 'canceled', 'rejected', 'abandoned'] and not instance.archived:
         handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
 
 
