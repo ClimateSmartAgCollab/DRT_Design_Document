@@ -418,5 +418,5 @@ def admin_health_check(request):
             'message': f'Activity check error: {str(e)}'
         }
     
-    status_code = 200 if health_status['status'] == 'healthy' else 503
-    return JsonResponse(health_status, status=status_code)
+    # Always return 200 OK - health status is in the JSON body, not the HTTP status code
+    return JsonResponse(health_status, status=200)
