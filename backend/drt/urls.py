@@ -8,6 +8,10 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     regenerate_license_view, negotiation_history_view, requestor_logout, owner_logout,
                     reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view
                     )
+from .views.admin import (
+    admin_email_entry, verify_admin_magic_link, admin_whoami, admin_logout,
+    admin_dashboard_stats, admin_health_check
+)
 
 urlpatterns = [
     # Test endpoint
@@ -82,6 +86,31 @@ urlpatterns = [
     path("owner/logout/",
          owner_logout,
          name="owner-logout"),
+
+    # admin
+    path('admin/send-magic-link/',
+         admin_email_entry,
+         name='admin_email_entry'),
+
+    path('admin/verify-magic-link/',
+         verify_admin_magic_link,
+         name='verify_admin_magic_link'),
+
+    path("admin/whoami/",
+         admin_whoami,
+         name="admin-whoami"),
+
+    path("admin/logout/",
+         admin_logout,
+         name="admin-logout"),
+
+    path("admin/dashboard/stats/",
+         admin_dashboard_stats,
+         name="admin-dashboard-stats"),
+
+    path("admin/health/",
+         admin_health_check,
+         name="admin-health-check"),
 
     path('owner_review/<str:link_id>/',
          owner_review,

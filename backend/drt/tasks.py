@@ -51,6 +51,42 @@ def send_owner_email_task(email, magic_link, expiry):
 
 
 @shared_task
+def send_admin_email_task(email, magic_link, expiry):
+    """Send admin email asynchronously using Celery"""
+    try:
+        html_content = get_verification_email_html(
+            magic_link=magic_link,
+            expiry=f"{expiry:%Y-%m-%d %H:%M} UTC",
+            recipient_type="admin"
+        )
+        
+        plain_text_content = (
+            "Hello,\n\n"
+            "Click the link below to verify your email and access the admin dashboard:\n\n"
+            f"    {magic_link}\n\n"
+            f"This link will expire at {expiry:%Y-%m-%d %H:%M} UTC.\n\n"
+            "For your security, please do not share this link with anyone. "
+            "If you did not request this link, simply ignore this message or "
+            "contact our support team at adc@uoguelph.ca.\n\n"
+            "Best regards,\n"
+            "The DRT System"
+        )
+        
+        msg = EmailMultiAlternatives(
+            subject="Admin Access Link for DRT System",
+            body=plain_text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=True)
+        logger.info(f"Admin email sent successfully to {email}")
+    except Exception as e:
+        logger.error(f"Error sending admin email: {str(e)}")
+        raise
+
+
+@shared_task
 def send_requestor_email_task(email, magic_link, expiry):
     """Send requestor email asynchronously using Celery"""
     try:
