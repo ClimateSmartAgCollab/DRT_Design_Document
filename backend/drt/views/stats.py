@@ -460,7 +460,12 @@ def summary_statistics_view(request):
         if info.get("owner_email") == email
     ]
 
-    owner_id = owner_ids[0] if owner_ids else None
+    logger.debug(f"summary_statistics_view: email={email}, found owner_ids={owner_ids}, cache_size={len(cache_data)}")
+
+    # If no owner_ids found, return empty array
+    if not owner_ids:
+        logger.warning(f"No owner_id found for email={email}")
+        return JsonResponse({'summary_statistics': []})
 
     # Get filter parameters
     tags_filter = request.GET.getlist("tags")  # Multiple tags = AND logic
@@ -480,40 +485,62 @@ def summary_statistics_view(request):
 
     try:
         if include_all_tags:
-            stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
+            nlink_qs = NLink.objects.filter(owner_id__in=owner_ids)
             
-            if not stats_qs.exists():
+            logger.debug(f"include_all_tags query: owner_ids={owner_ids}, found {nlink_qs.count()} NLink records")
+            
+            if not nlink_qs.exists():
                 logger.warning(
-                    f"No SummaryStatistic found for owner_id={owner_id}")
-                return JsonResponse({'error': 'No summary statistics found.'}, status=404)
+                    f"No NLink found for owner_ids={owner_ids}, email={email}")
+                return JsonResponse({'summary_statistics': []})
 
+            grouped_data = (
+                nlink_qs
+                .values('data_label', 'record_label', 'tags')
+                .annotate(
+                    total_requests=Count('negotiation'),
+                    accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
+                    rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
+                    requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
+                    owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
+                    abandoned_requests=Count('negotiation', filter=Q(negotiation__state='abandoned')),
+                    archived_requests=Count('negotiation', filter=Q(negotiation__state='archived')),
+                    min_date=Min('negotiation__timestamps'),
+                    max_date=Max('negotiation__timestamps'),
+                    last_activity=Max('last_activity'),
+                )
+            )
+            
             statistics_data = []
-            for stat in stats_qs:
-                stats_block = stat.overall_stat or {}
-                date_range = stats_block.get('negotiation_date_range', {})
-                last_activity = stats_block.get('last_activity')
-                stat_entry = {
-                    'data_label': stat.data_label,
-                    'tag': stat.tag or '',
-                    'record_label': getattr(stat, 'record_label', ''),
-                    'total_requests': stats_block.get('total_requests', 0),
-                    'accepted_requests': stats_block.get('accepted_requests', 0),
-                    'rejected_requests': stats_block.get('rejected_requests', 0),
-                    'requestor_open': stats_block.get('requestor_open', 0),
-                    'owner_open': stats_block.get('owner_open', 0),
-                    'abandoned_requests': stats_block.get('abandoned_requests', 0),
-                    'archived_requests': stats_block.get('archived_requests', 0),
-                    'generated_at': stat.summary_date.isoformat(),
-                    'last_updated': stat.summary_date.isoformat(),
-                    'last_activity': last_activity,  
-                    'negotiation_date_range': date_range,
-                }
-                statistics_data.append(stat_entry)
+            for grp in grouped_data:
+                tags_list = grp.get('tags') or []
+                tags_cleaned = [t for t in tags_list if t and str(t).strip()]
+                tag_str = ', '.join(sorted(tags_cleaned)) if tags_cleaned else ''
+                
+                statistics_data.append({
+                    'data_label': grp.get('data_label') or '',
+                    'tag': tag_str,
+                    'record_label': grp.get('record_label') or '',
+                    'total_requests': grp['total_requests'],
+                    'accepted_requests': grp['accepted_requests'],
+                    'rejected_requests': grp['rejected_requests'],
+                    'requestor_open': grp['requestor_open'],
+                    'owner_open': grp['owner_open'],
+                    'abandoned_requests': grp['abandoned_requests'],
+                    'archived_requests': grp['archived_requests'],
+                    'generated_at': timezone.now().isoformat(),
+                    'last_updated': timezone.now().isoformat(),
+                    'last_activity': grp['last_activity'].isoformat() if grp['last_activity'] else None,
+                    'negotiation_date_range': {
+                        'min_date': grp['min_date'].isoformat() if grp['min_date'] else None,
+                        'max_date': grp['max_date'].isoformat() if grp['max_date'] else None,
+                    }
+                })
 
             return JsonResponse({'summary_statistics': statistics_data})
         
         if use_direct_query:
-            nlink_filter = Q(owner_id=owner_id)
+            nlink_filter = Q(owner_id__in=owner_ids)
             
             if tags_filter:
                 tags_filter_cleaned = [tag.strip() for tag in tags_filter]
@@ -635,7 +662,7 @@ def summary_statistics_view(request):
                     })
         else:
             # use pre-aggregated SummaryStatistic records 
-            stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id=owner_id)
+            stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id__in=owner_ids)
             
             if data_label_filter:
                 stats_qs = stats_qs.filter(data_label=data_label_filter)
@@ -646,8 +673,8 @@ def summary_statistics_view(request):
             
             if not stats_qs.exists():
                 logger.warning(
-                    f"No SummaryStatistic found for owner_id={owner_id}")
-                return JsonResponse({'error': 'No summary statistics found.'}, status=404)
+                    f"No SummaryStatistic found for owner_ids={owner_ids}, email={email}")
+                return JsonResponse({'summary_statistics': []})
 
             statistics_data = []
             for stat in stats_qs:
