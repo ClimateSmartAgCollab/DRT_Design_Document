@@ -33,6 +33,9 @@ const content = {
     requestorsBody:
       "A data requestor is requesting access to data. A requestor answers of series of questions posed by a data owner when asking for access to research data.",
     requestorDashboard: "View your requestor dashboard",
+    forAdmins: "For Administrators",
+    adminsBody: "System administrators can access system-wide statistics, health monitoring, and administrative functions. Admin access is restricted to authorized email addresses.",
+    adminDashboard: "View admin dashboard",
     headerTitle: "Semantic Engine",
     headerSubtitle: "Agreements",
     headerHelp: "Helping share your work",
@@ -182,6 +185,9 @@ const content = {
     requestorsBody:
       "Un demandeur de données demande l'accès à des données. Un demandeur répond à une série de questions posées par un propriétaire de données lors de la demande d'accès à des données de recherche.",
     requestorDashboard: "Voir votre tableau de bord demandeur",
+    forAdmins: "Pour les administrateurs",
+    adminsBody: "Les administrateurs système peuvent accéder aux statistiques à l'échelle du système, à la surveillance de la santé et aux fonctions administratives. L'accès administrateur est restreint aux adresses e-mail autorisées.",
+    adminDashboard: "Voir le tableau de bord administrateur",
     headerTitle: "Moteur Sémantique",
     headerSubtitle: "Accords",
     headerHelp: "Aider à partager votre travail",
@@ -616,6 +622,25 @@ export default function HomePage() {
                 className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.requestorDashboard}
+              </a>
+            </div>
+          </div>
+          {/* Administrators Card */}
+          <div className="bg-purple-50 border-2 border-[#C7E6F6] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
+              {t.forAdmins}
+            </h2>
+            <div className="pl-4 sm:pl-6 md:pl-8">
+              <p className="font-sans text-sm sm:text-base text-gray-800 mb-4">
+                {t.adminsBody}
+              </p>
+              <a
+                href="/admin/email-entry"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
+              >
+                {t.adminDashboard}
               </a>
             </div>
           </div>
