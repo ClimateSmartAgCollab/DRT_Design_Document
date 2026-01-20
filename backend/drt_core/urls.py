@@ -4,7 +4,9 @@ from django.urls import path, include
 
 urlpatterns = [
     path('__debug__/', include(debug_toolbar.urls)),
-    path('admin/', admin.site.urls),
+    # Changed from 'admin/' to 'django-admin/' to avoid conflict with Next.js admin routes
+    # Next.js admin routes (/admin/email-entry, /admin/homepage, etc.) should be handled by frontend
+    path('django-admin/', admin.site.urls),
     path('datastore/', include('datastore.urls')),
     path('drt/', include('drt.urls')),  
 ]
