@@ -283,7 +283,8 @@ def admin_dashboard_stats(request):
         total_negotiations = Negotiation.objects.count()
         total_owners = NLink.objects.values('owner_id').distinct().count()
         total_requestors = Requestor.objects.count()
-        total_datasets = NLink.objects.values('dataset_ID').distinct().count()
+        link_table = cache.get('link_table') or {}
+        total_datasets = len(link_table)  # Active data sharing links (all links owners have in GitHub)
         
         # Negotiation states
         state_counts = Negotiation.objects.values('state').annotate(

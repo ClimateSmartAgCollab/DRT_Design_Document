@@ -173,7 +173,7 @@ export default function AdminStatsPage() {
 
               <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
                 <div className="text-sm font-medium text-gray-500 mb-1">
-                  Total Data Labels
+                  Active Data Sharing Links
                 </div>
                 <div className="text-3xl font-bold text-gray-900">
                   {stats.statistics.total_datasets}
