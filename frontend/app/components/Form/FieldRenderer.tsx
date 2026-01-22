@@ -659,7 +659,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
             +{" "}
             {field.reference_button_text?.[language] ||
               field.reference_button_text?.eng ||
-              "+ Child Step"}
+              "Child Step"}
           </button>
 
           {children.length > 0 && (

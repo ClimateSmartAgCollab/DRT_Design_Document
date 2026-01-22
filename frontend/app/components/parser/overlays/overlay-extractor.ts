@@ -151,14 +151,18 @@ export class OverlayExtractor {
     
     
     Object.entries(fieldInteractionsByLang).forEach(([fieldId, langMap]) => {
-      const baseArgs = langMap[this.defaultLang] || Object.values(langMap)[0];
+      const baseArgs = (langMap[this.defaultLang] || Object.values(langMap)[0]) ?? {};
       const placeholders = this.extractPlaceholders(langMap, allLanguages);
-      
-      const { placeholder: _, ...baseArgsWithoutPlaceholder } = baseArgs || {};
-      types[fieldId] = {
-        ...baseArgsWithoutPlaceholder,
-        ...(Object.keys(placeholders).length > 0 ? { placeholder: placeholders } : {}),
-      };
+      const referenceButtonText = this.extractReferenceButtonText(langMap, allLanguages);
+
+      const out: ArgumentType = { ...baseArgs };
+      if (Object.keys(placeholders).length > 0) {
+        out.placeholder = placeholders;
+      }
+      if (Object.keys(referenceButtonText).length > 0) {
+        out.reference_button_text = referenceButtonText;
+      }
+      types[fieldId] = out;
     });
 
 
@@ -256,6 +260,31 @@ export class OverlayExtractor {
     });
     
     return placeholders;
+  }
+
+  private extractReferenceButtonText(
+    langMap: Record<string, ArgumentType>,
+    languages: Set<string>
+  ): Record<string, string> {
+    const out: Record<string, string> = {};
+    languages.forEach((lang) => {
+      const args = langMap[lang] as any;
+      if (!args?.reference_button_text) return;
+      const v = args.reference_button_text;
+      if (typeof v === "string") {
+        const s = v.trim();
+        if (s) out[lang] = s;
+      } else if (
+        typeof v === "object" &&
+        v !== null &&
+        !Array.isArray(v)
+      ) {
+        Object.entries(v).forEach(([k, val]) => {
+          if (typeof val === "string" && val.trim()) out[k] = val.trim();
+        });
+      }
+    });
+    return out;
   }
 
   private extractPlaceholderValue(placeholderValue: any, lang: string): string | null {
