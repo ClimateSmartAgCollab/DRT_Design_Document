@@ -41,7 +41,6 @@ const content = {
     headerHelp: "Helping share your work",
     headerDesc:
       "Describe in custom terms how you want to make your work available",
-    poweredBy: "Powered by",
     supportedBy: "Supported by",
     attentionCard: {
       title: "Attention Testers",
@@ -193,7 +192,6 @@ const content = {
     headerHelp: "Aider à partager votre travail",
     headerDesc:
       "Décrivez selon des termes personnalisés comment vous souhaitez rendre votre travail disponible",
-    poweredBy: "Propulsé par",
     supportedBy: "Soutenu par",
     attentionCard: {
       title: "Attention Testeurs",
@@ -652,23 +650,6 @@ export default function HomePage() {
       <footer className="container-default section-y pt-4 sm:pt-6">
         <div className="grid gap-4 sm:gap-6 md:gap-8 lg:gap-12 [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))] sm:[grid-template-columns:repeat(auto-fit,minmax(160px,1fr))] items-end">
           <div className="flex flex-col items-center gap-3 sm:gap-4 md:gap-6">
-            <span className="text-sm sm:text-base text-black font-sans">
-              {t.poweredBy}
-            </span>
-            <a
-              href="https://agrifooddatacanada.ca/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Image
-                src="/agri-logo.png"
-                alt="Agri-Food Data Logo"
-                width={240}
-                height={86}
-                className="object-contain w-32 sm:w-40 md:w-48 lg:w-60"
-              />
-            </a>
-
             <span className="text-sm sm:text-base text-black font-sans">
               {t.supportedBy}
             </span>

@@ -45,7 +45,7 @@ export default function Header({
             {/* DRT Logo */}
             <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-30 lg:h-32 flex-shrink-0">
               <a
-                href="https://drt-test.canadacentral.cloudapp.azure.com/"
+                href="https://climatesmartagcollab.github.io/drt-ad/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="shrink-0"
