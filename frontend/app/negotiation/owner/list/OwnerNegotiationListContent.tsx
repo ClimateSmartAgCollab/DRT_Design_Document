@@ -212,7 +212,7 @@ export default function OwnerNegotiationListContent() {
             <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
               {isLoading && (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(70,160,35)]"></div>
                   <span className="ml-3 text-gray-600">Loading negotiations...</span>
                 </div>
               )}

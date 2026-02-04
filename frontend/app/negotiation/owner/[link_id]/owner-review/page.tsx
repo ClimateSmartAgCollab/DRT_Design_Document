@@ -310,7 +310,7 @@ export default function OwnerReviewPage() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(70,160,35)] mx-auto mb-4"></div>
           <p className="text-lg">Loading negotiation data...</p>
         </div>
       </div>
@@ -367,7 +367,7 @@ export default function OwnerReviewPage() {
             {isViewingHistory && (
               <button
                 onClick={() => handleHistoryNavigate(totalEntries - 1)}
-                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                className="px-3 py-1 text-sm bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] rounded hover:bg-[rgba(180,230,160,0.5)] transition-colors"
               >
                 Back to Latest
               </button>
@@ -442,8 +442,8 @@ export default function OwnerReviewPage() {
           />
 
           {statusMessage && (
-            <div className="mt-4 p-3 rounded bg-blue-50 border border-blue-200">
-              <p className="text-blue-800">{statusMessage}</p>
+            <div className="mt-4 p-3 rounded bg-[rgba(180,230,160,0.2)] border border-[rgb(55,125,28)]">
+              <p className="text-[rgb(55,125,28)]">{statusMessage}</p>
             </div>
           )}
         </div>

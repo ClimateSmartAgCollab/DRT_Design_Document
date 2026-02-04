@@ -71,7 +71,7 @@ export default function AppHeader({
   };
 
   return (
-    <div className={`bg-[#216b96] px-4 sm:px-6 pt-1 sm:pt-2 md:pt-3 pb-2 sm:pb-3 md:pb-4 flex items-center justify-between border-b border-[#2382A0] relative ${className}`}>
+    <div className={`bg-[rgb(70,160,35)] px-4 sm:px-6 pt-1 sm:pt-2 md:pt-3 pb-2 sm:pb-3 md:pb-4 flex items-center justify-between border-b-[3px] border-[rgb(55,125,28)] relative ${className}`}>
       <div className="flex items-center space-x-4 min-w-0 flex-1">
         {/* Mobile Sidebar Toggle */}
         {showSidebarToggle && onSidebarToggle && (
@@ -161,7 +161,7 @@ export default function AppHeader({
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                     <div className="p-4 border-b border-gray-100">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-[#216b96] rounded-full flex items-center justify-center text-white">
+                        <div className="w-10 h-10 bg-[rgb(70,160,35)] rounded-full flex items-center justify-center text-white">
                           <svg 
                             className="w-5 h-5" 
                             fill="none" 
@@ -238,7 +238,7 @@ export default function AppHeader({
               alt="Logo"
               width={112}
               height={112}
-              className="rounded-full bg-blue-200 object-contain"
+              className="rounded-full bg-[rgba(180,230,160,0.3)] object-contain"
             />
           </a>
         </div>

@@ -42,7 +42,7 @@ export function EmailVerificationModal({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email address"
-          className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4"
+          className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-[rgb(70,160,35)] mb-4"
           disabled={isLoading}
         />
 
@@ -50,7 +50,7 @@ export function EmailVerificationModal({
           <button
             onClick={() => onVerify(email)}
             disabled={!email}
-            className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex-1 bg-[rgb(70,160,35)] text-white px-4 py-2 rounded hover:bg-[rgb(55,125,28)] disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             Send Verification
           </button>

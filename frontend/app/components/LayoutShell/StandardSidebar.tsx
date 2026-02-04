@@ -72,7 +72,7 @@ export function SidebarLink({
 }) {
   const baseClasses = "block px-3 py-2 text-sm rounded-md transition-colors";
   const activeClasses = isActive 
-    ? "bg-blue-100 text-blue-700 font-medium" 
+    ? "bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] font-medium" 
     : "text-gray-700 hover:bg-gray-100 hover:text-gray-900";
   
   const combinedClasses = `${baseClasses} ${activeClasses} ${className}`;

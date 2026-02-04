@@ -58,7 +58,7 @@ export default function OwnerVerifyMagicLinkContent() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(70,160,35)] mx-auto mb-4"></div>
           <p className="text-gray-600">Verifying your access link...</p>
         </div>
       </div>
@@ -86,7 +86,7 @@ export default function OwnerVerifyMagicLinkContent() {
         <p className="text-gray-600 mb-4">{errorMessage}</p>
         <button
           onClick={() => router.push('/negotiation/owner/email-entry')}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+          className="bg-[rgb(70,160,35)] text-white px-6 py-2 rounded-lg hover:bg-[rgb(55,125,28)] transition"
         >
           Try Again
         </button>

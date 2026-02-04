@@ -58,9 +58,9 @@ export default function AdminVerifyMagicLinkContent() {
     return (
       <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
         <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 animate-pulse">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(180,230,160,0.3)] animate-pulse">
             <svg
-              className="h-6 w-6 text-blue-600"
+              className="h-6 w-6 text-[rgb(70,160,35)]"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -137,7 +137,7 @@ export default function AdminVerifyMagicLinkContent() {
         <p className="text-red-600">{errorMessage}</p>
         <button
           onClick={() => router.push('/admin/email-entry')}
-          className="w-full rounded-lg px-4 py-2 font-medium text-white bg-purple-600 hover:bg-purple-700 transition"
+          className="w-full rounded-lg px-4 py-2 font-medium text-white bg-[rgb(70,160,35)] hover:bg-[rgb(55,125,28)] transition"
         >
           Request New Access Link
         </button>

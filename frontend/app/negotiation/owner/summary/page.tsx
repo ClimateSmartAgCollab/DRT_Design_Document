@@ -464,7 +464,7 @@ export default function OwnerSummaryPage() {
           {summaryQuery.isLoading ? (
             <div className="flex items-center justify-center min-h-screen text-gray-600">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(70,160,35)] mx-auto mb-4"></div>
                 <p>Loading summary statistics…</p>
               </div>
             </div>
@@ -519,13 +519,13 @@ export default function OwnerSummaryPage() {
                   />
                 </section>
 
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 rounded">
+                <div className="bg-[rgba(180,230,160,0.3)] border-l-4 border-[rgb(70,160,35)] p-4 mb-4 rounded">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <span className="text-blue-400 text-lg">ℹ️</span>
+                      <span className="text-[rgb(70,160,35)] text-lg">ℹ️</span>
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-blue-700">
+                      <p className="text-sm text-[rgb(55,125,28)]">
                         {tag.length > 0 ? (
                           <>
                             <strong>Tag-Filtered View:</strong> All selected tags are combined into a single row. 
@@ -606,7 +606,7 @@ export default function OwnerSummaryPage() {
                                   {tagData.tags.map((t, tagIdx) => (
                                     <span
                                       key={tagIdx}
-                                      className="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded"
+                                      className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-medium px-2 py-1 rounded"
                                     >
                                       {t}
                                     </span>

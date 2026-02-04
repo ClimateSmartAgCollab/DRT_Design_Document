@@ -37,7 +37,7 @@ export default function Header({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (
-    <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b border-[#2382A0] relative">
+    <header className="bg-[rgb(70,160,35)] w-full px-4 sm:px-6 pt-4 sm:pt-6 md:pt-8 pb-6 sm:pb-8 md:pb-12 flex items-start justify-between border-b-4 border-[rgb(55,125,28)] relative">
       <div className="container-default section-y w-full">
         <div className="flex items-start justify-between gap-4 min-w-0">
           {/* Title / Help */}
@@ -55,7 +55,7 @@ export default function Header({
                   alt="DRT Logo"
                   width={240}
                   height={240}
-                  className="rounded-3xl bg-blue-200 object-contain"
+                  className="rounded-3xl bg-[rgba(180,230,160,0.3)] object-contain"
                 />
               </a>
             </div>
@@ -116,7 +116,7 @@ export default function Header({
             {languageDropdown && (
               <div className="relative group flex-shrink-0">
                 <button
-                  className="flex items-center px-2 sm:px-4 py-1 sm:py-2 bg-[#216b96] text-white font-sans text-sm sm:text-lg rounded hover:bg-[#50809cd7] focus:outline-none"
+                  className="flex items-center px-2 sm:px-4 py-1 sm:py-2 bg-[rgb(70,160,35)] text-white font-sans text-sm sm:text-lg rounded-full hover:bg-[rgb(55,125,28)] focus:outline-none focus:ring-2 focus:ring-[rgb(55,125,28)] focus:ring-offset-1"
                   aria-haspopup="listbox"
                   aria-expanded={false}
                   tabIndex={0}
@@ -136,11 +136,11 @@ export default function Header({
                     />
                   </svg>
                 </button>
-                <div className="absolute left-0 mt-1 w-full bg-[#216b96] border-gray-200 rounded shadow-[0_4px_24px_rgba(0,0,0,0.35)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
+                <div className="absolute left-0 mt-1 w-full bg-[rgb(70,160,35)] border-gray-200 rounded shadow-[0_4px_24px_rgba(0,0,0,0.35)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
                   <ul className="py-1">
                     <li>
                       <button
-                        className="block w-full text-left px-2 sm:px-4 py-1 sm:py-2 text-white rounded hover:bg-[#50809cd7] font-sans text-sm sm:text-base"
+                        className="block w-full text-left px-2 sm:px-4 py-1 sm:py-2 text-white rounded hover:bg-[rgb(55,125,28)] font-sans text-sm sm:text-base"
                         onClick={() => languageDropdown.onLangChange("EN")}
                       >
                         EN
@@ -148,7 +148,7 @@ export default function Header({
                     </li>
                     <li>
                       <button
-                        className="block w-full text-left px-2 sm:px-4 py-1 sm:py-2 text-white rounded hover:bg-[#50809cd7] font-sans text-sm sm:text-base"
+                        className="block w-full text-left px-2 sm:px-4 py-1 sm:py-2 text-white rounded hover:bg-[rgb(55,125,28)] font-sans text-sm sm:text-base"
                         onClick={() => languageDropdown.onLangChange("FR")}
                       >
                         FR
@@ -207,7 +207,7 @@ export default function Header({
                       <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                         <div className="p-4 border-b border-gray-100">
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-[#216b96] rounded-full flex items-center justify-center text-white">
+                            <div className="w-10 h-10 bg-[rgb(70,160,35)] rounded-full flex items-center justify-center text-white">
                               <svg
                                 className="w-5 h-5"
                                 fill="none"
@@ -288,7 +288,7 @@ export default function Header({
                   alt="Logo"
                   width={240}
                   height={240}
-                  className="rounded-full bg-blue-200 object-contain"
+                  className="rounded-full bg-[rgba(180,230,160,0.3)] object-contain"
                 />
               </a>
             </div>

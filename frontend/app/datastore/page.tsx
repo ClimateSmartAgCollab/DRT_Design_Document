@@ -87,7 +87,7 @@ export default function FetchCachedDataPage() {
         )}
         <button
           onClick={() => reload("owner_table")}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+          className="w-full bg-[rgb(70,160,35)] text-white py-2 rounded hover:bg-[rgb(55,125,28)] transition"
           disabled={isFetching}
         >
           {isFetching ? "Loading…" : "Reload Data"}

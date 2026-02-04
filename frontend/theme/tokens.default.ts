@@ -87,10 +87,10 @@ export const defaultTokens: ThemeTokens = {
     },
   ],
   colors: {
-    primary: "#94002a", // CustomPalette.PRIMARY
-    secondary: "#ce1141", // CustomPalette.SECONDARY
+    primary: "rgb(70, 160, 35)", 
+    secondary: "rgb(55, 125, 28)",
     background: "#ffffff", // CustomPalette.WHITE
-    text: "#000000", // CustomPalette.BLACK
+    text: "#353535", 
     grey: {
       800: "#4f4f4f", // CustomPalette.GREY_800
       600: "#787878", // CustomPalette.GREY_600
@@ -109,23 +109,23 @@ export const defaultTokens: ThemeTokens = {
       400: "#ffd1d5", // CustomPalette.PINK_400
     },
     green: {
-      400: "#4CBB17", // CustomPalette.GREEN_400
+      400: "rgb(70, 160, 35)", 
     },
     red: {
       100: "#ffc2d2", // CustomPalette.RED_100
     },
-    dark: "#66011e", // CustomPalette.DARK
+    dark: "rgb(55, 125, 28)", 
     white: "#FFFFFF", // CustomPalette.WHITE
     black: "#000", // CustomPalette.BLACK
   },
   fonts: {
-    body: "Roboto, sans-serif", // From themeConstants default
-    heading: "Roboto, sans-serif",
+    body: "'Inter', 'Segoe UI', Tahoma, sans-serif", 
+    heading: "'Inter', 'Segoe UI', Tahoma, sans-serif",
   },
   buttonStyles: {
     light: "#FFFFFF", // CustomPalette.WHITE
-    main: "#94002a", // CustomPalette.PRIMARY
-    dark: "#ce1141", // CustomPalette.SECONDARY
+    main: "rgb(70, 160, 35)", 
+    dark: "rgb(55, 125, 28)", 
     contrastText: "#FFFFFF", // CustomPalette.WHITE
   },
 };

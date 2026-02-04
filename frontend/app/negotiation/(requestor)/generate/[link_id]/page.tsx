@@ -95,7 +95,7 @@ export default function GenerateLinkPage() {
         ) : (
           <button
             onClick={() => mutate()}
-            className="inline-block w-full rounded-lg bg-blue-600 px-4 py-2 text-white font-medium transition hover:bg-blue-700 disabled:bg-gray-400"
+            className="inline-block w-full rounded-lg bg-[rgb(70,160,35)] px-4 py-2 text-white font-medium transition hover:bg-[rgb(55,125,28)] disabled:bg-gray-400"
             disabled={isPending}
           >
             {isPending ? "Generating…" : "Generate Access Link"}

@@ -102,7 +102,7 @@ export default function AdminHomePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {adminPages.map(({ name, href, emoji }) => (
                 <Link key={href} href={href} className="group">
-                  <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center text-center transform transition hover:shadow-2xl hover:-translate-y-1 border-2 border-purple-100">
+                  <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center text-center transform transition hover:shadow-2xl hover:-translate-y-1 border-2 border-[rgb(55,125,28)]">
                     <div className="text-5xl mb-3 transition group-hover:scale-110">
                       {emoji}
                     </div>

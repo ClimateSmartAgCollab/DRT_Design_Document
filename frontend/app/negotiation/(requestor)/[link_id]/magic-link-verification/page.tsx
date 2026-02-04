@@ -55,8 +55,8 @@ export default function MagicLinkVerificationPage() {
       <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
         <section className="bg-white w-full max-w-md p-6 rounded-xl shadow-lg text-center space-y-6">
           {/* Loading Icon */}
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(180,230,160,0.3)]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(70,160,35)]"></div>
           </div>
 
           <h1 className="text-2xl font-semibold text-gray-800">
@@ -127,7 +127,7 @@ export default function MagicLinkVerificationPage() {
         <p className="text-gray-600">{errorMessage}</p>
         <button
           onClick={() => router.push(`/negotiation/${linkId}/email-entry`)}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+          className="bg-[rgb(70,160,35)] text-white px-6 py-2 rounded-lg hover:bg-[rgb(55,125,28)] transition"
         >
           Try Again
         </button>

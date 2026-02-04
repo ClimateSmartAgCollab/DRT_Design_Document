@@ -53,7 +53,7 @@ export function NegotiationItem({
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect(n.negotiation_id)}
-            className="mr-4 h-4 w-4 text-blue-600"
+            className="mr-4 h-4 w-4 text-[rgb(70,160,35)]"
             onClick={(e) => e.stopPropagation()}
           />
           <div className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center">
@@ -66,7 +66,7 @@ export function NegotiationItem({
                   alert('History not available for this negotiation');
                 }
               }}
-              className="font-semibold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+              className="font-semibold text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline cursor-pointer"
               title="View negotiation history"
             >
               ID: {n.negotiation_id}
@@ -78,7 +78,7 @@ export function NegotiationItem({
             {n.state === "requestor_open" && n.requestor_link && (
               <Link
                 href={`/negotiation/${n.requestor_link}/fill-questionnaire`}
-                className="ml-4 text-blue-600 underline hover:text-blue-800"
+                className="ml-4 text-[rgb(70,160,35)] underline hover:text-[rgb(55,125,28)]"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -98,7 +98,7 @@ export function NegotiationItem({
                 }
               }}
               disabled={abandonMutation.isPending}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-[rgb(70,160,35)] text-white rounded-lg hover:bg-[rgb(55,125,28)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {abandonMutation.isPending ? "Canceling..." : "Cancel Request"}
             </button>

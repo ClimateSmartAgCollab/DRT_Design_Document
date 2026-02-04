@@ -252,7 +252,7 @@ function HistoryNavigation({
           <button
             onClick={() => onNavigate(currentIndex - 1)}
             disabled={currentIndex <= 0}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-blue-200"
+            className="flex items-center space-x-2 px-4 py-2 bg-[rgba(180,230,160,0.2)] text-[rgb(55,125,28)] rounded-lg hover:bg-[rgba(180,230,160,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgb(55,125,28)]"
           >
             <ChevronLeftIcon className="h-4 w-4" />
             <span>Previous</span>
@@ -276,7 +276,7 @@ function HistoryNavigation({
           <button
             onClick={() => onNavigate(currentIndex + 1)}
             disabled={currentIndex >= totalEntries - 1}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-blue-200"
+            className="flex items-center space-x-2 px-4 py-2 bg-[rgba(180,230,160,0.2)] text-[rgb(55,125,28)] rounded-lg hover:bg-[rgba(180,230,160,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgb(55,125,28)]"
           >
             <span>Next</span>
             <ChevronRightIcon className="h-4 w-4" />
@@ -358,7 +358,7 @@ function OwnerCommentVersions({
             <div className="text-xs text-gray-500">
               {new Date(version.timestamp).toLocaleString()}
               {version.change_description && (
-                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                <span className="ml-2 px-2 py-1 bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] rounded text-xs">
                   {version.change_description}
                 </span>
               )}
@@ -405,7 +405,7 @@ function OverallCommentVersions({
             <div className="text-xs text-gray-500">
               {new Date(version.timestamp).toLocaleString()}
               {version.change_description && (
-                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                <span className="ml-2 px-2 py-1 bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] rounded text-xs">
                   {version.change_description}
                 </span>
               )}
@@ -472,8 +472,8 @@ function QuestionnaireReview({
                         <label className="block font-medium mb-1">
                           {field.labels.eng?.[field.id] || field.id}
                         </label>
-                        <div className="ml-4 mt-2 border-l-4 p-2 border-blue-500">
-                          <h5 className="text-md font-semibold text-blue-600">
+                        <div className="ml-4 mt-2 border-l-4 p-2 border-[rgb(70,160,35)]">
+                          <h5 className="text-md font-semibold text-[rgb(70,160,35)]">
                             Child Entries for &quot;
                             {field.labels.eng?.[field.id] || field.id}&quot;
                           </h5>
@@ -487,7 +487,7 @@ function QuestionnaireReview({
                               return (
                                 <div
                                   key={child.id}
-                                  className="mt-2 p-2 bg-blue-50"
+                                  className="mt-2 p-2 bg-[rgba(180,230,160,0.2)]"
                                 >
                                   <h6 className="text-sm font-medium text-gray-700 mb-2">
                                     Entry {index + 1}
@@ -843,7 +843,7 @@ export default function NegotiationHistoryPage() {
           <div className="max-w-6xl w-full">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(70,160,35)]"></div>
                 <span className="ml-3 text-gray-600">
                   Loading negotiation history...
                 </span>
@@ -889,7 +889,7 @@ export default function NegotiationHistoryPage() {
                     <div className="flex space-x-3">
                       <button
                         onClick={() => router.push("/negotiation/owner/list")}
-                        className="px-4 py-2 bg-blue-100 text-gray-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        className="px-4 py-2 bg-[rgba(180,230,160,0.3)] text-gray-700 rounded-lg hover:bg-[rgba(180,230,160,0.5)] transition-colors"
                       >
                         Back to List
                       </button>
@@ -918,7 +918,7 @@ export default function NegotiationHistoryPage() {
                       {isViewingHistory && (
                         <button
                           onClick={() => handleHistoryNavigate(totalEntries - 1)}
-                          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                          className="px-3 py-1 text-sm bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] rounded hover:bg-[rgba(180,230,160,0.5)] transition-colors"
                         >
                           Back to Latest
                         </button>

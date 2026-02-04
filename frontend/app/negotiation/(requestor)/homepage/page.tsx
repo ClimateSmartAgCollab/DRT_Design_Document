@@ -172,6 +172,7 @@ export default function RequestorHomePage() {
                     flex flex-col items-center text-center
                     transform transition
                     hover:shadow-2xl hover:-translate-y-1
+                    border-2 border-[rgb(55,125,28)]
                   "
                   >
                     <div className="text-5xl mb-3 transition group-hover:scale-110">

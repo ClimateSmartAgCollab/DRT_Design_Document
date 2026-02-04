@@ -144,7 +144,7 @@ export default function AdminStatsPage() {
           <div className="max-w-7xl mx-auto">
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[rgb(70,160,35)]">
                 <div className="text-sm font-medium text-gray-500 mb-1">
                   Total Negotiations
                 </div>
@@ -153,7 +153,7 @@ export default function AdminStatsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[rgb(70,160,35)]">
                 <div className="text-sm font-medium text-gray-500 mb-1">
                   Total Owners
                 </div>
@@ -162,7 +162,7 @@ export default function AdminStatsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[rgb(70,160,35)]">
                 <div className="text-sm font-medium text-gray-500 mb-1">
                   Total Requestors
                 </div>
@@ -171,7 +171,7 @@ export default function AdminStatsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
+              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-[rgb(70,160,35)]">
                 <div className="text-sm font-medium text-gray-500 mb-1">
                   Active Data Sharing Links
                 </div>

@@ -15,7 +15,7 @@ export function ActionButtons({
     {
       key: "save",
       label: "save",
-      color: "bg-blue-500 hover:bg-blue-600",
+      color: "bg-[rgb(70,160,35)] hover:bg-[rgb(55,125,28)]",
       restricted: false,
     },
     {
@@ -27,7 +27,7 @@ export function ActionButtons({
     {
       key: "accept",
       label: "accept",
-      color: "bg-green-600 hover:bg-green-700",
+      color: "bg-[rgb(70,160,35)] hover:bg-[rgb(55,125,28)]",
       restricted: true,
     },
     {

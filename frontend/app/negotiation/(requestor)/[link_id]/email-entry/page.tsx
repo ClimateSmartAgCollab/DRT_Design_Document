@@ -104,7 +104,7 @@ export default function EmailEntry() {
               className={`w-full rounded-lg px-4 py-2 font-medium text-white transition ${
                 resendStatus === "loading"
                   ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
+                  : "bg-[rgb(70,160,35)] hover:bg-[rgb(55,125,28)]"
               }`}
             >
               {resendStatus === "loading" ? "Resending…" : `Resend to Same Email`}
@@ -116,7 +116,7 @@ export default function EmailEntry() {
                 setResendStatus("idle");
                 setResendError(null);
               }}
-              className="w-full rounded-lg px-4 py-2 font-medium text-blue-700 border border-blue-600 bg-white hover:bg-blue-50 transition"
+              className="w-full rounded-lg px-4 py-2 font-medium text-[rgb(55,125,28)] border border-[rgb(70,160,35)] bg-white hover:bg-[rgba(180,230,160,0.2)] transition"
             >
               Send to a New Email
             </button>
@@ -129,9 +129,9 @@ export default function EmailEntry() {
     <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
         {/* Mail Icon */}
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(180,230,160,0.3)]">
           <svg
-            className="h-6 w-6 text-blue-600"
+            className="h-6 w-6 text-[rgb(70,160,35)]"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -172,7 +172,7 @@ export default function EmailEntry() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
           required
-          className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-[rgb(70,160,35)]"
         />
 
         {/* Send Magic Link Button */}
@@ -182,7 +182,7 @@ export default function EmailEntry() {
           className={`w-full rounded-lg px-4 py-2 font-medium text-white transition ${
             isDisabled
               ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
+              : "bg-[rgb(70,160,35)] hover:bg-[rgb(55,125,28)]"
           }`}
         >
           {isPending ? "Sending…" : "Send Access Link"}

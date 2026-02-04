@@ -119,7 +119,7 @@ export default function PreviewQuestionnairePage() {
           <div className="space-x-4">
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="px-4 py-2 bg-[rgb(70,160,35)] text-white rounded hover:bg-[rgb(55,125,28)]"
             >
               Retry
             </button>
@@ -157,7 +157,7 @@ export default function PreviewQuestionnairePage() {
 
         {statusMessage && (
           <div className="fixed top-4 inset-x-0 flex justify-center pointer-events-none z-50">
-            <div className="bg-blue-500 text-white px-6 py-2 rounded shadow-lg">
+            <div className="bg-[rgb(70,160,35)] text-white px-6 py-2 rounded shadow-lg">
               {statusMessage}
             </div>
           </div>

@@ -23,7 +23,7 @@ export function HistoryNavigation({
           <button
             onClick={() => onNavigate(currentIndex - 1)}
             disabled={currentIndex <= 0}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-blue-200"
+            className="flex items-center space-x-2 px-4 py-2 bg-[rgba(180,230,160,0.2)] text-[rgb(55,125,28)] rounded-lg hover:bg-[rgba(180,230,160,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgb(55,125,28)]"
           >
             <ChevronLeftIcon className="h-4 w-4" />
             <span>Previous</span>
@@ -47,7 +47,7 @@ export function HistoryNavigation({
           <button
             onClick={() => onNavigate(currentIndex + 1)}
             disabled={currentIndex >= totalEntries - 1}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-blue-200"
+            className="flex items-center space-x-2 px-4 py-2 bg-[rgba(180,230,160,0.2)] text-[rgb(55,125,28)] rounded-lg hover:bg-[rgba(180,230,160,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgb(55,125,28)]"
           >
             <span>Next</span>
             <ChevronRightIcon className="h-4 w-4" />

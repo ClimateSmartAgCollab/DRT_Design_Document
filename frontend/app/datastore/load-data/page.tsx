@@ -98,7 +98,7 @@ export default function LoadDataPage() {
             onClick={() => reload()}
             disabled={isFetching}
             className={`w-full px-4 py-2 font-semibold rounded-lg transition-colors duration-200 ${
-              isFetching ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-600"
+              isFetching ? "bg-gray-400" : "bg-[rgb(70,160,35)] hover:bg-[rgb(55,125,28)]"
             } text-white`}
           >
             {isFetching ? "Loading…" : "Load Data"}

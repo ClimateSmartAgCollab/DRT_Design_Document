@@ -350,7 +350,7 @@ export default function HomePage() {
         <div className="max-w-3xl w-full">
           {/* Attention Testers Card */}
 
-          <h1 className="text-[#216b96] font-sans text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4">
+          <h1 className="text-[rgb(70,160,35)] font-sans text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4">
             {t.csdccTitle}
           </h1>
           <p className="text-gray-700 font-serif text-sm sm:text-base mb-3 sm:mb-4">
@@ -377,7 +377,7 @@ export default function HomePage() {
                     href="https://ethereal.email/messages"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline text-blue-700 text-sm sm:text-base"
+                    className="underline text-[rgb(70,160,35)] text-sm sm:text-base"
                   >
                     {t.attentionCard.etherealLabel}
                   </a>
@@ -537,7 +537,7 @@ export default function HomePage() {
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="underline text-blue-700 text-sm sm:text-base"
+                              className="underline text-[rgb(70,160,35)] text-sm sm:text-base"
                             >
                               {link.label}
                             </a>
@@ -578,7 +578,7 @@ export default function HomePage() {
           </div>
 
           {/* Data Owners Card */}
-          <div className="bg-[#C7E6F6] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="bg-[rgba(180,230,160,0.3)] border-2 border-[rgb(55,125,28)] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
             <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
               {t.forOwners}
             </h2>
@@ -587,7 +587,7 @@ export default function HomePage() {
                 {t.ownersBody}
                 <a
                   href="mailto:adc@uoguelph.ca"
-                  className="underline text-[#2382A0]"
+                  className="underline text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)]"
                 >
                   {t.emailUs}
                 </a>
@@ -598,14 +598,14 @@ export default function HomePage() {
                 href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
+                className="block text-center text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.ownerDashboard}
               </a>
             </div>
           </div>
           {/* Data Requestors Card */}
-          <div className="bg-[#C7E6F6] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="bg-[rgba(180,230,160,0.3)] border-2 border-[rgb(55,125,28)] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
             <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
               {t.forRequestors}
             </h2>
@@ -617,14 +617,14 @@ export default function HomePage() {
                 href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
+                className="block text-center text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.requestorDashboard}
               </a>
             </div>
           </div>
           {/* Administrators Card */}
-          <div className="bg-purple-50 border-2 border-[#C7E6F6] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="bg-[rgba(180,230,160,0.2)] border-2 border-[rgb(55,125,28)] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
             <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
               {t.forAdmins}
             </h2>
@@ -636,7 +636,7 @@ export default function HomePage() {
                 href="/admin/email-entry"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
+                className="block text-center text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.adminDashboard}
               </a>
