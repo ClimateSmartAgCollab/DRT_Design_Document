@@ -719,6 +719,5 @@ If you've made improvements or customizations that could benefit others:
 
 ---
 
-**Last Updated**: [Current Date]
 **Version**: 1.0
 
