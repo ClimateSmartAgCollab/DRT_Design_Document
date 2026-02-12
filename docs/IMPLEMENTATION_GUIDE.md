@@ -212,6 +212,11 @@ FRONTEND_BASE_URL=http://127.0.0.1:3000  # Change for production
 
 # Django Management
 DJANGO_MANAGE_MIGRATE=on
+
+# Admin Configuration
+# Comma-separated list of admin email addresses
+ADMIN_EMAILS=admin1@example.com,admin2@example.com
+ADMIN_ENABLED=true
 ```
 
 ### 3.2 Generate Django Secret Key
@@ -719,6 +724,5 @@ If you've made improvements or customizations that could benefit others:
 
 ---
 
-**Last Updated**: [Current Date]
 **Version**: 1.0
 

@@ -11,7 +11,7 @@
 - Deploying to production
 - And much more
 
-For information about the general DRT concept, see the [DRT landing page](https://github.com/ClimateSmartAgCollab/DRT_ad) or contact us to form a partnership.
+For information about the general DRT concept, see the [DRT landing page](https://github.com/ClimateSmartAgCollab/drt-ad) or contact us to form a partnership.
 
 DRT is an end-to-end platform for managing data access negotiations between requestors and dataset owners. It streamlines how research teams discover questionnaires, submit structured requests, collaborate with owners, negotiate license terms, and archive the final agreements. This repository contains the Data Hub's production implementation, delivered as a full-stack monorepo that contains the production application, infrastructure assets, and supporting documentation.
 
