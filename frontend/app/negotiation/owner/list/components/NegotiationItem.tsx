@@ -28,6 +28,7 @@ export function NegotiationItem({
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isReopening, setIsReopening] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
   // const canArchive =
   //   !n.archived && ["accepted", "abandoned", "rejected"].includes(n.state);
 
@@ -92,6 +93,26 @@ export function NegotiationItem({
     }
   };
 
+  const displayTitle = n.visible_label || n.record_label || n.negotiation_id;
+  const displaySubtext = [
+    n.requestor_email,
+    new Date(n.timestamps).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(n.negotiation_id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <li className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
       <div className="px-6 py-4">
@@ -104,20 +125,39 @@ export function NegotiationItem({
             onClick={e => e.stopPropagation()}
           />
           <div className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (n.owner_link) {
-                  window.open(`/negotiation/owner/history/${n.owner_link}`, '_blank');
-                } else {
-                  alert('History not available for this negotiation');
-                }
-              }}
-              className="font-semibold text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline cursor-pointer"
-              title="View negotiation history"
-            >
-              ID: {n.negotiation_id}
-            </button>
+            <div className="flex flex-col">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (n.owner_link) {
+                    window.open(`/negotiation/owner/history/${n.owner_link}`, '_blank');
+                  } else {
+                    alert('History not available for this negotiation');
+                  }
+                }}
+                className="font-semibold text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline cursor-pointer text-left"
+                title="View negotiation history"
+              >
+                <span className="block">{displayTitle}</span>
+                {displaySubtext && (
+                  <span className="block text-sm font-normal text-gray-500 mt-0.5">
+                    {displaySubtext}
+                  </span>
+                )}
+              </button>
+              <div className="flex items-center gap-1.5 mt-0.5 self-start">
+                <span className="text-xs text-gray-600 font-mono">
+                  <span className="font-medium text-gray-700">Negotiation ID:</span> {n.negotiation_id}
+                </span>
+                <button
+                  onClick={handleCopyId}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                  title="Copy ID"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
             <span className="text-gray-600">State: {STATUS_DISPLAY_NAMES[n.state as keyof typeof STATUS_DISPLAY_NAMES] || n.state}</span>
             <span className="text-gray-600">
               Created: {new Date(n.timestamps).toLocaleDateString()}
@@ -191,7 +231,7 @@ export function NegotiationItem({
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteConfirm}
         title="Delete Negotiation"
-        message={`Are you sure you want to delete negotiation "${n.negotiation_id}"?`}
+        message={`Are you sure you want to delete negotiation "${displayTitle}" (ID: ${n.negotiation_id})?`}
         isLoading={isDeleting}
       />
     </li>

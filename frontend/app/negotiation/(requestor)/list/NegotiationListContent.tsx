@@ -69,7 +69,9 @@ export default function NegotiationListContent() {
       const matchesSearch =
         !txt ||
         n.negotiation_id.toLowerCase().includes(txt) ||
-        n.conversation_id.toLowerCase().includes(txt);
+        n.conversation_id.toLowerCase().includes(txt) ||
+        (n.visible_label && n.visible_label.toLowerCase().includes(txt)) ||
+        (n.record_label && n.record_label.toLowerCase().includes(txt));
       const matchesStatus =
         filters.statusFilter.length === 0 || filters.statusFilter.includes(n.state as Status);
       const matchesArchived =

@@ -13,7 +13,9 @@ export interface Negotiation {
   rationale?: string | null;
   tags?: string[];
   record_label?: string;
-  questionnaire?: any; 
+  visible_label?: string;
+  requestor_email?: string | null;
+  questionnaire?: any;
 }
 
 export const ALL_STATUSES = [

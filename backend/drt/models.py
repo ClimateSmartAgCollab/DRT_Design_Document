@@ -24,6 +24,7 @@ class NLink(models.Model):
     tags = ArrayField(models.CharField(max_length=64),
                       default=list, db_index=True)
     record_label = models.CharField(max_length=255, default='', db_index=True)
+    visible_label = models.CharField(max_length=255, default='', blank=True, db_index=True)
 
     requestor_email = models.EmailField(null=True, blank=True)
     requestor_link = models.UUIDField(default=uuid.uuid4, editable=False)

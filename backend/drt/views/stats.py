@@ -23,6 +23,7 @@ from datastore.views import fetch_questionnaire_json, fetch_license_template
 from jinja2 import Template, Environment, FileSystemLoader, select_autoescape
 from drt.services.license import flatten_form_data        
 from .questionnaire import create_archive_snapshot
+from django.conf import settings
 
 
 logger = logging.getLogger(__name__)
@@ -313,17 +314,20 @@ def owner_links_api(request):
     logger.debug(f"owner_links_api: owner_ids = {owner_ids}")
 
     raw_link_cache = cache.get("link_table") or {}
+    base_url = getattr(settings, "FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
 
     entries = []
-    for link_url, row in raw_link_cache.items():
+    for cache_key, row in raw_link_cache.items():
         if row.get("owner_id") in owner_ids:
+            link_uuid = row.get("link_uuid")
+            url = f"{base_url}/negotiation/generate/{link_uuid}" if link_uuid else cache_key
             entries.append(
                 {
-                    "url": link_url,
+                    "url": url,
                     "questionnaireId": row.get("questionnaire_id"),
                     "licenseId": row.get("license_id"),
                     "expiry": row.get("expiry") or "Never",
-                    "label": row.get("data_label", ""),
+                    "label": row.get("visible_label") or row.get("data_label", ""),
                     "tags": row.get("tags", "(none)"),
                     "recordLabel": row.get("record_label", ""),
                 }
@@ -847,6 +851,9 @@ def negotiation_list_api_req(request):
             'requestor_link': str(requestor_link.requestor_link) if requestor_link else None,
             'rationale': n.rationale,
             'questionnaire': questionnaire_json,  # Add questionnaire JSON
+            'visible_label': (requestor_link.visible_label or requestor_link.record_label or requestor_link.data_label or "") if requestor_link else "",
+            'record_label': requestor_link.record_label if requestor_link else "",
+            'requestor_email': requestor_link.requestor_email if requestor_link else None,
         })
 
     return JsonResponse(data, safe=False)
@@ -961,10 +968,11 @@ def negotiation_list_api(request):
         qs = qs.filter(link__record_label__in=record_label_filter)
 
     if search_term:
-        # Search in negotiation_id and conversation_id
         qs = qs.filter(
             Q(negotiation_id__icontains=search_term) |
-            Q(conversation_id__icontains=search_term)
+            Q(conversation_id__icontains=search_term) |
+            Q(link__visible_label__icontains=search_term) |
+            Q(link__record_label__icontains=search_term)
         )
 
     # Apply sorting
@@ -1021,6 +1029,8 @@ def negotiation_list_api(request):
             'rationale':          n.rationale,
             'tags': link.tags if link else [],
             'record_label': link.record_label if link else "",
+            'visible_label': (link.visible_label or link.record_label or link.data_label or "") if link else "",
+            'requestor_email': link.requestor_email if link else None,
         }
 
         # Heavy fields included only when lightweight mode is disabled

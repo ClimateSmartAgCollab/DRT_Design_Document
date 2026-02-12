@@ -86,18 +86,28 @@ def load_github_data(_request):
             cache.set('owner_table', owner_table, timeout=60*60*24)
 
         if link_table_csv:
-            link_table = {} 
+            link_table = {}
             reader = csv.DictReader(io.StringIO(link_table_csv))
             for row in reader:
-                link_table[row['link']] = {
+                # Support both new schema (link_uuid, visible_label) and old (link)
+                link_uuid = row.get('link_uuid', '').strip()
+                link_url = row.get('link', '').strip()
+                visible_label = (row.get('visible_label') or row.get('data_label', '')).strip()
+                entry = {
                     'questionnaire_id': row['questionnaire_id'],
                     'license_id': row['license_id'],
                     'owner_id': row['owner_id'],
                     'expiry': row['expiry'],
                     'data_label': row['data_label'],
-                    'tags': row['tags'].split(',') if row['tags'] else [],
-                    'record_label': row['record_label'],
+                    'tags': row['tags'].split(',') if row.get('tags') else [],
+                    'record_label': row.get('record_label', ''),
+                    'visible_label': visible_label,
+                    'link_uuid': link_uuid or None,
                 }
+                # Prefer link_uuid as key for new schema; fall back to link for backward compatibility
+                key = link_uuid if link_uuid else link_url
+                if key:
+                    link_table[key] = entry
             cache.set('link_table', link_table, timeout=CACHE_TIMEOUT_24H)
 
         if questionnaire_table_csv:

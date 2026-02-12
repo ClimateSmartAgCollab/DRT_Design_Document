@@ -11,6 +11,9 @@ export interface Negotiation {
   archived: boolean;
   requestor_link: string | null;
   rationale?: string | null;
+  visible_label?: string;
+  record_label?: string;
+  requestor_email?: string | null;
   questionnaire?: any;
 }
 

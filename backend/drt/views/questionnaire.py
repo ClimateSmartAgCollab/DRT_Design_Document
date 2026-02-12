@@ -41,10 +41,9 @@ def generate_nlinks(request, link_id):
         logger.error("Link table not found in cache.")
         return Response({'error': 'Link table not found in cache'}, status=404)
 
-    # Find the appropriate link data
-    example_link = next(
+    example_link = link_table.get(link_id) or next(
         (data for url, data in link_table.items() if link_id in url), None)
-    if example_link == None:
+    if example_link is None:
         logger.warning(f"Link ID {link_id} not found in cache.")
         return Response({'error': f'Link ID {link_id} not found'}, status=404)
 
@@ -72,6 +71,7 @@ def generate_nlinks(request, link_id):
         data_label=example_link['data_label'],
         tags=example_link['tags'],
         record_label=example_link['record_label'],
+        visible_label=example_link.get('visible_label', '') or example_link.get('data_label', ''),
         requestor_link=requestor_link_id,
         owner_link=owner_link_id,
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
