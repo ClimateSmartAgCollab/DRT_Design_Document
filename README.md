@@ -178,6 +178,8 @@ The core entities live in `backend/drt/models.py`.
 | `GITHUB_API_URL` | GitHub API URL for datastore repository (format: `https://api.github.com/repos/OWNER/REPO/contents`) | `backend/.env` |
 | `GITHUB_TOKEN` | GitHub personal access token for datastore access | `backend/.env` |
 | `EMAIL_*` (`DEFAULT_FROM_EMAIL`, `ETHEREAL_USER`, etc.) | SMTP credentials | `backend/.env` |
+| `ADMIN_EMAILS` | Comma-separated list of admin email addresses for admin access | `backend/.env` |
+| `ADMIN_ENABLED` | Enable/disable admin functionality (`true`/`false`) | `backend/.env` |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend → API endpoint | `frontend/.env.local` |
 
 **Secrets management**
