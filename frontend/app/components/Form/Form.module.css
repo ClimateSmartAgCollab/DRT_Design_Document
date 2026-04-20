@@ -11,14 +11,14 @@
 .mainContent {
   flex: 1;
   padding: 2rem;
-  margin-right: 250px;
+  overflow-y: auto;
 }
 
 @media (max-width: 1024px) {
   .mainContent {
-    margin-right: 0;
     padding: 1rem;
     order: 2;
+    overflow-y: visible;
   }
 }
 
@@ -34,6 +34,7 @@
   top: 0;
   left: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 @media (max-width: 1024px) {
@@ -43,6 +44,7 @@
     height: auto;
     min-height: 100vh;
     position: relative;
+    overflow: visible;
   }
 }
 
@@ -107,12 +109,10 @@
 .reviewMainContent {
   flex: 1;
   padding: 2rem;
-  margin-right: 250px;
 }
 
 @media (max-width: 1024px) {
   .reviewMainContent {
-    margin-right: 0;
     padding: 1rem;
   }
 }

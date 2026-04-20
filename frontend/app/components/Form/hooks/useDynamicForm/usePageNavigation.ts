@@ -34,7 +34,8 @@ export function usePageNavigation(
     parentId: string,
     childStepId: string
   ) => void,
-  isNewChild?: boolean
+  isNewChild?: boolean,
+  removeChildStepWithDescendants?: (stepId: string) => void
 ) {
   const nav = useMemo(
     () => new NavigationService<Step>(parsedSteps, parentSteps),
@@ -179,6 +180,7 @@ export function usePageNavigation(
 
     setCurrentChildId?.(null);
     setCurrentChildParentId?.(null);
+    removeChildStepWithDescendants?.(stepObj.id);
 
     const refIdx = nav.referencingStepIndex(stepObj.id);
     setCurrentStep(refIdx >= 0 ? refIdx : 0);
@@ -192,14 +194,16 @@ export function usePageNavigation(
     setCurrentChildId,
     setCurrentChildParentId,
     setCurrentStep,
+    removeChildStepWithDescendants,
   ]);
 
   const cancelHandler = useCallback(() => {
+    const stepObj = parsedSteps[currentStep];
     if (currentChildId && currentChildParentId && isNewChild && deleteChild) {
-      const stepObj = parsedSteps[currentStep];
       if (stepObj)
         deleteChild(currentChildId, currentChildParentId, stepObj.id);
     }
+    if (stepObj) removeChildStepWithDescendants?.(stepObj.id);
     setCurrentChildId?.(null);
     setCurrentChildParentId?.(null);
     setCurrentStep(0);
@@ -213,6 +217,7 @@ export function usePageNavigation(
     setCurrentStep,
     setCurrentChildId,
     setCurrentChildParentId,
+    removeChildStepWithDescendants,
   ]);
 
   const handleNavigate = useCallback(

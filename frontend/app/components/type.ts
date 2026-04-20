@@ -265,7 +265,6 @@ export interface Step {
   parent?: string | null;
   pages: Page_parsed[];
   children?: Step[];
-  sidebar_label?: Record<string, string>;
   title?: Record<string, string>;
   subheading?: Record<string, string>;
 }

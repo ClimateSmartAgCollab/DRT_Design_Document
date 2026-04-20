@@ -92,7 +92,6 @@ export default function FormWrapper({
     setLanguage,
     formData,
     setFormData,
-    visitedSteps,
     parentSteps,
     onNavigate,
     finishHandler,
@@ -101,8 +100,7 @@ export default function FormWrapper({
     currentChildId,
     currentChildParentId,
     pageIndexByStep,
-    expandedStep,
-    setExpandedStep,
+    openChildStepIds,
     handleNavigate,
     handleNextPage,
     handlePreviousPage,
@@ -597,13 +595,11 @@ export default function FormWrapper({
 
         <Sidebar
           parsedSteps={parsedSteps}
-          visitedSteps={visitedSteps}
           currentStep={step}
           pageIndexByStep={pageIndexByStep}
           onNavigate={handleNavigate}
           language={language}
-          expandedStep={expandedStep}
-          setExpandedStep={setExpandedStep}
+          openChildStepIds={openChildStepIds}
         />
         <div className={styles.footer}>
           <Footer />
