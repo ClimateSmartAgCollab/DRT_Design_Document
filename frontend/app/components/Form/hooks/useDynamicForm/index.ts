@@ -5,7 +5,6 @@ export { useHandleNavigate } from "./useHandleNavigate";
 export { usePageNavigation } from "./usePageNavigation";
 
 export {
-  buildStepTree,
   getParentSteps,
   getReferencingStep,
 } from "../../utils/steps";

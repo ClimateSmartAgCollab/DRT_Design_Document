@@ -18,7 +18,7 @@ interface SidebarProps {
   pageIndexByStep: Record<string, number>;
   onNavigate: (stepIndex: number, pageIndex?: number) => void;
   language: string;
-  openChildStepIds: Set<string>;
+  openChildStepIds: Map<string, string>;
 }
 
 export default function Sidebar({

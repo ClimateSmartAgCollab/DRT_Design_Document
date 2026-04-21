@@ -1,12 +1,6 @@
 // drt_frontend/app/components/Form/utils/steps.ts
 import type { Step } from "../../type";
-import { StepTreeBuilder, type StepWithChildren } from "../domain/step-tree";
-
-/** Build a tree structure from steps based on reference relationships. */
-export function buildStepTree(steps: Step[]): StepWithChildren<Step>[] {
-  const builder = new StepTreeBuilder<Step>(steps);
-  return builder.buildTree();
-}
+import { StepTreeBuilder } from "../domain/step-tree";
 
 /** Get all parent steps that are not referenced by any other step. */
 export function getParentSteps(steps: Step[]): Step[] {

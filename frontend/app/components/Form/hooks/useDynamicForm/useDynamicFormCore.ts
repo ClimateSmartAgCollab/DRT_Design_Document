@@ -47,18 +47,33 @@ export function useDynamicForm(parsedSteps: Step[] = []) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isNewChild, setIsNewChild] = useState(false);
 
-  const [openChildStepIds, setOpenChildStepIds] = useState<Set<string>>(
-    () => new Set()
+
+  const [openChildStepIds, setOpenChildStepIds] = useState<Map<string, string>>(
+    () => new Map()
   );
 
   useEffect(() => {
     if (!currentChildId || !currentChildParentId) return;
     const stepObj = parsedSteps[currentStep];
     if (!stepObj || !stepObj.parent) return;
+
+    const parentStep = parsedSteps.find((s) => s.id === stepObj.parent);
+    const parentPageKey =
+      parentStep?.pages.find((p) =>
+        p.sections.some((sec) =>
+          sec.fields.some(
+            (f: any) =>
+              f?.id === currentChildParentId &&
+              f?.type === "reference" &&
+              f?.ref === stepObj.id
+          )
+        )
+      )?.pageKey ?? "";
+
     setOpenChildStepIds((prev) => {
-      if (prev.has(stepObj.id)) return prev;
-      const next = new Set(prev);
-      next.add(stepObj.id);
+      if (prev.get(stepObj.id) === parentPageKey) return prev;
+      const next = new Map(prev);
+      next.set(stepObj.id, parentPageKey);
       return next;
     });
   }, [currentChildId, currentChildParentId, currentStep, parsedSteps]);
@@ -78,7 +93,7 @@ export function useDynamicForm(parsedSteps: Step[] = []) {
         return false;
       };
       setOpenChildStepIds((prev) => {
-        const next = new Set(prev);
+        const next = new Map(prev);
         next.delete(stepId);
         parsedSteps.forEach((s) => {
           if (isDescendantOf(s.id, stepId)) next.delete(s.id);
