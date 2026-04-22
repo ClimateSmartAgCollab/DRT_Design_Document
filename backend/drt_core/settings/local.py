@@ -143,6 +143,13 @@ CELERY_BEAT_SCHEDULE = {
             'expires': 3600,  # Task expires after 1 hour if not picked up
         }
     },
+    'prewarm-github-cache': {
+        'task': 'drt.tasks.refresh_data_task',
+        'schedule': crontab(minute=0, hour='*/12'),  # Every 12 hours
+        'options': {
+            'expires': 3600,  # Task expires after 1 hour if not picked up
+        }
+    },
 }
 
 # Magic link TTL in minutes (default: 7 days)

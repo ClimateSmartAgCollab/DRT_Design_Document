@@ -253,6 +253,7 @@ def fetch_questionnaire_task(questionnaire_said):
         if fetched_json:
             cache_key = f'questionnaire_json_{questionnaire_said}'
             cache.set(cache_key, fetched_json, timeout=60*60*24)
+            cache.delete(f"questionnaire_fetch_inflight:{questionnaire_said}")
             logger.info(
                 f"Questionnaire {questionnaire_said} fetched and cached successfully")
         return fetched_json

@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Cache timeout: 24 hours in seconds
 CACHE_TIMEOUT_24H = 60 * 60 * 24
+HOT_CACHE_KEYS = ("owner_table", "link_table", "questionnaire_table", "license_table")
 
 GITHUB_API_URL = os.environ.get('GITHUB_API_URL')
 if GITHUB_API_URL is None:
@@ -46,6 +47,13 @@ def fetch_file_from_github(file_path):
 def load_github_data(_request):
     """Load GitHub data using ThreadPoolExecutor for parallel file fetching"""
     try:
+        if all(cache.get(k) is not None for k in HOT_CACHE_KEYS):
+            logger.info("load_github_data: cache already warm; skipping GitHub fetch")
+            return JsonResponse({
+                "status": "already cached",
+                "message": "Core datastore tables already present in cache."
+            })
+
         # Fetch all files in parallel using ThreadPoolExecutor
         start_time = time.time()
         file_paths = [

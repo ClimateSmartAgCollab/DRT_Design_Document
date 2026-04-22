@@ -296,7 +296,10 @@ def fill_questionnaire(request, link_id):
             questionnaire_json = cached_json
         else:
             # Use Celery to fetch questionnaire asynchronously
-            fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
+            inflight_key = f"questionnaire_fetch_inflight:{negotiation.questionnaire_SAID}"
+            lock_ttl_seconds = 30
+            if cache.add(inflight_key, 1, timeout=lock_ttl_seconds):
+                fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
             
             questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
         
