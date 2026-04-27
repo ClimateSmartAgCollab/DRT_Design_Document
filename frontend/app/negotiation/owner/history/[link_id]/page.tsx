@@ -62,13 +62,66 @@ interface OwnerCommentVersion {
   change_description: string;
 }
 
+
+type TaggedError = Error & { status?: number; transient?: boolean };
+
+async function readJsonErrorDetail(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    if (body?.error && typeof body.error === "string") return body.error;
+  } catch {
+    /* ignore */
+  }
+  return res.statusText || "Unknown error";
+}
+
+function throwHttpError(
+  res: Response,
+  message: string,
+  transient = false
+): never {
+  const err = new Error(message) as TaggedError;
+  err.status = res.status;
+  err.transient = transient;
+  throw err;
+}
+
+function throwTransient(message: string): never {
+  const err = new Error(message) as TaggedError;
+  err.transient = true;
+  throw err;
+}
+
+function isTaggedError(e: unknown): e is TaggedError {
+  return e instanceof Error;
+}
+
+function isTransientError(e: unknown): boolean {
+  if (!isTaggedError(e)) return false;
+  if (e.transient) return true;
+  // `fetchApi` maps any 5xx response to `Error("Server error: <status>")`
+  // without attaching a status field, so fall back to pattern matching.
+  if (/^Server error:/i.test(e.message)) return true;
+  // Plain `fetch` failures (offline, DNS, CORS, aborted) throw TypeError.
+  if (e.name === "TypeError") return true;
+  return false;
+}
+
 async function fetchNegotiationHistory(
   linkId: string
 ): Promise<NegotiationHistory> {
   const negotiationsRes = await fetchApi(
     `/drt/negotiations/?owner_link=${encodeURIComponent(linkId)}&lightweight=true`
   );
-  if (!negotiationsRes.ok) throw new Error("Failed to load negotiations");
+  if (!negotiationsRes.ok) {
+    const detail = await readJsonErrorDetail(negotiationsRes);
+    const msg =
+      negotiationsRes.status === 401
+        ? "Your owner session expired. Please sign in again."
+        : `Failed to load negotiations (${negotiationsRes.status}): ${detail}`;
+    // 5xx from the listing endpoint is transient (server/cache hiccup).
+    throwHttpError(negotiationsRes, msg, negotiationsRes.status >= 500);
+  }
   const negotiationsPayload = await negotiationsRes.json();
   const negotiations = Array.isArray(negotiationsPayload?.results)
     ? negotiationsPayload.results
@@ -76,13 +129,25 @@ async function fetchNegotiationHistory(
 
   const negotiation = negotiations && negotiations[0];
   if (!negotiation) {
-    throw new Error("Negotiation not found");
+    // The listing endpoint filters by a Redis-backed `owner_table` lookup.
+    // When that cache is cold (TTL expiry, eviction, or right after the
+    // GitHub webhook invalidates it) the query returns an empty list even
+    // though the negotiation exists. Treat this as transient so react-query
+    // retries while the cache warms up instead of surfacing the error.
+    throwTransient("Negotiation not found");
   }
 
   const historyRes = await fetchApi(
     `/drt/negotiations/${negotiation.negotiation_id}/history/`
   );
-  if (!historyRes.ok) throw new Error("Failed to load negotiation history");
+  if (!historyRes.ok) {
+    const detail = await readJsonErrorDetail(historyRes);
+    const msg =
+      historyRes.status === 401
+        ? "Your owner session expired. Please sign in again."
+        : `Failed to load negotiation history (${historyRes.status}): ${detail}`;
+    throwHttpError(historyRes, msg, historyRes.status >= 500);
+  }
   const raw = await historyRes.json();
 
   let archive_history: ArchiveEntry[] | undefined = raw.archive_history;
@@ -669,16 +734,50 @@ export default function NegotiationHistoryPage() {
 
   const linkIdStr = Array.isArray(link_id) ? link_id[0] : link_id;
 
+  const whoamiQuery = useQuery({
+    queryKey: ["owner", "whoami"],
+    queryFn: async () => {
+      const res = await fetchApi("/drt/owner/whoami/");
+      if (!res.ok) throw new Error("Not authenticated");
+      return res.json();
+    },
+    retry: false,
+  });
+
   const {
     data: history,
     error,
-    isLoading,
-  } = useQuery<NegotiationHistory, Error>({
+    isLoading: historyIsLoading,
+    isFetching: historyIsFetching,
+    refetch: refetchHistory,
+  } = useQuery<NegotiationHistory, TaggedError>({
     queryKey: ["negotiationHistory", linkIdStr],
     queryFn: () => fetchNegotiationHistory(linkIdStr!),
-    retry: 1,
-    enabled: !!linkIdStr,
+    enabled: Boolean(linkIdStr) && whoamiQuery.isSuccess,
+    retry: (failureCount, err) => {
+      // Do not retry auth/permission/not-found errors from the history
+      // endpoint – they won't resolve themselves.
+      if (
+        isTaggedError(err) &&
+        typeof err.status === "number" &&
+        !err.transient &&
+        [401, 403, 404].includes(err.status)
+      ) {
+        return false;
+      }
+      // Retry transient errors (cold cache, 5xx, network blip) more
+      // aggressively so the user doesn't see spurious failures.
+      const max = isTransientError(err) ? 5 : 3;
+      return failureCount < max;
+    },
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   });
+
+  const isLoading =
+    whoamiQuery.isLoading ||
+    (Boolean(linkIdStr) &&
+      whoamiQuery.isSuccess &&
+      historyIsLoading);
 
   const { historyEntries } = useNegotiationHistory(history);
 
@@ -768,21 +867,17 @@ export default function NegotiationHistoryPage() {
     },
   });
 
-  const whoamiQuery = useQuery({
-    queryKey: ["owner", "whoami"],
-    queryFn: async () => {
-      const res = await fetchApi("/drt/owner/whoami/");
-      if (!res.ok) throw new Error("Not authenticated");
-      return res.json();
-    },
-    retry: false,
-  });
-
   useEffect(() => {
     if (whoamiQuery.isError) {
       router.replace("/negotiation/owner/email-entry");
     }
   }, [whoamiQuery.isError, router]);
+
+  useEffect(() => {
+    if (error && isTaggedError(error) && error.status === 401) {
+      router.replace("/negotiation/owner/email-entry");
+    }
+  }, [error, router]);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -849,17 +944,45 @@ export default function NegotiationHistoryPage() {
                 </span>
               </div>
             ) : error ? (
-              <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
-                <p className="text-red-600">
-                  Error loading negotiation history: {error.message}
-                </p>
-                <button
-                  onClick={() => router.back()}
-                  className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                >
-                  Go Back
-                </button>
-              </div>
+              (() => {
+                const transient = isTransientError(error);
+                const status = isTaggedError(error) ? error.status : undefined;
+                const friendlyMessage = transient
+                  ? "We couldn't load the negotiation history just now. This is usually temporary – please try again in a few seconds."
+                  : status === 404
+                  ? "This negotiation could not be found. It may have been removed."
+                  : status === 403
+                  ? "You don't have permission to view this negotiation."
+                  : `Error loading negotiation history: ${error.message}`;
+
+                return (
+                  <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+                    <p className="text-red-700 font-medium">{friendlyMessage}</p>
+                    {transient && (
+                      <p className="text-sm text-red-600 mt-1">
+                        Details: {error.message}
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {transient && (
+                        <button
+                          onClick={() => refetchHistory()}
+                          disabled={historyIsFetching}
+                          className="px-4 py-2 bg-[rgb(70,160,35)] text-white rounded hover:bg-[rgb(55,125,28)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {historyIsFetching ? "Retrying..." : "Try Again"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => router.push("/negotiation/owner/list")}
+                        className="px-4 py-2 bg-white text-red-700 border border-red-300 rounded hover:bg-red-100 transition-colors"
+                      >
+                        Back to List
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()
             ) : !history ? (
               <p className="text-gray-500">
                 No history found for this negotiation.
