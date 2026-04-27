@@ -5,7 +5,8 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
                     req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint,
-                    regenerate_license_view, negotiation_history_view, requestor_logout, owner_logout,
+                    regenerate_license_view, negotiation_history_view, negotiation_history_view_req,
+                    requestor_logout, owner_logout,
                     reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view
                     )
 from .views.admin import (
@@ -69,6 +70,10 @@ urlpatterns = [
          negotiation_list_api_req,
          name='negotiation_list_api_req'
          ),
+
+    path('req_negotiations/<uuid:negotiation_id>/history/',
+         negotiation_history_view_req,
+         name='req_negotiation_history'),  # Requestor-side negotiation history
 
     # owner
     path('verify/owner-email/',
