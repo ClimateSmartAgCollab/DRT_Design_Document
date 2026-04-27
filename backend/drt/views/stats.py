@@ -1185,49 +1185,95 @@ def regenerate_license_view(request, negotiation_id):
         return JsonResponse({"error": "Failed to regenerate license"}, status=500)
 
 
+def _build_history_response(negotiation):
+    """Build the JSON response payload for a negotiation's history.
+    """
+    questionnaire_json = None
+    try:
+        cache_key = f'questionnaire_json_{negotiation.questionnaire_SAID}'
+        cached_json = cache.get(cache_key)
+        if cached_json:
+            questionnaire_json = cached_json
+        else:
+            questionnaire_json = fetch_questionnaire_json(negotiation.questionnaire_SAID)
+    except Exception as e:
+        logger.error(
+            f"Error fetching questionnaire for {negotiation.questionnaire_SAID}: {e}"
+        )
+        questionnaire_json = None
+
+    archives = get_archive_history(negotiation)
+    version_history = map_archives_to_versions(archives)
+
+    return JsonResponse({
+        'negotiation_id': str(negotiation.negotiation_id),
+        'conversation_id': str(negotiation.conversation_id),
+        'state': negotiation.state,
+        'timestamps': negotiation.timestamps.isoformat(),
+        'requestor_responses': negotiation.requestor_responses,
+        'owner_responses': negotiation.owner_responses,
+        'comments': negotiation.comments,
+        'rationale': negotiation.rationale,
+        'questionnaire': questionnaire_json,
+        'commentCycles': [],  # superseded by version_history
+        'version_history': version_history,
+        'is_legacy': False,
+    })
+
+
 @owner_auth_required
 def negotiation_history_view(request, negotiation_id):
-    """Fetch negotiation history using Archive snapshots."""
+    """Owner-facing negotiation history.
+    """
     try:
         negotiation = get_object_or_404(Negotiation, negotiation_id=negotiation_id)
-
-        # Questionnaire JSON for labels
-        questionnaire_json = None
-        try:
-            cache_key = f'questionnaire_json_{negotiation.questionnaire_SAID}'
-            cached_json = cache.get(cache_key)
-            if cached_json:
-                questionnaire_json = cached_json
-            else:
-                questionnaire_json = fetch_questionnaire_json(negotiation.questionnaire_SAID)
-        except Exception as e:
-            logger.error(f"Error fetching questionnaire for {negotiation.questionnaire_SAID}: {e}")
-            questionnaire_json = None
-
-        # Build version_history from Archive
-        archives = get_archive_history(negotiation)
-        version_history = map_archives_to_versions(archives)
-
-        response_data = {
-            'negotiation_id': str(negotiation.negotiation_id),
-            'conversation_id': str(negotiation.conversation_id),
-            'state': negotiation.state,
-            'timestamps': negotiation.timestamps.isoformat(),
-            'requestor_responses': negotiation.requestor_responses,
-            'owner_responses': negotiation.owner_responses,
-            'comments': negotiation.comments,
-            'rationale': negotiation.rationale,
-            'questionnaire': questionnaire_json,
-            'commentCycles': [],  # superseded by version_history
-            'version_history': version_history,
-            'is_legacy': False,
-        }
-
-        return JsonResponse(response_data)
-
+        return _build_history_response(negotiation)
     except Exception as e:
-        logger.error(f"Error fetching history for negotiation {negotiation_id}: {str(e)}")
-        return JsonResponse({"error": "Failed to fetch negotiation history"}, status=500)
+        logger.error(
+            f"Error fetching history for negotiation {negotiation_id}: {str(e)}"
+        )
+        return JsonResponse(
+            {"error": "Failed to fetch negotiation history"}, status=500
+        )
+
+
+@requestor_auth_required
+def negotiation_history_view_req(request, negotiation_id):
+    """Requestor-facing negotiation history.
+    """
+    try:
+        negotiation = get_object_or_404(
+            Negotiation.objects.select_related('link'),
+            negotiation_id=negotiation_id,
+        )
+
+        link = getattr(negotiation, 'link', None)
+        link_requestor = (
+            (link.requestor_email or '').strip().lower() if link else ''
+        )
+        session_requestor = (request.requestor_email or '').strip().lower()
+
+        if not link_requestor or link_requestor != session_requestor:
+            logger.warning(
+                "negotiation_history_view_req: access denied for "
+                "negotiation_id=%s (session=%r, link=%r)",
+                negotiation_id,
+                session_requestor or None,
+                link_requestor or None,
+            )
+            return JsonResponse(
+                {"error": "You do not have permission to view this negotiation."},
+                status=403,
+            )
+
+        return _build_history_response(negotiation)
+    except Exception as e:
+        logger.error(
+            f"Error fetching history for negotiation {negotiation_id}: {str(e)}"
+        )
+        return JsonResponse(
+            {"error": "Failed to fetch negotiation history"}, status=500
+        )
 
 
 @owner_auth_required
