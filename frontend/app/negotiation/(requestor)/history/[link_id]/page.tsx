@@ -133,7 +133,7 @@ async function fetchNegotiationHistory(
   }
 
   const historyRes = await fetchApi(
-    `/drt/negotiations/${negotiation.negotiation_id}/history/`
+    `/drt/req_negotiations/${negotiation.negotiation_id}/history/`
   );
   if (!historyRes.ok) {
     const detail = await readJsonErrorDetail(historyRes);
