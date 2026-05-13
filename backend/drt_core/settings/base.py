@@ -2,8 +2,27 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "your-secret-key")
-DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
+
+# Load env vars from repo-level .env (if present).
+env_file = BASE_DIR.parent.parent / ".env"
+if env_file.exists():
+    for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        # Allow inline comments only when preceded by a space: VALUE # comment
+        value = value.strip()
+        if " #" in value:
+            value = value.split(" #", 1)[0].strip()
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    # Never use in production: production replaces this via DJANGO_SECRET_KEY requirement.
+    SECRET_KEY = "django-insecure-dev-only-set-DJANGO_SECRET_KEY-never-deploy-with-this"
+
+DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
 
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
@@ -40,13 +59,17 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "corsheaders",
     "drf_spectacular",
-    "debug_toolbar",
 ]
 LOCAL_APPS = [
     "datastore",
     "drt",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+# Required for drf-spectacular (avoids E001 on @api_view / WrappedAPIView during check --deploy).
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -59,7 +82,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
 TEMPLATES = [
@@ -78,7 +100,6 @@ TEMPLATES = [
     },
 ]
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 ROOT_URLCONF = "drt_core.urls"
 WSGI_APPLICATION = "drt_core.wsgi.application"
 
@@ -115,7 +136,7 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 

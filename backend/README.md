@@ -13,9 +13,9 @@ pipenv install --dev
 ```
 
 ## Environment
-1. Copy `.env.example` to `.env` in this directory.
+1. Copy `.env.example` to `.env` at the repository root.
 2. Update secrets and database credentials.
-3. If you are running services via Docker Compose, also keep `local.env` in sync with your database credentials.
+3. The same `.env` is loaded by Django directly (via `settings/base.py`) and injected into the Docker Compose dev stack via `env_file`. For production deployments, copy `.env.production.example` to `.env.production` instead.
 
 Key variables:
 - `DJANGO_SECRET_KEY`

@@ -172,7 +172,7 @@ The core entities live in `backend/drt/models.py`.
 | Variable | Purpose | Location |
 | --- | --- | --- |
 | `DJANGO_SECRET_KEY` | Core Django secret | `backend/.env` |
-| `DATABASE_URL` or (`POSTGRES_*`, `DB_HOST`, `DB_PORT`) | Database connectivity | `backend/.env`, `backend/local.env` |
+| `DATABASE_URL` or (`POSTGRES_*`, `DB_HOST`, `DB_PORT`) | Database connectivity | `backend/.env` |
 | `REDIS_URL` | Celery broker + cache | `backend/.env` |
 | `FRONTEND_BASE_URL` | Used in emails for deep links | `backend/.env` |
 | `GITHUB_API_URL` | GitHub API URL for datastore repository (format: `https://api.github.com/repos/OWNER/REPO/contents`) | `backend/.env` |

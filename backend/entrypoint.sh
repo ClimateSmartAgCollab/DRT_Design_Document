@@ -12,11 +12,15 @@ if [ ! -z "$DB_HOST" ]; then
   >&2 echo "Waiting for database connection... Done"
 fi
 
-if [ $DJANGO_MANAGE_MIGRATE = 'on' ]; then
+if [ "$DJANGO_MANAGE_MIGRATE" = 'on' ]; then
   python manage.py collectstatic --noinput
   python manage.py migrate --noinput
   python manage.py createcachetable
-  python manage.py createsuperuser --noinput
+  if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+    python manage.py createsuperuser --noinput \
+      --username "$DJANGO_SUPERUSER_USERNAME" \
+      --email "${DJANGO_SUPERUSER_EMAIL:-admin@localhost}" || true
+  fi
 fi
 
 exec "$@"

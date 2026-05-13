@@ -18,9 +18,12 @@ logger = logging.getLogger(__name__)
 CACHE_TIMEOUT_24H = 60 * 60 * 24
 HOT_CACHE_KEYS = ("owner_table", "link_table", "questionnaire_table", "license_table")
 
-GITHUB_API_URL = os.environ.get('GITHUB_API_URL')
-if GITHUB_API_URL is None:
-    raise ValueError("GITHUB_API_URL environment variable is not set.")
+GITHUB_API_URL = (os.environ.get("GITHUB_API_URL") or "").strip()
+if not GITHUB_API_URL:
+    raise ValueError(
+        "GITHUB_API_URL is not set or empty. Set it in .env / .env.production "
+        "(see .env.example and .env.production.example)."
+    )
 
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 
@@ -42,17 +45,16 @@ def fetch_file_from_github(file_path):
         logger.error(f"Error fetching file from GitHub {file_path}: {str(e)}")
         return None
 
-# View to load GitHub data and store it only in cache
-@csrf_exempt
-def load_github_data(_request):
-    """Load GitHub data using ThreadPoolExecutor for parallel file fetching"""
+def warm_github_cache():
+    """Load GitHub-backed tables into cache and return status metadata."""
     try:
         if all(cache.get(k) is not None for k in HOT_CACHE_KEYS):
             logger.info("load_github_data: cache already warm; skipping GitHub fetch")
-            return JsonResponse({
+            return {
+                "ok": True,
                 "status": "already cached",
-                "message": "Core datastore tables already present in cache."
-            })
+                "message": "Core datastore tables already present in cache.",
+            }
 
         # Fetch all files in parallel using ThreadPoolExecutor
         start_time = time.time()
@@ -135,13 +137,32 @@ def load_github_data(_request):
             # Pre-load license templates after loading the license table
             preload_license_templates()
 
-        return JsonResponse({
-            'message': 'Data loaded successfully',
-            'elapsed_time': elapsed
-        })
+        return {
+            "ok": True,
+            "status": "loaded",
+            "message": "Data loaded successfully",
+            "elapsed_time": elapsed,
+        }
     except Exception as e:
         logger.error(f"Error in load_github_data view: {str(e)}")
-        return JsonResponse({'error': f'Error loading data: {str(e)}'}, status=500)
+        return {
+            "ok": False,
+            "error": f"Error loading data: {str(e)}",
+        }
+
+
+# View to load GitHub data and store it only in cache
+@csrf_exempt
+def load_github_data(_request):
+    """HTTP wrapper around warm_github_cache."""
+    result = warm_github_cache()
+    if not result.get("ok"):
+        return JsonResponse({"error": result.get("error", "Unknown error")}, status=500)
+    return JsonResponse({
+        "status": result.get("status"),
+        "message": result.get("message"),
+        "elapsed_time": result.get("elapsed_time"),
+    })
 
 # fetch questionnaire JSON by questionnaire_id
 def fetch_questionnaire_json(questionnaire_id):
