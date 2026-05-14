@@ -3,7 +3,15 @@ services:
     build:
       context: ../backend
       dockerfile: ../infra/docker/backend.Dockerfile
-    command: sh -c "python manage.py check --deploy && python manage.py runserver 0.0.0.0:8000"
+    command: >
+      sh -c "python manage.py check --deploy &&
+      exec gunicorn drt_core.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 3
+      --worker-tmp-dir /dev/shm
+      --timeout 120
+      --access-logfile -
+      --error-logfile -"
     env_file:
       - ../.env.production
     environment:
