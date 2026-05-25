@@ -6,32 +6,34 @@ COPY package.json package-lock.json ./
 RUN npm install --legacy-peer-deps --no-cache
 RUN npm install -g npm@latest
 
-
-# Install Git before the build step
+# Required for some Next.js build steps
 RUN apk add --no-cache git
 
-
-# 5. Copy the entire project (excluding files in .dockerignore)
 COPY . .
-
 
 RUN npm run build
 
-# RUN npm prune --production #(deprecated)
 RUN npm install --omit=dev --legacy-peer-deps
 
-
-# 8. Use a lightweight Node.js image for the final stage
 FROM node:20-alpine AS runner
 
 WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 --ingroup nodejs nextjs
 
 COPY --from=builder /app/package.json /app/package-lock.json /app/
 COPY --from=builder /app/.next /app/.next
 COPY --from=builder /app/public /app/public
 COPY --from=builder /app/node_modules /app/node_modules
 
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
 EXPOSE 3000
 
 CMD ["npm", "start"]
-

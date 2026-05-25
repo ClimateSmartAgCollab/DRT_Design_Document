@@ -3,6 +3,8 @@ services:
     build:
       context: ../backend
       dockerfile: ../infra/docker/backend.Dockerfile
+    security_opt:
+      - no-new-privileges:true
     command: >
       sh -c "python manage.py check --deploy &&
       exec gunicorn drt_core.wsgi:application
@@ -30,6 +32,8 @@ services:
     build:
       context: ../backend
       dockerfile: ../infra/docker/backend.Dockerfile
+    security_opt:
+      - no-new-privileges:true
     command: celery -A drt_core worker --loglevel=info --concurrency=3
     env_file:
       - ../.env.production
@@ -44,6 +48,8 @@ services:
     build:
       context: ../backend
       dockerfile: ../infra/docker/backend.Dockerfile
+    security_opt:
+      - no-new-privileges:true
     command: celery -A drt_core beat --loglevel=info
     env_file:
       - ../.env.production
@@ -66,9 +72,18 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+      - /app/.next/cache:rw,noexec,nosuid,size=256m
+    mem_limit: 512m
 
   nginx:
     image: nginx:stable-alpine
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - backend
       - frontend

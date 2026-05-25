@@ -11,7 +11,8 @@ WorkingDirectory=/home/azureuser/DRT_Design_Document/infra
 # Run as a user in the docker group (not root); change User= to your deploy user.
 User=azureuser
 Group=azureuser
-ExecStart=/usr/bin/docker-compose -f docker-compose.prod.yml --env-file ../.env.production up -d --build
+# Use up -d only on boot; run --build manually when deploying code changes.
+ExecStart=/usr/bin/docker-compose -f docker-compose.prod.yml --env-file ../.env.production up -d
 # Use `stop` (not `down`) so volumes/networks are not removed on service stop.
 ExecStop=/usr/bin/docker-compose -f docker-compose.prod.yml --env-file ../.env.production stop -t 60
 TimeoutStartSec=0
