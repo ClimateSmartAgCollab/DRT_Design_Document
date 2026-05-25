@@ -1,7 +1,3 @@
-# Example systemd unit: start production Docker Compose after boot.
-# 2. sudo cp this file to /etc/systemd/system/drt-docker-compose.service
-# 3. sudo systemctl daemon-reload && sudo systemctl enable --now drt-docker-compose.service
-
 [Unit]
 Description=DRT production stack (Docker Compose)
 Requires=docker.service
