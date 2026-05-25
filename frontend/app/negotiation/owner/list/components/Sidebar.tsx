@@ -66,7 +66,7 @@ export function Sidebar({
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Negotiation or Conversation ID…"
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(70,160,35)]"
         />
       </div>
 
@@ -76,7 +76,7 @@ export function Sidebar({
         <select
           value={archivedFilter}
           onChange={(e) => onArchivedChange(e.target.value as ArchivedFilter)}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(70,160,35)]"
         >
           <option className="font-sans text-sm" value="all">
             All records
@@ -99,7 +99,7 @@ export function Sidebar({
               type="checkbox"
               checked={statusFilter.includes(status)}
               onChange={() => onToggleStatus(status)}
-              className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400"
+              className="mr-2 h-4 w-4 rounded border-gray-300 text-[rgb(70,160,35)] focus:ring-[rgb(70,160,35)]"
             />
             <span className={`text-gray-800`}>
               {STATUS_DISPLAY_NAMES[status]}
@@ -117,7 +117,7 @@ export function Sidebar({
             type="date"
             value={startDate}
             onChange={(e) => onDateChange("start", e.target.value)}
-            className="mt-1 block w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="mt-1 block w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(70,160,35)]"
           />
         </label>
         <label className="block text-sm text-gray-700">
@@ -126,7 +126,7 @@ export function Sidebar({
             type="date"
             value={endDate}
             onChange={(e) => onDateChange("end", e.target.value)}
-            className="mt-1 block w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="mt-1 block w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(70,160,35)]"
           />
         </label>
       </div>
@@ -138,7 +138,7 @@ export function Sidebar({
           value={sortOption}
           onChange={(e) => onSortChange(e.target.value as SortOption)}
           className="w-full rounded border border-gray-300 px-3 py-2
-           text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+           text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(70,160,35)]"
         >
           <option className="font-sans text-sm" value="created_desc">
             Newest

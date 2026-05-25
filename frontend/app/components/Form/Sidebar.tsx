@@ -1,38 +1,63 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
+import { motion } from "framer-motion";
 import { ParsedStep } from "./types";
-import { NavigationItem } from "./NavigationItem";
 import { useTheme } from "./hooks/useTheme";
 import styles from "./Form.module.css";
-import { StepIndexResolver } from "./domain/sidebar";
+import {
+  StepIndexResolver,
+  buildFlatSidebarPages,
+  type FlatSidebarPage,
+} from "./domain/sidebar";
+
+const INDENT_PX_PER_LEVEL = 16;
 
 interface SidebarProps {
   parsedSteps: ParsedStep[];
-  visitedSteps: Set<string>;
   currentStep: ParsedStep;
   pageIndexByStep: Record<string, number>;
   onNavigate: (stepIndex: number, pageIndex?: number) => void;
   language: string;
-  expandedStep: string | null;
-  setExpandedStep: (s: string | null) => void;
+  openChildStepIds: Map<string, string>;
 }
 
 export default function Sidebar({
   parsedSteps,
-  visitedSteps,
   currentStep,
   pageIndexByStep,
   onNavigate,
   language,
-  expandedStep,
-  setExpandedStep,
+  openChildStepIds,
 }: SidebarProps) {
   const theme = useTheme();
 
-  // Auto-expand the current step and collapse others when currentStep changes
-  React.useEffect(() => {
-    setExpandedStep(currentStep.id);
-  }, [currentStep.id, setExpandedStep]);
+  const flatPages: FlatSidebarPage[] = useMemo(
+    () => buildFlatSidebarPages(parsedSteps, openChildStepIds),
+    [parsedSteps, openChildStepIds]
+  );
+
+  if (!parsedSteps.length) return null;
+
+  const rootStep = parsedSteps[0];
+  const title =
+    rootStep.title?.[language] ??
+    rootStep.title?.["eng"] ??
+    rootStep.names?.[language] ??
+    rootStep.names?.["eng"] ??
+    "Questionnaire";
+
+  const activeStepIndex = StepIndexResolver.get(parsedSteps, currentStep.id);
+  const activePageIndex = pageIndexByStep[currentStep.id] ?? 0;
+
+  const resolveLabel = (p: FlatSidebarPage): string => {
+    return (
+      p.sidebarLabel?.[language] ??
+      p.sidebarLabel?.["eng"] ??
+      p.pageLabel?.[language] ??
+      p.pageLabel?.["eng"] ??
+      p.pageKey
+    );
+  };
 
   return (
     <nav
@@ -45,33 +70,50 @@ export default function Sidebar({
     >
       <h2
         className="mb-4 text-xl font-semibold"
-        style={{ color: theme.colors.primary, fontFamily: theme.fonts.heading }}
+        style={{
+          color: theme.colors.primary,
+          fontFamily: theme.fonts.heading,
+        }}
       >
-        Pages / Steps
+        {title}
       </h2>
-      <ul className="space-y-4">
-        {parsedSteps
-          .filter((s) => visitedSteps.has(s.id) || s.id === parsedSteps[0].id)
-          .map((stepNode) => {
-            const nodeStepIndex = StepIndexResolver.get(
-              parsedSteps,
-              stepNode.id
-            );
-            const nodeCurrentPageIndex = pageIndexByStep[stepNode.id] ?? 0;
-            return (
-              <NavigationItem
-                key={stepNode.id}
-                step={stepNode}
-                currentStep={nodeStepIndex}
-                currentPageIndex={nodeCurrentPageIndex}
-                onNavigate={onNavigate}
-                language={language}
-                getIndex={(id) => StepIndexResolver.get(parsedSteps, id)}
-                expandedStep={expandedStep}
-                setExpandedStep={setExpandedStep}
-              />
-            );
-          })}
+      <ul className="space-y-1">
+        {flatPages.map((p) => {
+          const isActive =
+            p.stepIndex === activeStepIndex && p.pageIndex === activePageIndex;
+          const buttonStyle = isActive
+            ? {
+                backgroundColor: theme.colors.primary,
+                color: theme.colors.white,
+                fontFamily: theme.fonts.body,
+                fontWeight: 500 as const,
+              }
+            : {
+                backgroundColor: theme.colors.white,
+                color: theme.colors.text,
+                fontFamily: theme.fonts.body,
+                fontWeight: 500 as const,
+              };
+
+          return (
+            <motion.li
+              key={`${p.stepId}::${p.pageKey}`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              style={{ marginLeft: `${p.depth * INDENT_PX_PER_LEVEL}px` }}
+            >
+              <button
+                type="button"
+                onClick={() => onNavigate(p.stepIndex, p.pageIndex)}
+                className="w-full rounded px-4 py-2 text-left text-sm transition-all"
+                style={buttonStyle}
+                aria-current={isActive ? "page" : undefined}
+              >
+                {resolveLabel(p)}
+              </button>
+            </motion.li>
+          );
+        })}
       </ul>
     </nav>
   );

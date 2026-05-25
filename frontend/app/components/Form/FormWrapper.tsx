@@ -92,7 +92,6 @@ export default function FormWrapper({
     setLanguage,
     formData,
     setFormData,
-    visitedSteps,
     parentSteps,
     onNavigate,
     finishHandler,
@@ -101,8 +100,7 @@ export default function FormWrapper({
     currentChildId,
     currentChildParentId,
     pageIndexByStep,
-    expandedStep,
-    setExpandedStep,
+    openChildStepIds,
     handleNavigate,
     handleNextPage,
     handlePreviousPage,
@@ -292,7 +290,7 @@ export default function FormWrapper({
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-4 py-2 bg-[rgb(70,160,35)] text-white rounded hover:bg-[rgb(55,125,28)]"
           >
             Reload Page
           </button>
@@ -597,13 +595,11 @@ export default function FormWrapper({
 
         <Sidebar
           parsedSteps={parsedSteps}
-          visitedSteps={visitedSteps}
           currentStep={step}
           pageIndexByStep={pageIndexByStep}
           onNavigate={handleNavigate}
           language={language}
-          expandedStep={expandedStep}
-          setExpandedStep={setExpandedStep}
+          openChildStepIds={openChildStepIds}
         />
         <div className={styles.footer}>
           <Footer />

@@ -1,12 +1,17 @@
 # project-specific
+# Real env files (never commit). Templates with the ".example" suffix are committed.
 .env
-.env.staging
+.env.production
+!.env.example
+!.env.production.example
 .cursor/
 pgdata/
 drt_landing_page/
 backend/static/admin/
 backend/static/rest_framework/
 backend/static/debug_toolbar/
+# collectstatic output (STATIC_ROOT under drt_core when using local defaults)
+backend/drt_core/staticfiles/
 .vscode/
 
 # Byte-compiled / optimized / DLL files

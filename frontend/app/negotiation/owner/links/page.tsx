@@ -242,7 +242,7 @@ export default function OwnerLinks() {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 text-center py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                        className="flex-1 text-center py-2 bg-[rgb(70,160,35)] text-white rounded-lg hover:bg-[rgb(55,125,28)] transition"
                       >
                         Visit
                       </a>

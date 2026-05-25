@@ -44,11 +44,65 @@ export function useDynamicForm(parsedSteps: Step[] = []) {
   }, [formData]);
 
   const [currentChildId, setCurrentChildId] = useState<string | null>(null);
-  const [expandedStep, setExpandedStep] = useState<string | null>(
-    parsedSteps[0]?.id || null
-  );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isNewChild, setIsNewChild] = useState(false);
+
+
+  const [openChildStepIds, setOpenChildStepIds] = useState<Map<string, string>>(
+    () => new Map()
+  );
+
+  useEffect(() => {
+    if (!currentChildId || !currentChildParentId) return;
+    const stepObj = parsedSteps[currentStep];
+    if (!stepObj || !stepObj.parent) return;
+
+    const parentStep = parsedSteps.find((s) => s.id === stepObj.parent);
+    const parentPageKey =
+      parentStep?.pages.find((p) =>
+        p.sections.some((sec) =>
+          sec.fields.some(
+            (f: any) =>
+              f?.id === currentChildParentId &&
+              f?.type === "reference" &&
+              f?.ref === stepObj.id
+          )
+        )
+      )?.pageKey ?? "";
+
+    setOpenChildStepIds((prev) => {
+      if (prev.get(stepObj.id) === parentPageKey) return prev;
+      const next = new Map(prev);
+      next.set(stepObj.id, parentPageKey);
+      return next;
+    });
+  }, [currentChildId, currentChildParentId, currentStep, parsedSteps]);
+
+  const removeChildStepWithDescendants = useCallback(
+    (stepId: string) => {
+      const stepsById = new Map(parsedSteps.map((s) => [s.id, s]));
+      const isDescendantOf = (
+        candidateId: string,
+        ancestorId: string
+      ): boolean => {
+        let cur = stepsById.get(candidateId);
+        while (cur?.parent) {
+          if (cur.parent === ancestorId) return true;
+          cur = stepsById.get(cur.parent);
+        }
+        return false;
+      };
+      setOpenChildStepIds((prev) => {
+        const next = new Map(prev);
+        next.delete(stepId);
+        parsedSteps.forEach((s) => {
+          if (isDescendantOf(s.id, stepId)) next.delete(s.id);
+        });
+        return next.size === prev.size ? prev : next;
+      });
+    },
+    [parsedSteps]
+  );
 
   const {
     createNewChild,
@@ -195,7 +249,8 @@ export function useDynamicForm(parsedSteps: Step[] = []) {
     currentChildId,
     currentChildParentId,
     deleteChild,
-    isNewChild
+    isNewChild,
+    removeChildStepWithDescendants
   );
 
   const {
@@ -364,8 +419,7 @@ export function useDynamicForm(parsedSteps: Step[] = []) {
     currentChildParentId,
     createNewChild,
     pageIndexByStep,
-    expandedStep,
-    setExpandedStep,
+    openChildStepIds,
     handleNavigate,
     handleNextPage,
     handlePreviousPage,

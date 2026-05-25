@@ -5,9 +5,14 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
                     req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint,
-                    regenerate_license_view, negotiation_history_view, requestor_logout, owner_logout,
+                    regenerate_license_view, negotiation_history_view, negotiation_history_view_req,
+                    requestor_logout, owner_logout,
                     reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view
                     )
+from .views.admin import (
+    admin_email_entry, verify_admin_magic_link, admin_whoami, admin_logout,
+    admin_dashboard_stats, admin_health_check
+)
 
 urlpatterns = [
     # Test endpoint
@@ -66,6 +71,10 @@ urlpatterns = [
          name='negotiation_list_api_req'
          ),
 
+    path('req_negotiations/<uuid:negotiation_id>/history/',
+         negotiation_history_view_req,
+         name='req_negotiation_history'),  # Requestor-side negotiation history
+
     # owner
     path('verify/owner-email/',
          owner_email_entry,
@@ -82,6 +91,31 @@ urlpatterns = [
     path("owner/logout/",
          owner_logout,
          name="owner-logout"),
+
+    # admin
+    path('admin/send-magic-link/',
+         admin_email_entry,
+         name='admin_email_entry'),
+
+    path('admin/verify-magic-link/',
+         verify_admin_magic_link,
+         name='verify_admin_magic_link'),
+
+    path("admin/whoami/",
+         admin_whoami,
+         name="admin-whoami"),
+
+    path("admin/logout/",
+         admin_logout,
+         name="admin-logout"),
+
+    path("admin/dashboard/stats/",
+         admin_dashboard_stats,
+         name="admin-dashboard-stats"),
+
+    path("admin/health/",
+         admin_health_check,
+         name="admin-health-check"),
 
     path('owner_review/<str:link_id>/',
          owner_review,

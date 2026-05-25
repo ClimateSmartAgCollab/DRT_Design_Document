@@ -10,9 +10,12 @@ export type StepLike = {
   }>;
 };
 
-export type StepWithChildren<T extends StepLike = StepLike> = T & {
-  children?: T[];
-};
+export type StepPageLike = StepLike["pages"][number];
+
+function isReferenceField(f: unknown): f is { type: "reference"; ref: string } {
+  const field = f as { type?: string; ref?: string } | null | undefined;
+  return !!field && field.type === "reference" && typeof field.ref === "string";
+}
 
 export class StepTreeBuilder<T extends StepLike = StepLike> {
   private readonly stepById: Map<string, T>;
@@ -29,7 +32,7 @@ export class StepTreeBuilder<T extends StepLike = StepLike> {
       s.pages?.forEach((p) =>
         p.sections?.forEach((sec) =>
           sec.fields?.forEach((f) => {
-            if (f?.type === "reference" && typeof f.ref === "string") {
+            if (isReferenceField(f)) {
               ids.add(f.ref);
             }
           })
@@ -37,31 +40,6 @@ export class StepTreeBuilder<T extends StepLike = StepLike> {
       )
     );
     return ids;
-  }
-
-  /** Build parent→children tree by materializing `children` arrays immutably */
-  buildTree(): StepWithChildren<T>[] {
-    const cloned: Record<string, StepWithChildren<T>> = {};
-    this.steps.forEach((s) => (cloned[s.id] = { ...(s as any), children: [] }));
-
-    this.steps.forEach((s) =>
-      s.pages.forEach((p) =>
-        p.sections.forEach((sec) =>
-          sec.fields.forEach((f) => {
-            if (f?.type === "reference" && f.ref && cloned[f.ref]) {
-              cloned[s.id].children!.push(cloned[f.ref] as T);
-            }
-          })
-        )
-      )
-    );
-
-    // Roots = not referenced by any other step
-    const roots = this.steps
-      .filter((s) => !this.referenced.has(s.id))
-      .map((s) => cloned[s.id]);
-
-    return roots;
   }
 
   /** True if a step is NOT referenced by any other step (i.e., a root/parent step) */
@@ -78,8 +56,33 @@ export class StepTreeBuilder<T extends StepLike = StepLike> {
   getReferencingStep(childId: string): T | undefined {
     return this.steps.find((s) =>
       s.pages.some((p) =>
-        p.sections.some((sec) => sec.fields.some((f) => f.ref === childId))
+        p.sections.some((sec) =>
+          sec.fields.some((f) => isReferenceField(f) && f.ref === childId)
+        )
       )
     );
+  }
+
+  /** Look up a step by id. */
+  getStep(id: string): T | undefined {
+    return this.stepById.get(id);
+  }
+
+  /**
+   * Used by the sidebar to nest child schemas
+   * directly under the page that opens them.
+   */
+  getChildRefsOnPage(page: StepPageLike): string[] {
+    const refs: string[] = [];
+    const seen = new Set<string>();
+    page.sections?.forEach((sec) =>
+      sec.fields?.forEach((f) => {
+        if (isReferenceField(f) && !seen.has(f.ref)) {
+          seen.add(f.ref);
+          refs.push(f.ref);
+        }
+      })
+    );
+    return refs;
   }
 }

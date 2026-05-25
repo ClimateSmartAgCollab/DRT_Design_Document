@@ -1,5 +1,5 @@
 // drt_frontend\app\negotiation\(requestor)\list\components\NegotiationItem.tsx
-import React from "react";
+import React, { useState } from "react";
 import type { Negotiation } from "../types";
 import { STATUS_DISPLAY_NAMES } from "../types";
 import {
@@ -21,8 +21,24 @@ export function NegotiationItem({
   onToggleSelect,
   onReload,
 }: NegotiationItemProps) {
+  const [copied, setCopied] = useState(false);
   const canAbandon = !n.archived && ["requestor_open", "owner_open"].includes(n.state);
-  
+
+  const displayTitle = n.visible_label || n.record_label || n.negotiation_id;
+  const displaySubtext = new Date(n.timestamps).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(n.negotiation_id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   const abandonMutation = useMutation({
     mutationFn: () => abandonNegotiation(n.negotiation_id),
     onSuccess: () => {
@@ -53,24 +69,41 @@ export function NegotiationItem({
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect(n.negotiation_id)}
-            className="mr-4 h-4 w-4 text-blue-600"
+            className="mr-4 h-4 w-4 text-[rgb(70,160,35)]"
             onClick={(e) => e.stopPropagation()}
           />
           <div className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (n.requestor_link) {
-                  window.open(`/negotiation/history/${n.requestor_link}`, '_blank');
-                } else {
-                  alert('History not available for this negotiation');
-                }
-              }}
-              className="font-semibold text-blue-600 hover:text-blue-800 underline cursor-pointer"
-              title="View negotiation history"
-            >
-              ID: {n.negotiation_id}
-            </button>
+            <div className="flex flex-col">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (n.requestor_link) {
+                    window.open(`/negotiation/history/${n.requestor_link}`, '_blank');
+                  } else {
+                    alert('History not available for this negotiation');
+                  }
+                }}
+                className="font-semibold text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline cursor-pointer text-left"
+                title="View negotiation history"
+              >
+                <span className="block">{displayTitle}</span>
+                <span className="block text-sm font-normal text-gray-500 mt-0.5">
+                  {displaySubtext}
+                </span>
+              </button>
+              <div className="flex items-center gap-1.5 mt-0.5 self-start">
+                <span className="text-xs text-gray-600 font-mono">
+                  <span className="font-medium text-gray-700">Negotiation ID:</span> {n.negotiation_id}
+                </span>
+                <button
+                  onClick={handleCopyId}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                  title="Copy ID"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
             <span className="text-gray-600">State: {STATUS_DISPLAY_NAMES[n.state as keyof typeof STATUS_DISPLAY_NAMES] || n.state}</span>
             <span className="text-gray-600">
               Created: {new Date(n.timestamps).toLocaleDateString()}
@@ -78,7 +111,7 @@ export function NegotiationItem({
             {n.state === "requestor_open" && n.requestor_link && (
               <Link
                 href={`/negotiation/${n.requestor_link}/fill-questionnaire`}
-                className="ml-4 text-blue-600 underline hover:text-blue-800"
+                className="ml-4 text-[rgb(70,160,35)] underline hover:text-[rgb(55,125,28)]"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -98,7 +131,7 @@ export function NegotiationItem({
                 }
               }}
               disabled={abandonMutation.isPending}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-[rgb(70,160,35)] text-white rounded-lg hover:bg-[rgb(55,125,28)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {abandonMutation.isPending ? "Canceling..." : "Cancel Request"}
             </button>

@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useNegotiations } from "./hooks/useNegotiations";
 import { useFilterState } from "./hooks/useFilterState";
-import { Status } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { BulkActionBar } from "./components/BulkActionBar";
 import { NegotiationItem } from "./components/NegotiationItem";
@@ -19,7 +18,7 @@ export default function OwnerNegotiationListContent() {
   const router = useRouter();
   const qc = useQueryClient();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { data: negs, error, isLoading, reload } = useNegotiations();
+  const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectedTag, setSelectedTag] = useState<string[]>([]);
   const [selectedRecordLabel, setSelectedRecordLabel] = useState<string[]>([]);
@@ -34,6 +33,22 @@ export default function OwnerNegotiationListContent() {
     setSortOption,
     resetFilters,
   } = useFilterState();
+
+  // Build filters object for API call
+  const apiFilters = useMemo(() => ({
+    page: currentPage,
+    pageSize: 10,
+    status: filters.statusFilter.length > 0 ? filters.statusFilter : undefined,
+    archived: filters.archivedFilter !== "all" ? filters.archivedFilter : undefined,
+    startDate: filters.startDate || undefined,
+    endDate: filters.endDate || undefined,
+    tags: selectedTag.length > 0 ? selectedTag : undefined,
+    recordLabel: selectedRecordLabel.length > 0 ? selectedRecordLabel : undefined,
+    search: filters.searchTerm || undefined,
+    sort: filters.sortOption !== "created_desc" ? filters.sortOption : undefined,
+  }), [currentPage, filters, selectedTag, selectedRecordLabel]);
+
+  const { data: negs, error, isLoading, reload, total, totalPages, page } = useNegotiations(apiFilters);
 
   const tagOptions = useMemo(() => {
     const tags = new Set<string>();
@@ -117,58 +132,7 @@ export default function OwnerNegotiationListContent() {
     }
   };
 
-  const filtered = useMemo(() => {
-    return negs.filter((n) => {
-      const created = new Date(n.timestamps);
-      const txt = filters.searchTerm.trim().toLowerCase();
-      const matchesSearch =
-        !txt ||
-        n.negotiation_id.toLowerCase().includes(txt) ||
-        n.conversation_id.toLowerCase().includes(txt);
-      const matchesStatus =
-        filters.statusFilter.length === 0 || filters.statusFilter.includes(n.state as Status);
-      const matchesArchived =
-        filters.archivedFilter === "all" ||
-        (filters.archivedFilter === "archived" && n.archived) ||
-        (filters.archivedFilter === "active" && !n.archived);
-      const afterStart = !filters.startDate || created >= new Date(filters.startDate);
-      const beforeEnd = !filters.endDate || created <= new Date(filters.endDate);
-      const matchesTag = selectedTag.length === 0 || (Array.isArray(n.tags) ? n.tags.some(t => t && selectedTag.includes(t)) : (n.tags && selectedTag.includes(n.tags)));
-      const matchesRecordLabel = selectedRecordLabel.length === 0 || (n.record_label && selectedRecordLabel.includes(n.record_label));
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesArchived &&
-        afterStart &&
-        beforeEnd &&
-        matchesTag &&
-        matchesRecordLabel
-      );
-    });
-  }, [negs, filters.searchTerm, filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, selectedTag, selectedRecordLabel]);
-
-  const sorted = useMemo(() => {
-    const arr = [...filtered];
-    arr.sort((a, b) => {
-      switch (filters.sortOption) {
-        case "created_asc":
-          return (
-            new Date(a.timestamps).getTime() - new Date(b.timestamps).getTime()
-          );
-        case "created_desc":
-          return (
-            new Date(b.timestamps).getTime() - new Date(a.timestamps).getTime()
-          );
-        case "status_asc":
-          return a.state.localeCompare(b.state);
-        case "status_desc":
-          return b.state.localeCompare(a.state);
-        default:
-          return 0;
-      }
-    });
-    return arr;
-  }, [filtered, filters.sortOption]);
+  const displayedNegs = negs;
 
   // const hasOld = negs.some(
   //   (n) =>
@@ -191,10 +155,17 @@ export default function OwnerNegotiationListContent() {
     }
   }, [whoamiQuery.isError, router]);
 
-  // Refresh page data when component mounts to ensure latest data
+  // Reset to page 1 when filters change
   useEffect(() => {
-    reload();
-  }, [reload]);
+    setCurrentPage(1);
+  }, [filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, filters.searchTerm, filters.sortOption, selectedTag, selectedRecordLabel]);
+
+  // Sync currentPage with API response page
+  useEffect(() => {
+    if (page && page !== currentPage) {
+      setCurrentPage(page);
+    }
+  }, [page, currentPage]);
 
   return (
     <Providers>
@@ -241,7 +212,7 @@ export default function OwnerNegotiationListContent() {
             <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
               {isLoading && (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(70,160,35)]"></div>
                   <span className="ml-3 text-gray-600">Loading negotiations...</span>
                 </div>
               )}
@@ -257,7 +228,7 @@ export default function OwnerNegotiationListContent() {
                 </div>
               )}
 
-              {!isLoading && !error && sorted.length === 0 && (
+              {!isLoading && !error && displayedNegs.length === 0 && (
                 <div className="text-center py-8">
                   <p className="text-gray-500">No negotiations found.</p>
                 </div>
@@ -269,17 +240,46 @@ export default function OwnerNegotiationListContent() {
                 isDeleting={isBulkDeleting}
               />
 
-              <ul className="space-y-4">
-                {sorted.map((n) => (
-                  <NegotiationItem
-                    key={n.negotiation_id}
-                    negotiation={n}
-                    isSelected={selected.has(n.negotiation_id)}
-                    onToggleSelect={handleToggleSelect}
-                    onReload={reload}
-                  />
-                ))}
-              </ul>
+              {!isLoading && !error && displayedNegs.length > 0 && (
+                <>
+                  <ul className="space-y-4">
+                    {displayedNegs.map((n) => (
+                      <NegotiationItem
+                        key={n.negotiation_id}
+                        negotiation={n}
+                        isSelected={selected.has(n.negotiation_id)}
+                        onToggleSelect={handleToggleSelect}
+                        onReload={reload}
+                      />
+                    ))}
+                  </ul>
+                  
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+                      <div className="text-sm text-gray-700">
+                        Showing page {currentPage} of {totalPages} ({total} total negotiations)
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1 || isLoading}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage >= totalPages || isLoading}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </main>
           </div>
         </div>

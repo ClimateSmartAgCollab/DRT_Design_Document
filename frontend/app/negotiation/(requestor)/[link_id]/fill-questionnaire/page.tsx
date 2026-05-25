@@ -238,7 +238,7 @@ export default function FillQuestionnairePage() {
                     }
                     router.push(`/negotiation/history/${linkId}?from=questionnaire`);
                   }}
-                  className="ml-3 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="ml-3 px-4 py-2 bg-[rgb(70,160,35)] text-white rounded hover:bg-[rgb(55,125,28)] disabled:opacity-50"
                   disabled={!linkId}
                 >
                   View History

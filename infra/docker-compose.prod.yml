@@ -1,0 +1,129 @@
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../infra/docker/backend.Dockerfile
+    security_opt:
+      - no-new-privileges:true
+    command: >
+      sh -c "python manage.py check --deploy &&
+      exec gunicorn drt_core.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 3
+      --worker-tmp-dir /dev/shm
+      --timeout 120
+      --access-logfile -
+      --error-logfile -"
+    env_file:
+      - ../.env.production
+    environment:
+      DJANGO_SETTINGS_MODULE: drt_core.settings.production
+      DJANGO_MANAGE_MIGRATE: "on"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+    expose:
+      - "8000"
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  celery_worker:
+    build:
+      context: ../backend
+      dockerfile: ../infra/docker/backend.Dockerfile
+    security_opt:
+      - no-new-privileges:true
+    command: celery -A drt_core worker --loglevel=info --concurrency=3
+    env_file:
+      - ../.env.production
+    environment:
+      DJANGO_SETTINGS_MODULE: drt_core.settings.production
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  celery_beat:
+    build:
+      context: ../backend
+      dockerfile: ../infra/docker/backend.Dockerfile
+    security_opt:
+      - no-new-privileges:true
+    command: celery -A drt_core beat --loglevel=info
+    env_file:
+      - ../.env.production
+    environment:
+      DJANGO_SETTINGS_MODULE: drt_core.settings.production
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../frontend/frontend.Dockerfile
+    command: npm start
+    env_file:
+      - ../.env.production
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+      - /app/.next/cache:rw,noexec,nosuid,size=256m
+    mem_limit: 512m
+
+  nginx:
+    image: nginx:stable-alpine
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /usr/local/nginx/conf:/etc/nginx/conf.d:ro
+      - /usr/local/nginx/snippets:/etc/nginx/snippets:ro
+      - /usr/local/nginx/certbot:/var/www/certbot
+      - /etc/letsencrypt:/etc/letsencrypt
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /usr/local/nginx/certbot:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB (e.g. docker compose --env-file ../.env.production)}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - prod_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - prod_redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  prod_db_data:
+  prod_redis_data:

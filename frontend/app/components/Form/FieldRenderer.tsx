@@ -659,7 +659,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
             +{" "}
             {field.reference_button_text?.[language] ||
               field.reference_button_text?.eng ||
-              "+ Child Step"}
+              "Child Step"}
           </button>
 
           {children.length > 0 && (
@@ -706,7 +706,7 @@ export default function FieldRenderer(props: FieldRendererProps) {
                           <button
                             type="button"
                             onClick={() => controller.editExisting(field, child)}
-                            className="mt-2 rounded bg-blue-500 px-3 py-1 text-white hover:bg-blue-600"
+                            className="mt-2 rounded bg-[rgb(70,160,35)] px-3 py-1 text-white hover:bg-[rgb(55,125,28)]"
                           >
                             Edit
                           </button>
@@ -1028,7 +1028,7 @@ if (field.type === "Binary") {
           )}
           <span className="text-base">{icon} File upload area</span>
           <div className="text-xs text-gray-500 mt-2">Click or drag file to upload</div>
-      {hint && <div className="text-xs mt-1 font-semibold" style={{ color: '#94002a' }}>Accepts: {hint}</div>}
+      {hint && <div className="text-xs mt-1 font-semibold" style={{ color: 'rgb(70, 160, 35)' }}>Accepts: {hint}</div>}
     </Box>
 );
 }
@@ -1080,7 +1080,7 @@ if (field.type === "Array[Binary]") {
           >
             <span className="text-base">{icon} File upload area</span>
             <div className="text-xs text-gray-500 mt-2">Multiple files - Click or drag to upload</div>
-      {hint && <div className="text-xs mt-1 font-semibold" style={{ color: '#94002a' }}>Accepts: {hint}</div>}
+      {hint && <div className="text-xs mt-1 font-semibold" style={{ color: 'rgb(70, 160, 35)' }}>Accepts: {hint}</div>}
     </Box>
   </Box>
 );

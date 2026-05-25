@@ -53,8 +53,7 @@ export interface UseDynamicFormReturn {
   ) => void;
 
   pageIndexByStep: Record<string, number>;
-  expandedStep: string | null;
-  setExpandedStep: (s: string | null) => void;
+  openChildStepIds: Map<string, string>;
 
   handleNavigate: (stepIndex: number) => void;
   handleNextPage: () => void;

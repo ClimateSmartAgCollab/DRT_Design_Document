@@ -212,6 +212,11 @@ FRONTEND_BASE_URL=http://127.0.0.1:3000  # Change for production
 
 # Django Management
 DJANGO_MANAGE_MIGRATE=on
+
+# Admin Configuration
+# Comma-separated list of admin email addresses
+ADMIN_EMAILS=admin1@example.com,admin2@example.com
+ADMIN_ENABLED=true
 ```
 
 ### 3.2 Generate Django Secret Key
@@ -246,6 +251,10 @@ For Django admin access:
 ```bash
 python manage.py createsuperuser
 ```
+
+**Note**: Django admin is accessible at `/django-admin/` (not `/admin/`) to avoid conflicts with Next.js admin routes. After creating a superuser, access Django admin at:
+- Local: `http://127.0.0.1:8000/django-admin/`
+- Production: `https://yourdomain.com/django-admin/`
 
 ---
 
@@ -424,7 +433,8 @@ Edit email templates in `backend/drt/templates/`:
 2. **Access services**:
    - Backend API: http://127.0.0.1:8000
    - Frontend: http://127.0.0.1:3000
-   - Django Admin: http://127.0.0.1:8000/admin
+   - Django Admin: http://127.0.0.1:8000/django-admin (Note: Changed from `/admin/` to avoid conflict with Next.js admin routes)
+   - Next.js Admin: http://127.0.0.1:3000/admin/email-entry
 
 3. **View logs**:
    ```bash

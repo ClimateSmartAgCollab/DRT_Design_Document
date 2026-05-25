@@ -8,10 +8,10 @@ export function PermissionInfo({ isAuthenticated }: PermissionInfoProps) {
   if (isAuthenticated !== false) return null;
 
   return (
-    <div className="bg-blue-50 border-blue-200">
+    <div className="bg-[rgba(180,230,160,0.2)] border-[rgb(55,125,28)]">
       <div className="flex items-start">
         <svg
-          className="h-5 w-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0"
+          className="h-5 w-5 text-[rgb(70,160,35)] mt-0.5 mr-2 flex-shrink-0"
           fill="currentColor"
           viewBox="0 0 20 20"
         >
@@ -22,10 +22,10 @@ export function PermissionInfo({ isAuthenticated }: PermissionInfoProps) {
           />
         </svg>
         <div>
-          <h3 className="text-sm font-medium text-blue-800">
+          <h3 className="text-sm font-medium text-[rgb(55,125,28)]">
             Permission Information
           </h3>
-          <p className="text-sm mt-1 text-blue-700">
+          <p className="text-sm mt-1 text-[rgb(55,125,28)]">
             Anyone with this link can view and save comments. Actions that
             change the negotiation status (accept, reject, request
             clarification) require email verification.

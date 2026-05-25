@@ -11,6 +11,8 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
+# DJANGO_SETTINGS_MODULE is read from the environment; "local" is only the dev fallback.
+# Production deployments must set DJANGO_SETTINGS_MODULE=drt_core.settings.production.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "drt_core.settings.local")
 
 application = get_wsgi_application()

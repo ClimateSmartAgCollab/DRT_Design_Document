@@ -60,7 +60,7 @@ export default function NegotiationHeader({ userType, userEmail, isLoading, page
   };
 
   return (
-    <header className="bg-[#216b96] w-full px-4 sm:px-6 pt-1 sm:pt-2 md:pt-3 pb-2 sm:pb-3 md:pb-4 flex items-start justify-between border-b border-[#2382A0] relative">
+    <header className="bg-[rgb(70,160,35)] w-full px-4 sm:px-6 pt-1 sm:pt-2 md:pt-3 pb-2 sm:pb-3 md:pb-4 flex items-start justify-between border-b-[3px] border-[rgb(55,125,28)] relative">
       <div className="container-default section-y w-full">
         <div className="flex items-start justify-between gap-4 min-w-0">
           {/* Left side - Title and Navigation */}
@@ -145,7 +145,7 @@ export default function NegotiationHeader({ userType, userEmail, isLoading, page
                     <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                       <div className="p-4 border-b border-gray-100">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-[#216b96] rounded-full flex items-center justify-center text-white">
+                          <div className="w-10 h-10 bg-[rgb(70,160,35)] rounded-full flex items-center justify-center text-white">
                             <svg 
                               className="w-5 h-5" 
                               fill="none" 
@@ -221,7 +221,7 @@ export default function NegotiationHeader({ userType, userEmail, isLoading, page
                   alt="Logo"
                   width={144}
                   height={144}
-                  className="rounded-full bg-blue-200 object-contain"
+                  className="rounded-full bg-[rgba(180,230,160,0.3)] object-contain"
                 />
               </a>
             </div>

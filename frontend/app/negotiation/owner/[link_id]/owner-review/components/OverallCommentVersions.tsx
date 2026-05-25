@@ -33,7 +33,7 @@ export function OverallCommentVersions({
               <div className="text-xs text-gray-500">
                 {new Date(version.timestamp).toLocaleString()}
                 {version.change_description && (
-                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                  <span className="ml-2 px-2 py-1 bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] rounded text-xs">
                     {version.change_description}
                   </span>
                 )}

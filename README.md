@@ -11,7 +11,7 @@
 - Deploying to production
 - And much more
 
-For information about the general DRT concept, see the [DRT landing page](https://github.com/ClimateSmartAgCollab/DRT_ad) or contact us to form a partnership.
+For information about the general DRT concept, see the [DRT landing page](https://github.com/ClimateSmartAgCollab/drt-ad) or contact us to form a partnership.
 
 DRT is an end-to-end platform for managing data access negotiations between requestors and dataset owners. It streamlines how research teams discover questionnaires, submit structured requests, collaborate with owners, negotiate license terms, and archive the final agreements. This repository contains the Data Hub's production implementation, delivered as a full-stack monorepo that contains the production application, infrastructure assets, and supporting documentation.
 
@@ -172,12 +172,14 @@ The core entities live in `backend/drt/models.py`.
 | Variable | Purpose | Location |
 | --- | --- | --- |
 | `DJANGO_SECRET_KEY` | Core Django secret | `backend/.env` |
-| `DATABASE_URL` or (`POSTGRES_*`, `DB_HOST`, `DB_PORT`) | Database connectivity | `backend/.env`, `backend/local.env` |
+| `DATABASE_URL` or (`POSTGRES_*`, `DB_HOST`, `DB_PORT`) | Database connectivity | `backend/.env` |
 | `REDIS_URL` | Celery broker + cache | `backend/.env` |
 | `FRONTEND_BASE_URL` | Used in emails for deep links | `backend/.env` |
 | `GITHUB_API_URL` | GitHub API URL for datastore repository (format: `https://api.github.com/repos/OWNER/REPO/contents`) | `backend/.env` |
 | `GITHUB_TOKEN` | GitHub personal access token for datastore access | `backend/.env` |
 | `EMAIL_*` (`DEFAULT_FROM_EMAIL`, `ETHEREAL_USER`, etc.) | SMTP credentials | `backend/.env` |
+| `ADMIN_EMAILS` | Comma-separated list of admin email addresses for admin access | `backend/.env` |
+| `ADMIN_ENABLED` | Enable/disable admin functionality (`true`/`false`) | `backend/.env` |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend → API endpoint | `frontend/.env.local` |
 
 **Secrets management**

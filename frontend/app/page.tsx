@@ -33,12 +33,14 @@ const content = {
     requestorsBody:
       "A data requestor is requesting access to data. A requestor answers of series of questions posed by a data owner when asking for access to research data.",
     requestorDashboard: "View your requestor dashboard",
+    forAdmins: "For Administrators",
+    adminsBody: "System administrators can access system-wide statistics, health monitoring, and administrative functions. Admin access is restricted to authorized email addresses.",
+    adminDashboard: "View admin dashboard",
     headerTitle: "Semantic Engine",
     headerSubtitle: "Agreements",
     headerHelp: "Helping share your work",
     headerDesc:
       "Describe in custom terms how you want to make your work available",
-    poweredBy: "Powered by",
     supportedBy: "Supported by",
     attentionCard: {
       title: "Attention Testers",
@@ -182,12 +184,14 @@ const content = {
     requestorsBody:
       "Un demandeur de données demande l'accès à des données. Un demandeur répond à une série de questions posées par un propriétaire de données lors de la demande d'accès à des données de recherche.",
     requestorDashboard: "Voir votre tableau de bord demandeur",
+    forAdmins: "Pour les administrateurs",
+    adminsBody: "Les administrateurs système peuvent accéder aux statistiques à l'échelle du système, à la surveillance de la santé et aux fonctions administratives. L'accès administrateur est restreint aux adresses e-mail autorisées.",
+    adminDashboard: "Voir le tableau de bord administrateur",
     headerTitle: "Moteur Sémantique",
     headerSubtitle: "Accords",
     headerHelp: "Aider à partager votre travail",
     headerDesc:
       "Décrivez selon des termes personnalisés comment vous souhaitez rendre votre travail disponible",
-    poweredBy: "Propulsé par",
     supportedBy: "Soutenu par",
     attentionCard: {
       title: "Attention Testeurs",
@@ -346,7 +350,7 @@ export default function HomePage() {
         <div className="max-w-3xl w-full">
           {/* Attention Testers Card */}
 
-          <h1 className="text-[#216b96] font-sans text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4">
+          <h1 className="text-[rgb(70,160,35)] font-sans text-lg sm:text-xl md:text-2xl mb-3 sm:mb-4">
             {t.csdccTitle}
           </h1>
           <p className="text-gray-700 font-serif text-sm sm:text-base mb-3 sm:mb-4">
@@ -373,7 +377,7 @@ export default function HomePage() {
                     href="https://ethereal.email/messages"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline text-blue-700 text-sm sm:text-base"
+                    className="underline text-[rgb(70,160,35)] text-sm sm:text-base"
                   >
                     {t.attentionCard.etherealLabel}
                   </a>
@@ -533,7 +537,7 @@ export default function HomePage() {
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="underline text-blue-700 text-sm sm:text-base"
+                              className="underline text-[rgb(70,160,35)] text-sm sm:text-base"
                             >
                               {link.label}
                             </a>
@@ -574,7 +578,7 @@ export default function HomePage() {
           </div>
 
           {/* Data Owners Card */}
-          <div className="bg-[#C7E6F6] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="bg-[rgba(180,230,160,0.3)] border-2 border-[rgb(55,125,28)] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
             <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
               {t.forOwners}
             </h2>
@@ -583,7 +587,7 @@ export default function HomePage() {
                 {t.ownersBody}
                 <a
                   href="mailto:adc@uoguelph.ca"
-                  className="underline text-[#2382A0]"
+                  className="underline text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)]"
                 >
                   {t.emailUs}
                 </a>
@@ -594,14 +598,14 @@ export default function HomePage() {
                 href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
+                className="block text-center text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.ownerDashboard}
               </a>
             </div>
           </div>
           {/* Data Requestors Card */}
-          <div className="bg-[#C7E6F6] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="bg-[rgba(180,230,160,0.3)] border-2 border-[rgb(55,125,28)] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
             <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
               {t.forRequestors}
             </h2>
@@ -613,9 +617,28 @@ export default function HomePage() {
                 href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-center text-[#2382A0] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
+                className="block text-center text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
               >
                 {t.requestorDashboard}
+              </a>
+            </div>
+          </div>
+          {/* Administrators Card */}
+          <div className="bg-[rgba(180,230,160,0.2)] border-2 border-[rgb(55,125,28)] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="font-sans text-lg sm:text-xl md:text-2xl text-black mb-3 sm:mb-4">
+              {t.forAdmins}
+            </h2>
+            <div className="pl-4 sm:pl-6 md:pl-8">
+              <p className="font-sans text-sm sm:text-base text-gray-800 mb-4">
+                {t.adminsBody}
+              </p>
+              <a
+                href="/admin/email-entry"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
+              >
+                {t.adminDashboard}
               </a>
             </div>
           </div>
@@ -627,23 +650,6 @@ export default function HomePage() {
       <footer className="container-default section-y pt-4 sm:pt-6">
         <div className="grid gap-4 sm:gap-6 md:gap-8 lg:gap-12 [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))] sm:[grid-template-columns:repeat(auto-fit,minmax(160px,1fr))] items-end">
           <div className="flex flex-col items-center gap-3 sm:gap-4 md:gap-6">
-            <span className="text-sm sm:text-base text-black font-sans">
-              {t.poweredBy}
-            </span>
-            <a
-              href="https://agrifooddatacanada.ca/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Image
-                src="/agri-logo.png"
-                alt="Agri-Food Data Logo"
-                width={240}
-                height={86}
-                className="object-contain w-32 sm:w-40 md:w-48 lg:w-60"
-              />
-            </a>
-
             <span className="text-sm sm:text-base text-black font-sans">
               {t.supportedBy}
             </span>

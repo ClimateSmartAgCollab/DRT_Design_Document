@@ -26,12 +26,12 @@ from drt.services.history import create_archive_snapshot
 
 logger = logging.getLogger(__name__)
 
-# Import fetch_questionnaire_json with error handling
 try:
-    from datastore.views import fetch_questionnaire_json
+    from datastore.views import fetch_questionnaire_json, load_github_data
 except ImportError as e:
-    logger.error(f"Failed to import fetch_questionnaire_json: {e}")
+    logger.error(f"Failed to import datastore helpers: {e}")
     fetch_questionnaire_json = None
+    load_github_data = None
 
 @csrf_exempt
 @api_view(['GET'])
@@ -41,10 +41,9 @@ def generate_nlinks(request, link_id):
         logger.error("Link table not found in cache.")
         return Response({'error': 'Link table not found in cache'}, status=404)
 
-    # Find the appropriate link data
-    example_link = next(
+    example_link = link_table.get(link_id) or next(
         (data for url, data in link_table.items() if link_id in url), None)
-    if example_link == None:
+    if example_link is None:
         logger.warning(f"Link ID {link_id} not found in cache.")
         return Response({'error': f'Link ID {link_id} not found'}, status=404)
 
@@ -72,6 +71,7 @@ def generate_nlinks(request, link_id):
         data_label=example_link['data_label'],
         tags=example_link['tags'],
         record_label=example_link['record_label'],
+        visible_label=example_link.get('visible_label', '') or example_link.get('data_label', ''),
         requestor_link=requestor_link_id,
         owner_link=owner_link_id,
         expiration_date=datetime.datetime.now() + datetime.timedelta(days=7)
@@ -101,7 +101,7 @@ def preview_questionnaire(_request):
     Preview endpoint for questionnaires - no authentication required.
     Returns a demo questionnaire for preview purposes.
     """
-    PREFERRED_QUESTIONNAIRE_ID = 'q-004-test'
+    PREFERRED_QUESTIONNAIRE_ID = 'q-001-test'
     CACHE_TIMEOUT = 24 * 60 * 60  # 24 hours
     
     try:
@@ -113,11 +113,31 @@ def preview_questionnaire(_request):
         
         questionnaire_table = cache.get('questionnaire_table')
         if not questionnaire_table:
-            logger.error("Preview: questionnaire_table cache is empty")
-            return Response({
-                'error': 'Questionnaire table not found in cache. Please load GitHub data first.',
-                'hint': 'Call /datastore/load_github_data/ to populate the cache'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.info("Preview: questionnaire_table cache is empty; attempting cache warm-up")
+
+            if load_github_data is None:
+                logger.error("Preview: load_github_data function not available")
+                return Response({
+                    'error': 'Questionnaire table not found in cache and automatic warm-up is unavailable.',
+                    'hint': 'Call /datastore/load-data/ to populate the cache',
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            try:
+                # Warm cache on-demand so preview works when opened independently.
+                load_github_data(_request)
+            except Exception as warmup_error:
+                logger.error(
+                    f"Preview: failed to warm cache via load_github_data: {warmup_error}",
+                    exc_info=True
+                )
+
+            questionnaire_table = cache.get('questionnaire_table')
+            if not questionnaire_table:
+                logger.error("Preview: questionnaire_table still empty after warm-up")
+                return Response({
+                    'error': 'Questionnaire table not found in cache after automatic warm-up.',
+                    'hint': 'Verify GitHub datasource configuration and call /datastore/load-data/',
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         available_questionnaire_ids = list(questionnaire_table.keys())
         if not available_questionnaire_ids:
@@ -127,17 +147,39 @@ def preview_questionnaire(_request):
                 'hint': 'Call /datastore/load_github_data/ to populate the cache'
             }, status=status.HTTP_404_NOT_FOUND)
         
-        # Try to load questionnaire (preferred first, then fallback)
-        questionnaire_id = PREFERRED_QUESTIONNAIRE_ID
+        preferred_questionnaire_id = PREFERRED_QUESTIONNAIRE_ID
+        preferred_filename = (
+            preferred_questionnaire_id
+            if preferred_questionnaire_id.endswith('.json')
+            else f'{preferred_questionnaire_id}.json'
+        )
+
+        if preferred_questionnaire_id in questionnaire_table:
+            questionnaire_id = preferred_questionnaire_id
+        else:
+            questionnaire_id = next(
+                (
+                    qid for qid, filename in questionnaire_table.items()
+                    if filename == preferred_filename or filename == preferred_questionnaire_id
+                ),
+                None
+            )
+
+        if questionnaire_id is None:
+            logger.warning(
+                "Preview: preferred questionnaire '%s' not found; falling back to first available",
+                preferred_questionnaire_id
+            )
+
         questionnaire_json = None
         
-        cache_key = f'questionnaire_json_{questionnaire_id}'
-        cached_json = cache.get(cache_key)
+        cache_key = f'questionnaire_json_{questionnaire_id}' if questionnaire_id else None
+        cached_json = cache.get(cache_key) if cache_key else None
         if cached_json:
             questionnaire_json = cached_json
             logger.info(f"Preview: Using cached questionnaire {questionnaire_id}")
         else:
-            questionnaire_ids_to_try = [questionnaire_id] + [
+            questionnaire_ids_to_try = ([questionnaire_id] if questionnaire_id else []) + [
                 qid for qid in available_questionnaire_ids if qid != questionnaire_id
             ]
             
@@ -254,7 +296,10 @@ def fill_questionnaire(request, link_id):
             questionnaire_json = cached_json
         else:
             # Use Celery to fetch questionnaire asynchronously
-            fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
+            inflight_key = f"questionnaire_fetch_inflight:{negotiation.questionnaire_SAID}"
+            lock_ttl_seconds = 30
+            if cache.add(inflight_key, 1, timeout=lock_ttl_seconds):
+                fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
             
             questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
         

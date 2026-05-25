@@ -56,8 +56,8 @@ export function QuestionnaireReview({
                         <label className="block font-medium mb-1">
                           {field.labels.eng?.[field.id] || field.id}
                         </label>
-                        <div className="ml-4 mt-2 border-l-4 p-2 border-blue-500">
-                          <h5 className="text-md font-semibold text-blue-600">
+                        <div className="ml-4 mt-2 border-l-4 p-2 border-[rgb(70,160,35)]">
+                          <h5 className="text-md font-semibold text-[rgb(70,160,35)]">
                             Child Entries for &quot;
                             {field.labels.eng?.[field.id] || field.id}&quot;
                           </h5>
@@ -71,7 +71,7 @@ export function QuestionnaireReview({
                               return (
                                 <div
                                   key={child.id}
-                                  className="mt-2 p-2 bg-blue-50"
+                                  className="mt-2 p-2 bg-[rgba(180,230,160,0.2)]"
                                 >
                                   <h6 className="text-sm font-medium text-gray-700 mb-2">
                                     Entry {index + 1}

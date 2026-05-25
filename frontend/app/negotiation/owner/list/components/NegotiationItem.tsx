@@ -28,6 +28,7 @@ export function NegotiationItem({
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isReopening, setIsReopening] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
   // const canArchive =
   //   !n.archived && ["accepted", "abandoned", "rejected"].includes(n.state);
 
@@ -92,6 +93,26 @@ export function NegotiationItem({
     }
   };
 
+  const displayTitle = n.visible_label || n.record_label || n.negotiation_id;
+  const displaySubtext = [
+    n.requestor_email,
+    new Date(n.timestamps).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(n.negotiation_id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <li className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
       <div className="px-6 py-4">
@@ -100,24 +121,43 @@ export function NegotiationItem({
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect(n.negotiation_id)}
-            className="mr-4 h-4 w-4 text-blue-600"
+            className="mr-4 h-4 w-4 text-[rgb(70,160,35)]"
             onClick={e => e.stopPropagation()}
           />
           <div className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (n.owner_link) {
-                  window.open(`/negotiation/owner/history/${n.owner_link}`, '_blank');
-                } else {
-                  alert('History not available for this negotiation');
-                }
-              }}
-              className="font-semibold text-blue-600 hover:text-blue-800 underline cursor-pointer"
-              title="View negotiation history"
-            >
-              ID: {n.negotiation_id}
-            </button>
+            <div className="flex flex-col">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (n.owner_link) {
+                    window.open(`/negotiation/owner/history/${n.owner_link}`, '_blank');
+                  } else {
+                    alert('History not available for this negotiation');
+                  }
+                }}
+                className="font-semibold text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline cursor-pointer text-left"
+                title="View negotiation history"
+              >
+                <span className="block">{displayTitle}</span>
+                {displaySubtext && (
+                  <span className="block text-sm font-normal text-gray-500 mt-0.5">
+                    {displaySubtext}
+                  </span>
+                )}
+              </button>
+              <div className="flex items-center gap-1.5 mt-0.5 self-start">
+                <span className="text-xs text-gray-600 font-mono">
+                  <span className="font-medium text-gray-700">Negotiation ID:</span> {n.negotiation_id}
+                </span>
+                <button
+                  onClick={handleCopyId}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                  title="Copy ID"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
             <span className="text-gray-600">State: {STATUS_DISPLAY_NAMES[n.state as keyof typeof STATUS_DISPLAY_NAMES] || n.state}</span>
             <span className="text-gray-600">
               Created: {new Date(n.timestamps).toLocaleDateString()}
@@ -128,27 +168,27 @@ export function NegotiationItem({
                   ? n.tags.map((tag, idx) => (
                       <span
                         key={tag + idx}
-                        className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200"
+                        className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-semibold px-2 py-0.5 rounded-full border border-[rgb(55,125,28)]"
                       >
                         {tag}
                       </span>
                     ))
                   : (
-                      <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full border border-blue-200">
+                      <span className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-semibold px-2 py-0.5 rounded-full border border-[rgb(55,125,28)]">
                         {n.tags}
                       </span>
                     )}
               </span>
             )}
             {n.record_label && (
-              <span className="ml-2 inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded border border-green-200">
+              <span className="ml-2 inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-semibold px-2 py-0.5 rounded border border-[rgb(55,125,28)]">
                 Record Label: {n.record_label}
               </span>
             )}
             {n.state === "owner_open" && n.owner_link && (
               <Link
                 href={`/negotiation/owner/${n.owner_link}/owner-review`}
-                className="ml-4 text-blue-600 underline hover:text-blue-800"
+                className="ml-4 text-[rgb(70,160,35)] underline hover:text-[rgb(55,125,28)]"
               >
                 Access Your Review Link
               </Link>
@@ -171,7 +211,7 @@ export function NegotiationItem({
             <button
               onClick={handleReopen}
               disabled={isReopening}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-[rgb(70,160,35)] text-white rounded-lg hover:bg-[rgb(55,125,28)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isReopening ? "Reopening..." : "Reopen"}
             </button>
@@ -191,7 +231,7 @@ export function NegotiationItem({
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteConfirm}
         title="Delete Negotiation"
-        message={`Are you sure you want to delete negotiation "${n.negotiation_id}"?`}
+        message={`Are you sure you want to delete negotiation "${displayTitle}" (ID: ${n.negotiation_id})?`}
         isLoading={isDeleting}
       />
     </li>

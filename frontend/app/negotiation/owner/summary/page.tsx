@@ -32,23 +32,144 @@ ChartJS.register(
 
 interface SummaryStat {
   data_label: string;
-  tag: string; // still a plain string
+  tag: string; 
   record_label?: string;
   total_requests: number;
   accepted_requests: number;
   rejected_requests: number;
   requestor_open: number;
   owner_open: number;
-  generated_at: string; // ISO timestamp
+  abandoned_requests: number;
+  archived_requests: number;
+  generated_at: string; 
+  last_updated?: string; 
+  last_activity?: string | null; 
+  negotiation_date_range?: {
+    min_date: string | null;
+    max_date: string | null;
+  };
+  validation_status?: {
+    is_valid: boolean;
+    message: string | null;
+    difference?: number;
+  };
 }
 
-async function fetchSummaryStats(): Promise<SummaryStat[]> {
-  const res = await fetchApi("/drt/summary-statistics/");
+async function fetchSummaryStats(
+  tags?: string[], 
+  dataLabel?: string, 
+  recordLabels?: string[], 
+  includeAllTags?: boolean,
+  startDate?: string,
+  endDate?: string,
+  groupBy?: boolean
+): Promise<SummaryStat[]> {
+
+  const params = new URLSearchParams();
+  if (tags && tags.length > 0) {
+    tags.forEach(tag => params.append('tags', tag));
+  }
+  if (dataLabel) {
+    params.set('data_label', dataLabel);
+  }
+  if (recordLabels && recordLabels.length > 0) {
+    recordLabels.forEach(rl => params.append('record_label', rl));
+  }
+  if (includeAllTags) {
+    params.set('include_all_tags', 'true');
+  }
+  if (startDate) {
+    params.set('startDate', startDate);
+  }
+  if (endDate) {
+    params.set('endDate', endDate);
+  }
+  if (groupBy) {
+    params.set('group_by', 'true');
+  }
+  
+  const queryString = params.toString();
+  const url = queryString ? `/drt/summary-statistics/?${queryString}` : "/drt/summary-statistics/";
+  
+  const res = await fetchApi(url);
   const json = await res.json();
   if (!res.ok) {
     throw new Error(json.error || `Status ${res.status}`);
   }
   return json.summary_statistics as SummaryStat[];
+}
+
+// Helper component to display activity and date information
+function ActivityDatesCell({
+  lastActivity,
+  lastUpdated,
+  dateRange,
+}: {
+  lastActivity?: string | null;
+  lastUpdated: string;
+  dateRange?: { min_date: string | null; max_date: string | null };
+}) {
+  const dateRangeDisplay = dateRange && dateRange.min_date && dateRange.max_date
+    ? (dateRange.min_date === dateRange.max_date
+        ? { single: true, date: new Date(dateRange.min_date).toLocaleDateString() }
+        : { 
+            single: false, 
+            first: new Date(dateRange.min_date).toLocaleDateString(),
+            last: new Date(dateRange.max_date).toLocaleDateString()
+          })
+    : null;
+  const lastActivityText = lastActivity 
+    ? new Date(lastActivity).toLocaleString()
+    : null;
+
+  return (
+    <div className="space-y-2">
+      {lastActivityText ? (
+        <>
+          <div className="space-y-1">
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Last Modified
+            </div>
+            <div className="text-sm text-gray-900">
+              {lastActivityText}
+            </div>
+          </div>
+          {dateRangeDisplay && (
+            <div className="pt-2 border-t border-gray-200">
+              {dateRangeDisplay.single ? (
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Created
+                  </div>
+                  <div className="text-xs text-gray-700">
+                    {dateRangeDisplay.date}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Created
+                  </div>
+                  <div className="text-xs text-gray-700 space-y-0.5">
+                    <div>
+                      <span className="text-gray-500">First:</span> {dateRangeDisplay.first}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Last:</span> {dateRangeDisplay.last}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="text-sm text-gray-600">
+          {new Date(lastUpdated).toLocaleString()}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function OwnerSummaryPage() {
@@ -99,125 +220,210 @@ export default function OwnerSummaryPage() {
     logoutMutation.mutate();
   };
 
-  // ——— React Query: load summary stats ———
-  const summaryQuery = useQuery<SummaryStat[], Error>({
-    queryKey: ["owner", "summary-statistics"],
-    queryFn: fetchSummaryStats,
-    staleTime: 1000 * 60 * 5, // 5m
-    retry: 1,
-    enabled: !!whoamiQuery.data, // Only fetch if authenticated
-  });
-
   // ——— filter state ———
-  const allData = useMemo(() => summaryQuery.data ?? [], [summaryQuery.data]);
-
   const [dataLabel, setDataLabel] = useState<string>("");
   const [tag, setTag] = useState<string[]>([]);
   const [recordLabel, setRecordLabel] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
-  // ——— Derive filter options ———
+  // ——— React Query: load summary stats with filters ———
+  const summaryQuery = useQuery<SummaryStat[], Error>({
+    queryKey: ["owner", "summary-statistics", tag, dataLabel, recordLabel, startDate, endDate],
+    queryFn: () => fetchSummaryStats(
+      tag, 
+      dataLabel || undefined, 
+      recordLabel.length > 0 ? recordLabel : undefined, 
+      false,
+      startDate || undefined, 
+      endDate || undefined,
+      true  // Request grouped data from backend
+    ),
+    staleTime: 1000 * 60 * 5, // 5m
+    retry: 1,
+    enabled: !!whoamiQuery.data, // Only fetch if authenticated
+  });
+
+  // ——— React Query: load all summary stats (unfiltered) for filter options ———
+  const allStatsQuery = useQuery<SummaryStat[], Error>({
+    queryKey: ["owner", "summary-statistics", "all", "options"],
+    queryFn: () => fetchSummaryStats(undefined, undefined, undefined, true), 
+    staleTime: 1000 * 60 * 5, 
+    retry: 1,
+    enabled: !!whoamiQuery.data, 
+  });
+
+  const hasNoDataError = summaryQuery.isError && 
+    summaryQuery.error?.message?.toLowerCase().includes('no summary statistics found');
+  
+  const allData = useMemo(() => {
+    if (hasNoDataError) return [];
+    return summaryQuery.data ?? [];
+  }, [summaryQuery.data, hasNoDataError]);
+  const allStatsForOptions = useMemo(() => allStatsQuery.data ?? [], [allStatsQuery.data]);
+
+  // ——— Derive filter options from unfiltered data ———
   const dataLabelOptions = useMemo(
-    () => Array.from(new Set(allData.map((d) => d.data_label))),
-    [allData]
+    () => Array.from(new Set(allStatsForOptions.map((d) => d.data_label).filter((dl): dl is string => Boolean(dl)))),
+    [allStatsForOptions]
   );
   const tagOptions = useMemo(
-    () => Array.from(new Set(allData.map((d) => d.tag).filter((t): t is string => typeof t === 'string' && Boolean(t)))),
-    [allData]
+    () => {
+      // Extract individual tags from tag field
+      const allTags = new Set<string>();
+      allStatsForOptions.forEach(d => {
+        if (d.tag && d.tag.trim()) {
+          // Handle comma-separated tags from backend
+          const tags = d.tag.split(',').map(t => t.trim()).filter(t => t);
+          tags.forEach(t => allTags.add(t));
+        }
+      });
+      return Array.from(allTags).sort();
+    },
+    [allStatsForOptions]
   );
   const recordLabelOptions = useMemo(
-    () => Array.from(new Set(allData.map((d) => typeof d.record_label === 'string' && d.record_label ? d.record_label : undefined).filter((l): l is string => typeof l === 'string' && Boolean(l)))),
-    [allData]
+    () => Array.from(new Set(allStatsForOptions.map((d) => typeof d.record_label === 'string' && d.record_label ? d.record_label : undefined).filter((l): l is string => typeof l === 'string' && Boolean(l)))),
+    [allStatsForOptions]
   );
 
-  // ——— apply filters client-side ———
   const filteredData = useMemo(() => {
-    return allData.filter((d) => {
-      if (dataLabel && d.data_label !== dataLabel) return false;
-      if (tag.length > 0 && !tag.includes(d.tag || "")) return false;
-      if (recordLabel.length > 0 && !recordLabel.includes(d.record_label || "")) return false;
-      const genDate = new Date(d.generated_at);
-      if (startDate && genDate < new Date(startDate)) return false;
-      if (endDate && genDate > new Date(endDate)) return false;
-      return true;
-    });
-  }, [allData, dataLabel, tag, recordLabel, startDate, endDate]);
+    return allData; // Backend handles date filtering via API
+  }, [allData]);
 
-  // Group filteredData by both record_label and data_label, merging tags and summing numeric fields
+
   const groupedData = useMemo(() => {
-    const map = new Map<string, {
-      record_label: string;
-      data_label: string;
-      tags: Set<string>;
-      total_requests: number;
-      accepted_requests: number;
-      rejected_requests: number;
-      requestor_open: number;
-      owner_open: number;
-      generated_at: string; // Use latest
-    }>();
-    filteredData.forEach(d => {
-      const key = `${d.record_label || ""}|${d.data_label}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          record_label: d.record_label || "",
-          data_label: d.data_label,
-          tags: new Set(),
-          total_requests: 0,
-          accepted_requests: 0,
-          rejected_requests: 0,
-          requestor_open: 0,
-          owner_open: 0,
-          generated_at: d.generated_at,
-        });
-      }
-      const entry = map.get(key)!;
-      if (d.tag) entry.tags.add(d.tag);
-      entry.total_requests += d.total_requests;
-      entry.accepted_requests += d.accepted_requests;
-      entry.rejected_requests += d.rejected_requests;
-      entry.requestor_open += d.requestor_open;
-      entry.owner_open += d.owner_open;
-      // Use latest generated_at
-      if (new Date(d.generated_at) > new Date(entry.generated_at)) {
-        entry.generated_at = d.generated_at;
-      }
-    });
-    return Array.from(map.values()).map(entry => ({
-      ...entry,
-      tags: Array.from(entry.tags).join(", "),
-    }));
-  }, [filteredData]);
+    const isTagView = tag.length > 0;
+    
+    let data;
+    if (!isTagView) {
+      data = filteredData;
+    } else {
+      if (filteredData.length === 0) return [];
+      
+      const tagData = filteredData[0]; // Backend returns single combined row
+      const tagsList = tagData.tag ? tagData.tag.split(',').map(t => t.trim()) : tag;
+      
+      data = [{
+        tags: tagsList,
+        total_requests: tagData.total_requests,
+        accepted_requests: tagData.accepted_requests,
+        rejected_requests: tagData.rejected_requests,
+        requestor_open: tagData.requestor_open,
+        owner_open: tagData.owner_open,
+        abandoned_requests: tagData.abandoned_requests || 0,
+        archived_requests: tagData.archived_requests || 0,
+        last_updated: tagData.last_updated || tagData.generated_at,
+        last_activity: tagData.last_activity || null,
+        negotiation_date_range: tagData.negotiation_date_range,
+      }];
+    }
 
-  // Use groupedData for table and chart
+    // Sort by date (most recent first)
+    return [...data].sort((a, b) => {
+      const getDateValue = (item: any): number => {
+        if (item.last_activity) {
+          return new Date(item.last_activity).getTime();
+        }
+        if (item.last_updated) {
+          return new Date(item.last_updated).getTime();
+        }
+        if (item.negotiation_date_range?.max_date) {
+          return new Date(item.negotiation_date_range.max_date).getTime();
+        }
+        return 0;
+      };
+
+      const dateA = getDateValue(a);
+      const dateB = getDateValue(b);
+      
+      // Sort descending (most recent first)
+      return dateB - dateA;
+    });
+  }, [filteredData, tag]);
+
+  // Chart data
   const chartData = useMemo(
-    () => ({
-      labels: groupedData.map((d) => `${d.data_label} - ${d.record_label || "All"}`),
-      datasets: [
-        {
-          label: "Total",
-          data: groupedData.map((d) => d.total_requests),
-        },
-        {
-          label: "Accepted",
-          data: groupedData.map((d) => d.accepted_requests),
-        },
-        {
-          label: "Rejected",
-          data: groupedData.map((d) => d.rejected_requests),
-        },
-        {
-          label: "Req. Open",
-          data: groupedData.map((d) => d.requestor_open),
-        },
-        {
-          label: "Own. Open",
-          data: groupedData.map((d) => d.owner_open),
-        },
-      ],
-    }),
-    [groupedData]
+    () => {
+      const isTagView = tag.length > 0;
+      // Handle empty data case
+      if (groupedData.length === 0) {
+        return {
+          labels: [],
+          datasets: [
+            {
+              label: "Total",
+              data: [],
+            },
+            {
+              label: "Accepted",
+              data: [],
+            },
+            {
+              label: "Rejected",
+              data: [],
+            },
+            {
+              label: "Req. Open",
+              data: [],
+            },
+            {
+              label: "Own. Open",
+              data: [],
+            },
+            {
+              label: "Abandoned",
+              data: [],
+            },
+            {
+              label: "Archived",
+              data: [],
+            },
+          ],
+        };
+      }
+      return {
+        labels: groupedData.map((d) => {
+          if (isTagView) {
+            // Show all selected tags as label
+            return (d as any).tags.join(", ");
+          } else {
+            return `${(d as any).data_label} - ${(d as any).record_label || "All"}`;
+          }
+        }),
+        datasets: [
+          {
+            label: "Total",
+            data: groupedData.map((d) => d.total_requests),
+          },
+          {
+            label: "Accepted",
+            data: groupedData.map((d) => d.accepted_requests),
+          },
+          {
+            label: "Rejected",
+            data: groupedData.map((d) => d.rejected_requests),
+          },
+          {
+            label: "Req. Open",
+            data: groupedData.map((d) => d.requestor_open),
+          },
+          {
+            label: "Own. Open",
+            data: groupedData.map((d) => d.owner_open),
+          },
+          {
+            label: "Abandoned",
+            data: groupedData.map((d) => d.abandoned_requests || 0),
+          },
+          {
+            label: "Archived",
+            data: groupedData.map((d) => d.archived_requests || 0),
+          },
+        ],
+      };
+    },
+    [groupedData, tag]
   );
 
   if (whoamiQuery.isLoading) {
@@ -258,11 +464,11 @@ export default function OwnerSummaryPage() {
           {summaryQuery.isLoading ? (
             <div className="flex items-center justify-center min-h-screen text-gray-600">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(70,160,35)] mx-auto mb-4"></div>
                 <p>Loading summary statistics…</p>
               </div>
             </div>
-          ) : summaryQuery.isError ? (
+          ) : summaryQuery.isError && !hasNoDataError ? (
             <div className="flex items-center justify-center min-h-screen">
               <div className="bg-red-50 border-l-4 border-red-400 p-4 text-red-700 max-w-2xl">
                 ⚠️ {summaryQuery.error.message}
@@ -313,43 +519,142 @@ export default function OwnerSummaryPage() {
                   />
                 </section>
 
+                <div className="bg-[rgba(180,230,160,0.3)] border-l-4 border-[rgb(70,160,35)] p-4 mb-4 rounded">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <span className="text-[rgb(70,160,35)] text-lg">ℹ️</span>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-[rgb(55,125,28)]">
+                        {tag.length > 0 ? (
+                          <>
+                            <strong>Tag-Filtered View:</strong> All selected tags are combined into a single row. 
+                            Statistics from all selected tags are <strong>summed together</strong> across all data labels 
+                            and record labels to show the total combined statistics.
+                          </>
+                        ) : (
+                          <>
+                            <strong>Record Label View:</strong> Statistics are grouped by record label and data label, 
+                            showing all records (no tag filtering applied).
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <section className="overflow-x-auto">
                   <table className="min-w-full bg-white border">
                     <thead>
                       <tr className="bg-gray-100">
-                        {[
-                          "Record Label",
-                          "Data Label",
-                          "Tag",
-                          "Total",
-                          "Accepted",
-                          "Rejected",
-                          "Req. Open",
-                          "Own. Open",
-                          "Generated At",
-                        ].map((h) => (
-                          <th key={h} className="border px-4 py-2">
-                            {h}
-                          </th>
-                        ))}
+                        {tag.length > 0 ? (
+                          // Tag view headers (grouped by tag only, no data_label)
+                          [
+                            "Tag",
+                            "Total",
+                            "Accepted",
+                            "Rejected",
+                            "Req. Open",
+                            "Own. Open",
+                            "Abandoned",
+                            "Archived",
+                            "Activity & Dates",
+                          ].map((header) => (
+                            <th key={header} className="border px-4 py-2">
+                              {header}
+                            </th>
+                          ))
+                        ) : (
+                          // Record label view headers
+                          [
+                            "Record Label",
+                            "Data Label",
+                            "Total",
+                            "Accepted",
+                            "Rejected",
+                            "Req. Open",
+                            "Own. Open",
+                            "Abandoned",
+                            "Archived",
+                            "Activity & Dates",
+                          ].map((header) => (
+                            <th key={header} className="border px-4 py-2">
+                              {header}
+                            </th>
+                          ))
+                        )}
                       </tr>
                     </thead>
                     <tbody>
-                      {groupedData.map((d) => (
-                        <tr key={`${d.record_label}-${d.data_label}-${d.generated_at}`}>
-                          <td className="border px-4 py-2">{d.record_label || "All"}</td>
-                          <td className="border px-4 py-2">{d.data_label}</td>
-                          <td className="border px-4 py-2">{d.tags || "All"}</td>
-                          <td className="border px-4 py-2">{d.total_requests}</td>
-                          <td className="border px-4 py-2">{d.accepted_requests}</td>
-                          <td className="border px-4 py-2">{d.rejected_requests}</td>
-                          <td className="border px-4 py-2">{d.requestor_open}</td>
-                          <td className="border px-4 py-2">{d.owner_open}</td>
-                          <td className="border px-4 py-2">
-                            {new Date(d.generated_at).toLocaleString()}
+                      {groupedData.length === 0 ? (
+                        <tr>
+                          <td 
+                            colSpan={tag.length > 0 ? 9 : 10} 
+                            className="border px-4 py-8 text-center text-gray-500"
+                          >
+                            No data available
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        groupedData.map((d, idx) => {
+                        if (tag.length > 0) {
+                          // Tag view rows
+                          const tagData = d as { tags: string[]; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; abandoned_requests?: number; archived_requests?: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
+                          return (
+                            <tr key={`tags-${tagData.tags.join("-")}-${idx}`}>
+                              <td className="border px-4 py-2">
+                                <div className="flex flex-wrap gap-1">
+                                  {tagData.tags.map((t, tagIdx) => (
+                                    <span
+                                      key={tagIdx}
+                                      className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-medium px-2 py-1 rounded"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="border px-4 py-2">{tagData.total_requests}</td>
+                              <td className="border px-4 py-2">{tagData.accepted_requests}</td>
+                              <td className="border px-4 py-2">{tagData.rejected_requests}</td>
+                              <td className="border px-4 py-2">{tagData.requestor_open}</td>
+                              <td className="border px-4 py-2">{tagData.owner_open}</td>
+                              <td className="border px-4 py-2">{tagData.abandoned_requests || 0}</td>
+                              <td className="border px-4 py-2">{tagData.archived_requests || 0}</td>
+                              <td className="border px-4 py-2">
+                                <ActivityDatesCell
+                                  lastActivity={tagData.last_activity}
+                                  lastUpdated={tagData.last_updated}
+                                  dateRange={tagData.negotiation_date_range}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        } else {
+                          // Record label view rows
+                          const recordData = d as { record_label: string; data_label: string; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; abandoned_requests?: number; archived_requests?: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
+                          return (
+                            <tr key={`record-${recordData.record_label}-${recordData.data_label}-${idx}`}>
+                              <td className="border px-4 py-2">{recordData.record_label || "All"}</td>
+                              <td className="border px-4 py-2">{recordData.data_label}</td>
+                              <td className="border px-4 py-2">{recordData.total_requests}</td>
+                              <td className="border px-4 py-2">{recordData.accepted_requests}</td>
+                              <td className="border px-4 py-2">{recordData.rejected_requests}</td>
+                              <td className="border px-4 py-2">{recordData.requestor_open}</td>
+                              <td className="border px-4 py-2">{recordData.owner_open}</td>
+                              <td className="border px-4 py-2">{recordData.abandoned_requests || 0}</td>
+                              <td className="border px-4 py-2">{recordData.archived_requests || 0}</td>
+                              <td className="border px-4 py-2">
+                                <ActivityDatesCell
+                                  lastActivity={recordData.last_activity}
+                                  lastUpdated={recordData.last_updated}
+                                  dateRange={recordData.negotiation_date_range}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        }
+                      })
+                      )}
                     </tbody>
                   </table>
                 </section>
