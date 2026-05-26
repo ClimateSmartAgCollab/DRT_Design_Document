@@ -30,7 +30,9 @@ COPY --from=builder /app/.next /app/.next
 COPY --from=builder /app/public /app/public
 COPY --from=builder /app/node_modules /app/node_modules
 
-RUN chown -R nextjs:nodejs /app
+# Pre-create all directories Next.js writes at runtime so uid 1001 owns them.
+RUN mkdir -p /app/.next/cache/images \
+    && chown -R nextjs:nodejs /app
 
 USER nextjs
 

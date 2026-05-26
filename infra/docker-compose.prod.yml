@@ -76,8 +76,8 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=128m
-      - /app/.next/cache:rw,noexec,nosuid,size=256m
+      - /tmp:rw,noexec,nosuid,size=128m,uid=1001,gid=1001,mode=1777
+      - /app/.next/cache:rw,noexec,nosuid,size=256m,uid=1001,gid=1001,mode=755
     mem_limit: 512m
 
   nginx:
