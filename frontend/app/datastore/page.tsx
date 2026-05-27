@@ -11,7 +11,7 @@ type CachedDataResponse = {
 };
 
 async function fetchCachedData(key: string): Promise<CachedDataResponse> {
-  const res = await fetchApi(`/datastore/get_cached_data/${key}/`);
+  const res = await fetchApi(`/datastore/cached-data/${key}/`);
   if (!res.ok) {
     let errMsg = res.statusText;
     try {
@@ -22,7 +22,8 @@ async function fetchCachedData(key: string): Promise<CachedDataResponse> {
     }
     throw new Error(errMsg);
   }
-  return res.json();
+  const body = await res.json();
+  return { key, data: body[key] };
 }
 
 export default function FetchCachedDataPage() {

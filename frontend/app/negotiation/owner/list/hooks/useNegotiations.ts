@@ -13,8 +13,6 @@ export function useNegotiations(filters: NegotiationFilters = {}) {
     queryKey: ["negotiations", filters],
     queryFn: () => fetchNegotiations(filters),
     staleTime: 1000 * 60 * 5,
-    refetchInterval: 1000 * 30,
-    refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     retry: 2,

@@ -12,11 +12,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
 
+from .cache_keys import (
+    HOT_CACHE_KEYS,
+    KEY_LICENSE_TABLE,
+    KEY_LINK_TABLE,
+    KEY_OWNER_TABLE,
+    KEY_QUESTIONNAIRE_TABLE,
+    TTL_24H,
+    license_template_key,
+    questionnaire_json_key,
+)
+
 logger = logging.getLogger(__name__)
 
-# Cache timeout: 24 hours in seconds
-CACHE_TIMEOUT_24H = 60 * 60 * 24
-HOT_CACHE_KEYS = ("owner_table", "link_table", "questionnaire_table", "license_table")
+# Re-exported for backwards compatibility with any external callers that
+# imported the constant directly from this module.
+CACHE_TIMEOUT_24H = TTL_24H
 
 GITHUB_API_URL = (os.environ.get("GITHUB_API_URL") or "").strip()
 if not GITHUB_API_URL:
@@ -48,7 +59,7 @@ def fetch_file_from_github(file_path):
 def warm_github_cache():
     """Load GitHub-backed tables into cache and return status metadata."""
     try:
-        if all(cache.get(k) is not None for k in HOT_CACHE_KEYS):
+        if all(cache.get(k) for k in HOT_CACHE_KEYS):
             logger.info("load_github_data: cache already warm; skipping GitHub fetch")
             return {
                 "ok": True,
@@ -93,7 +104,7 @@ def warm_github_cache():
                     'username': row['username'],
                     'owner_email': row['owner_email']
                 }
-            cache.set('owner_table', owner_table, timeout=60*60*24)
+            cache.set(KEY_OWNER_TABLE, owner_table, timeout=TTL_24H)
 
         if link_table_csv:
             link_table = {}
@@ -118,21 +129,21 @@ def warm_github_cache():
                 key = link_uuid if link_uuid else link_url
                 if key:
                     link_table[key] = entry
-            cache.set('link_table', link_table, timeout=CACHE_TIMEOUT_24H)
+            cache.set(KEY_LINK_TABLE, link_table, timeout=TTL_24H)
 
         if questionnaire_table_csv:
             questionnaire_table = {}
             reader = csv.DictReader(io.StringIO(questionnaire_table_csv))
             for row in reader:
                 questionnaire_table[row['questionnaire_SAID']] = row['questionnaire_filename']
-            cache.set('questionnaire_table', questionnaire_table, timeout=60*60*24)
+            cache.set(KEY_QUESTIONNAIRE_TABLE, questionnaire_table, timeout=TTL_24H)
 
         if license_table_csv:
             license_table = {}
             reader = csv.DictReader(io.StringIO(license_table_csv))
             for row in reader:
                 license_table[row['license_SAID']] = row['license_filename']
-            cache.set('license_table', license_table, timeout=CACHE_TIMEOUT_24H)
+            cache.set(KEY_LICENSE_TABLE, license_table, timeout=TTL_24H)
             
             # Pre-load license templates after loading the license table
             preload_license_templates()
@@ -171,7 +182,7 @@ def fetch_questionnaire_json(questionnaire_id):
     Returns the parsed JSON object or None if not found.
     """
     try:
-        questionnaire_table = cache.get('questionnaire_table')
+        questionnaire_table = cache.get(KEY_QUESTIONNAIRE_TABLE)
         if not questionnaire_table:
             return None
         
@@ -182,8 +193,7 @@ def fetch_questionnaire_json(questionnaire_id):
         json_content = fetch_file_from_github(f'source_library/questionnaires/{filename}')
         if json_content:
             parsed_json = json.loads(json_content)
-            cache_key = f'questionnaire_json_{questionnaire_id}'
-            cache.set(cache_key, parsed_json, timeout=CACHE_TIMEOUT_24H)
+            cache.set(questionnaire_json_key(questionnaire_id), parsed_json, timeout=TTL_24H)
             return parsed_json
         return None
             
@@ -193,7 +203,7 @@ def fetch_questionnaire_json(questionnaire_id):
 
 def fetch_license_template(license_id):
     try:
-        license_table = cache.get('license_table')
+        license_table = cache.get(KEY_LICENSE_TABLE)
         if not license_table:
             return None
         
@@ -203,8 +213,7 @@ def fetch_license_template(license_id):
         
         license_content = fetch_file_from_github(f'source_library/license/{filename}')
         if license_content:
-            cache_key = f'license_template_{license_id}'
-            cache.set(cache_key, license_content, timeout=CACHE_TIMEOUT_24H)
+            cache.set(license_template_key(license_id), license_content, timeout=TTL_24H)
             return license_content
         return None
             
@@ -214,8 +223,7 @@ def fetch_license_template(license_id):
 
 def get_questionnaire_json(_request, questionnaire_id):
     try:
-        cache_key = f'questionnaire_json_{questionnaire_id}'
-        cached_json = cache.get(cache_key)
+        cached_json = cache.get(questionnaire_json_key(questionnaire_id))
         
         if cached_json:
             return JsonResponse({'questionnaire': cached_json})
@@ -231,9 +239,8 @@ def get_questionnaire_json(_request, questionnaire_id):
 
 def get_license_template(_request, license_id):
     try:
-        cache_key = f'license_template_{license_id}'
-        cached_template = cache.get(cache_key)
-        
+        cached_template = cache.get(license_template_key(license_id))
+
         if cached_template:
             return JsonResponse({'license_template': cached_template})
         
@@ -248,7 +255,7 @@ def get_license_template(_request, license_id):
 
 def get_license_table(_request):
     try:
-        license_table = cache.get('license_table')
+        license_table = cache.get(KEY_LICENSE_TABLE)
         if license_table:
             return JsonResponse({'license_table': license_table})
         else:
@@ -266,7 +273,7 @@ def get_cached_data(_request, key):
 def preload_license_templates():
     """Pre-load all license templates into cache to avoid delays during license generation"""
     try:
-        license_table = cache.get('license_table')
+        license_table = cache.get(KEY_LICENSE_TABLE)
         if not license_table:
             logger.warning("License table not found in cache, cannot preload templates")
             return
@@ -277,8 +284,7 @@ def preload_license_templates():
         # Collect licenses that need to be fetched
         licenses_to_fetch = {}
         for license_id, filename in license_table.items():
-            cache_key = f'license_template_{license_id}'
-            if not cache.get(cache_key):
+            if not cache.get(license_template_key(license_id)):
                 licenses_to_fetch[license_id] = filename
         
         if not licenses_to_fetch:
@@ -297,8 +303,7 @@ def preload_license_templates():
                 try:
                     license_content = future.result()
                     if license_content:
-                        cache_key = f'license_template_{license_id}'
-                        cache.set(cache_key, license_content, timeout=CACHE_TIMEOUT_24H)
+                        cache.set(license_template_key(license_id), license_content, timeout=TTL_24H)
                         logger.info(f"Pre-loaded license template: {license_id}")
                     else:
                         logger.warning(f"Failed to pre-load license template: {license_id}")
@@ -318,11 +323,8 @@ def github_webhook(request):
     """Webhook to clear cache and refresh data when GitHub changes"""
     if request.method == 'POST':
         try:
-            # Clear cache immediately
-            cache.delete('owner_table')
-            cache.delete('link_table')
-            cache.delete('questionnaire_table')
-            cache.delete('license_table')
+            for key in HOT_CACHE_KEYS:
+                cache.delete(key)
             cache.delete_pattern('questionnaire_json_*')
             cache.delete_pattern('license_template_*')
             

@@ -176,15 +176,26 @@ export default function OwnerReviewPage() {
     }
   }, [currentData, isViewingHistory, historyEntries, currentHistoryIndex]);
 
-  useEffect(() => {
-    if (isQuestionnaireLoading) {
-      const interval = setInterval(() => {
-        qc.invalidateQueries({ queryKey: ["ownerReview", linkIdStr] });
-      }, 2000);
+  // Cap polling at ~30 seconds (15 attempts * 2s) so a stalled Celery fetch
+  // does not leave the user staring at a spinner forever.
+  const MAX_LOADING_ATTEMPTS = 15;
+  const [loadingAttempts, setLoadingAttempts] = useState(0);
+  const loadingTimedOut = loadingAttempts >= MAX_LOADING_ATTEMPTS;
 
-      return () => clearInterval(interval);
+  useEffect(() => {
+    if (!isQuestionnaireLoading) {
+      if (loadingAttempts !== 0) setLoadingAttempts(0);
+      return;
     }
-  }, [isQuestionnaireLoading, qc, linkIdStr]);
+    if (loadingTimedOut) return;
+
+    const interval = setInterval(() => {
+      setLoadingAttempts((prev) => prev + 1);
+      qc.invalidateQueries({ queryKey: ["ownerReview", linkIdStr] });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isQuestionnaireLoading, loadingTimedOut, loadingAttempts, qc, linkIdStr]);
 
   useEffect(() => {
     if (
@@ -313,6 +324,25 @@ export default function OwnerReviewPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(70,160,35)] mx-auto mb-4"></div>
           <p className="text-lg">Loading negotiation data...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (isQuestionnaireLoading && loadingTimedOut) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4">
+        <p className="text-red-600">
+          Questionnaire is taking longer than expected to load.
+        </p>
+        <button
+          onClick={() => {
+            setLoadingAttempts(0);
+            qc.invalidateQueries({ queryKey: ["ownerReview", linkIdStr] });
+          }}
+          className="bg-[rgb(70,160,35)] text-white px-4 py-2 rounded hover:bg-[rgb(55,125,28)] transition"
+        >
+          Retry
+        </button>
       </div>
     );
   }

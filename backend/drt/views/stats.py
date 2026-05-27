@@ -20,6 +20,11 @@ import datetime
 from ..tasks import handle_negotiation_archive_and_summary_task, send_reopen_notification_email_task
 from drt.services.history import get_archive_history, map_archives_to_versions
 from datastore.views import fetch_questionnaire_json, fetch_license_template
+from datastore.cache_keys import (
+    KEY_OWNER_TABLE,
+    license_template_key,
+    questionnaire_json_key,
+)
 from jinja2 import Template, Environment, FileSystemLoader, select_autoescape
 from drt.services.license import flatten_form_data        
 from .questionnaire import create_archive_snapshot
@@ -822,21 +827,19 @@ def negotiation_list_api_req(request):
     data = []
     for n in qs:
         requestor_link = getattr(n, 'link', None)
-        
-        # Fetch questionnaire JSON like the owner side does
-        questionnaire_json = None
+
+        # Serve from cache only. The cache is warmed by the fill-questionnaire / owner-review flows and
+        # by `warm_github_cache`; rows whose JSON is not yet warm simply omit
+        # it (the requestor list UI does not currently use this field).
         try:
-            cache_key = f'questionnaire_json_{n.questionnaire_SAID}'
-            cached_json = cache.get(cache_key)
-            
-            if cached_json:
-                questionnaire_json = cached_json
-            else:
-                questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
+            questionnaire_json = cache.get(questionnaire_json_key(n.questionnaire_SAID))
         except Exception as e:
-            print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
+            logger.warning(
+                "Cache read failed for questionnaire %s: %s",
+                n.questionnaire_SAID, e,
+            )
             questionnaire_json = None
-        
+
         data.append({
             'negotiation_id': str(n.negotiation_id),
             'conversation_id': str(n.conversation_id),
@@ -1002,18 +1005,12 @@ def negotiation_list_api(request):
         questionnaire_json = None
         if include_questionnaire and n.questionnaire_SAID:
             try:
-                cache_key = f'questionnaire_json_{n.questionnaire_SAID}'
-                cached_json = cache.get(cache_key)
-
-                if cached_json is not None:
-                    questionnaire_json = cached_json
-                else:
-                    questionnaire_json = fetch_questionnaire_json(n.questionnaire_SAID)
-                    # Cache the questionnaire JSON so subsequent calls are faster.
-                    if questionnaire_json is not None:
-                        cache.set(cache_key, questionnaire_json)
+                questionnaire_json = cache.get(questionnaire_json_key(n.questionnaire_SAID))
             except Exception as e:
-                print(f"Error fetching questionnaire for {n.questionnaire_SAID}: {e}")
+                logger.warning(
+                    "Cache read failed for questionnaire %s: %s",
+                    n.questionnaire_SAID, e,
+                )
                 questionnaire_json = None
 
         item = {
@@ -1083,7 +1080,7 @@ def submission_view(request):
     if fmt == "license":
         print(f"📄 rendering license template from GitHub for license_id: {license_id}")
         # Get license template from cache or fetch from GitHub
-        cache_key = f'license_template_{license_id}'
+        cache_key = license_template_key(license_id)
         license_template_content = cache.get(cache_key)
         if not license_template_content:
             license_template_content = fetch_license_template(license_id)
@@ -1158,7 +1155,7 @@ def regenerate_license_view(request, negotiation_id):
         details = flatten_form_data(submission)
         
         license_id = getattr(nlink, 'license_id', None) or 'l-001-test'
-        cache_key = f'license_template_{license_id}'
+        cache_key = license_template_key(license_id)
         license_template_content = cache.get(cache_key)
         
         if not license_template_content:
@@ -1190,8 +1187,7 @@ def _build_history_response(negotiation):
     """
     questionnaire_json = None
     try:
-        cache_key = f'questionnaire_json_{negotiation.questionnaire_SAID}'
-        cached_json = cache.get(cache_key)
+        cached_json = cache.get(questionnaire_json_key(negotiation.questionnaire_SAID))
         if cached_json:
             questionnaire_json = cached_json
         else:

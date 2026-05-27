@@ -23,6 +23,13 @@ from ..tasks import (
     send_clarification_email_task
 )
 from drt.services.history import create_archive_snapshot
+from datastore.cache_keys import (
+    KEY_LINK_TABLE,
+    KEY_QUESTIONNAIRE_TABLE,
+    TTL_24H,
+    questionnaire_inflight_key,
+    questionnaire_json_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +43,7 @@ except ImportError as e:
 @csrf_exempt
 @api_view(['GET'])
 def generate_nlinks(request, link_id):
-    link_table = cache.get('link_table')
+    link_table = cache.get(KEY_LINK_TABLE)
     if not link_table:
         logger.error("Link table not found in cache.")
         return Response({'error': 'Link table not found in cache'}, status=404)
@@ -102,8 +109,7 @@ def preview_questionnaire(_request):
     Returns a demo questionnaire for preview purposes.
     """
     PREFERRED_QUESTIONNAIRE_ID = 'q-001-test'
-    CACHE_TIMEOUT = 24 * 60 * 60  # 24 hours
-    
+
     try:
         if fetch_questionnaire_json is None:
             logger.error("Preview: fetch_questionnaire_json function not available")
@@ -111,7 +117,7 @@ def preview_questionnaire(_request):
                 'error': 'Questionnaire fetch function not available. Check datastore app configuration.',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        questionnaire_table = cache.get('questionnaire_table')
+        questionnaire_table = cache.get(KEY_QUESTIONNAIRE_TABLE)
         if not questionnaire_table:
             logger.info("Preview: questionnaire_table cache is empty; attempting cache warm-up")
 
@@ -131,7 +137,7 @@ def preview_questionnaire(_request):
                     exc_info=True
                 )
 
-            questionnaire_table = cache.get('questionnaire_table')
+            questionnaire_table = cache.get(KEY_QUESTIONNAIRE_TABLE)
             if not questionnaire_table:
                 logger.error("Preview: questionnaire_table still empty after warm-up")
                 return Response({
@@ -173,7 +179,7 @@ def preview_questionnaire(_request):
 
         questionnaire_json = None
         
-        cache_key = f'questionnaire_json_{questionnaire_id}' if questionnaire_id else None
+        cache_key = questionnaire_json_key(questionnaire_id) if questionnaire_id else None
         cached_json = cache.get(cache_key) if cache_key else None
         if cached_json:
             questionnaire_json = cached_json
@@ -190,7 +196,7 @@ def preview_questionnaire(_request):
                 if fetched_json and not fetched_json.get('_loading'):
                     questionnaire_id = qid
                     questionnaire_json = fetched_json
-                    cache.set(f'questionnaire_json_{qid}', fetched_json, timeout=CACHE_TIMEOUT)
+                    cache.set(questionnaire_json_key(qid), fetched_json, timeout=TTL_24H)
                     logger.info(f"Preview: Successfully fetched and cached questionnaire {qid}")
                     break
             
@@ -289,14 +295,13 @@ def fill_questionnaire(request, link_id):
     else:
         questionnaire_json = None
         
-        cache_key = f'questionnaire_json_{negotiation.questionnaire_SAID}'
-        cached_json = cache.get(cache_key)
+        cached_json = cache.get(questionnaire_json_key(negotiation.questionnaire_SAID))
         
         if cached_json:
             questionnaire_json = cached_json
         else:
             # Use Celery to fetch questionnaire asynchronously
-            inflight_key = f"questionnaire_fetch_inflight:{negotiation.questionnaire_SAID}"
+            inflight_key = questionnaire_inflight_key(negotiation.questionnaire_SAID)
             lock_ttl_seconds = 30
             if cache.add(inflight_key, 1, timeout=lock_ttl_seconds):
                 fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
@@ -330,15 +335,18 @@ def owner_review(request, link_id):
 
         questionnaire_json = None
         
-        cache_key = f'questionnaire_json_{negotiation.questionnaire_SAID}'
-        cached_json = cache.get(cache_key)
+        cached_json = cache.get(questionnaire_json_key(negotiation.questionnaire_SAID))
         
         if cached_json:
             questionnaire_json = cached_json
         else:
-            # Use Celery to fetch questionnaire asynchronously
-            fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
-            
+            # Use the same anti-stampede lock as fill_questionnaire so concurrent
+            # owner GETs do not enqueue duplicate fetch tasks for the same questionnaire.
+            inflight_key = questionnaire_inflight_key(negotiation.questionnaire_SAID)
+            lock_ttl_seconds = 30
+            if cache.add(inflight_key, 1, timeout=lock_ttl_seconds):
+                fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
+
             questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
 
         return Response({

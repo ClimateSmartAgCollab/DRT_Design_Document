@@ -249,11 +249,19 @@ def fetch_questionnaire_task(questionnaire_said):
     """Fetch questionnaire asynchronously using Celery"""
     try:
         from datastore.views import fetch_questionnaire_json
+        from datastore.cache_keys import (
+            TTL_24H,
+            questionnaire_inflight_key,
+            questionnaire_json_key,
+        )
+
         fetched_json = fetch_questionnaire_json(questionnaire_said)
         if fetched_json:
-            cache_key = f'questionnaire_json_{questionnaire_said}'
-            cache.set(cache_key, fetched_json, timeout=60*60*24)
-            cache.delete(f"questionnaire_fetch_inflight:{questionnaire_said}")
+            cache.set(questionnaire_json_key(questionnaire_said), fetched_json, timeout=TTL_24H)
+        # Always release the inflight lock so a failed fetch does not block
+        # retries for the full 30-second TTL window.
+        cache.delete(questionnaire_inflight_key(questionnaire_said))
+        if fetched_json:
             logger.info(
                 f"Questionnaire {questionnaire_said} fetched and cached successfully")
         return fetched_json
@@ -467,11 +475,24 @@ def handle_negotiation_archive_and_summary_task(negotiation_id):
 
 @shared_task
 def refresh_data_task():
-    """Refresh data asynchronously using Celery"""
+    """Refresh GitHub-backed cache asynchronously using Celery.
+
+    Called by:
+      - Celery Beat (`prewarm-github-cache`, every 12h)
+      - GitHub webhook handler (`datastore.views.github_webhook`) after invalidation
+    """
     try:
-        from datastore.views import refresh_data
-        refresh_data()
-        logger.info("Data refresh completed successfully")
+        from datastore.views import warm_github_cache
+        result = warm_github_cache()
+        if result.get("ok"):
+            logger.info(
+                "Data refresh completed: %s (%.2fs)",
+                result.get("status"),
+                result.get("elapsed_time", 0) or 0,
+            )
+        else:
+            logger.error("Data refresh failed: %s", result.get("error"))
+        return result
     except Exception as e:
         logger.error(f"Error refreshing data: {str(e)}")
         raise
