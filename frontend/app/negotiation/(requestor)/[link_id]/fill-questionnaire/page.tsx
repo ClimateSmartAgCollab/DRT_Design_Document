@@ -136,16 +136,26 @@ export default function FillQuestionnairePage() {
   const globalOwnerComments = data?.comments ?? "";
 
   const isQuestionnaireLoading = data?.questionnaire?._loading;
+  // Cap polling at ~30 seconds (15 attempts * 2s) so a stalled Celery fetch
+  // does not leave the user staring at a spinner forever.
+  const MAX_LOADING_ATTEMPTS = 15;
+  const [loadingAttempts, setLoadingAttempts] = useState(0);
+  const loadingTimedOut = loadingAttempts >= MAX_LOADING_ATTEMPTS;
 
   useEffect(() => {
-    if (isQuestionnaireLoading) {
-      const interval = setInterval(() => {
-        queryClient.invalidateQueries({ queryKey: ["fillQuestionnaire", linkId] });
-      }, 2000); // Check every 2 seconds
-      
-      return () => clearInterval(interval);
+    if (!isQuestionnaireLoading) {
+      if (loadingAttempts !== 0) setLoadingAttempts(0);
+      return;
     }
-  }, [isQuestionnaireLoading, queryClient, linkId]);
+    if (loadingTimedOut) return;
+
+    const interval = setInterval(() => {
+      setLoadingAttempts((prev) => prev + 1);
+      queryClient.invalidateQueries({ queryKey: ["fillQuestionnaire", linkId] });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isQuestionnaireLoading, loadingTimedOut, loadingAttempts, queryClient, linkId]);
 
   useEffect(() => {
     if (whoamiQuery.isError) {
@@ -181,6 +191,25 @@ export default function FillQuestionnairePage() {
     return (
       <div className="flex items-center justify-center h-screen">
         <p>Loading requestor...</p>
+      </div>
+    );
+  }
+
+  if (isQuestionnaireLoading && loadingTimedOut) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4">
+        <p className="text-red-600">
+          Questionnaire is taking longer than expected to load.
+        </p>
+        <button
+          onClick={() => {
+            setLoadingAttempts(0);
+            queryClient.invalidateQueries({ queryKey: ["fillQuestionnaire", linkId] });
+          }}
+          className="bg-[rgb(70,160,35)] text-white px-4 py-2 rounded hover:bg-[rgb(55,125,28)] transition"
+        >
+          Retry
+        </button>
       </div>
     );
   }

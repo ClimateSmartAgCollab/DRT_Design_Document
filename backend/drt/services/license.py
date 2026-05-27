@@ -4,6 +4,11 @@ from django.conf import settings
 from jinja2 import Environment, FileSystemLoader, select_autoescape, Template
 from django.utils.translation import gettext_lazy as _
 from drt.utils.email_helpers import get_license_email_html
+from datastore.cache_keys import (
+    KEY_OWNER_TABLE,
+    TTL_24H,
+    license_template_key,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -58,10 +63,10 @@ def generate_license_and_notify_owner(nlink):
 
         attachments = []
 
-        owner_table = cache.get("owner_table")
+        owner_table = cache.get(KEY_OWNER_TABLE)
 
         license_id = getattr(nlink, 'license_id', None)
-        cache_key = f'license_template_{license_id}'
+        cache_key = license_template_key(license_id)
         license_template_content = cache.get(cache_key)
 
         # If not in cache, try to fetch but don't block
@@ -71,8 +76,7 @@ def generate_license_and_notify_owner(nlink):
                 license_template_content = fetch_license_template(license_id)
                 # Cache it for future use
                 if license_template_content:
-                    cache.set(cache_key, license_template_content,
-                              timeout=60*60*24)
+                    cache.set(cache_key, license_template_content, timeout=TTL_24H)
             except Exception as e:
                 logger.error(f"Error fetching license template: {str(e)}")
                 license_template_content = None
@@ -93,7 +97,7 @@ def generate_license_and_notify_owner(nlink):
 
         attachments.append(("license.txt", txt, "text/plain"))
 
-        owner_table = cache.get("owner_table", {})
+        owner_table = cache.get(KEY_OWNER_TABLE, {})
         owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
         if not owner_email:
             logger.error(f"Owner email not found for ID: {nlink.owner_id}")
