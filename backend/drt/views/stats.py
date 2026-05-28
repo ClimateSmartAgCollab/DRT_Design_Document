@@ -1088,8 +1088,8 @@ def submission_view(request):
         if license_template_content:
             # Create template from string content and render it as human-readable text
             template = Template(license_template_content)
-            content_type = "text/plain"
-            filename = "license.txt"
+            content_type = "application/json"
+            filename = "license.json"
             owner_table = cache.get("owner_table")
             
             # Import the flatten function from license service
@@ -1105,8 +1105,8 @@ def submission_view(request):
                 autoescape=select_autoescape(["html", "xml", "json"])
             )
             template = env.get_template("license_template_fallback.jinja")
-            content_type = "text/plain"
-            filename = "license.txt"
+            content_type = "application/json"
+            filename = "license.json"
             owner_table = cache.get("owner_table")
             
             details = flatten_form_data(submission)
@@ -1173,8 +1173,8 @@ def regenerate_license_view(request, negotiation_id):
             template = env.get_template("license_template_fallback.jinja")
             rendered = template.render(submission=details, owner_table=owner_table)
         
-        response = HttpResponse(rendered, content_type="text/plain")
-        response["Content-Disposition"] = f'attachment; filename="license_{negotiation_id}.txt"'
+        response = HttpResponse(rendered, content_type="application/json")
+        response["Content-Disposition"] = f'attachment; filename="license_{negotiation_id}.json"'
         return response
         
     except Exception as e:
