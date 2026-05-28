@@ -45,7 +45,7 @@ export function useSubmissionMapping(
         const blob = await response.blob();
         const cd = response.headers.get("Content-Disposition") || "";
         const match = cd.match(/filename="([^"]+)"/);
-        const filename = match?.[1] || { license: "license.txt" }[format];
+        const filename = match?.[1] || { license: "license.json" }[format];
 
         const blobUrl = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
