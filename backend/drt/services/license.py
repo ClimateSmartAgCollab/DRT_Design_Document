@@ -95,7 +95,8 @@ def generate_license_and_notify_owner(nlink):
             tpl = env.get_template("license_template_fallback.jinja")
             txt = tpl.render(submission=details, owner_table=owner_table)
 
-        attachments.append(("license.json", txt, "application/json"))
+        license_filename = f"license_{negotiation.negotiation_id}.json"
+        attachments.append((license_filename, txt, "application/json"))
 
         owner_table = cache.get(KEY_OWNER_TABLE, {})
         owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
