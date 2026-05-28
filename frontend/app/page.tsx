@@ -5,6 +5,9 @@ import { useState } from "react";
 import Image from "next/image";
 import Header from "@/app/components/Header";
 
+const negotiationGenerateUrl = (linkId: string) =>
+  `/negotiation/generate/${linkId}`;
+
 const content = {
   EN: {
     testingBanner: "TESTING ENVIRONMENT",
@@ -59,52 +62,51 @@ const content = {
           links: [
             // {
             //   label: "Questionnaire_prototype1-23-A-cow",
-            //   url: "http://127.0.0.1:3000/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
+            //   url: negotiationGenerateUrl(
+            //     "e540b3a9-b26e-435f-aff4-19bfa23a21cb"
+            //   ),
             // },
             // {
             //   label: "Questionnaire_prototype1-23-B-pig",
-            //   url: "http://127.0.0.1:3000/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
+            //   url: negotiationGenerateUrl(
+            //     "8ce1026c-e41c-4a03-a0a1-ede1a1630e5e"
+            //   ),
             // },
             // {
             //   label: "Questionnaire_prototype2-23-A-cow",
-            //   url: "http://127.0.0.1:3000/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
+            //   url: negotiationGenerateUrl(
+            //     "14ca6112-935e-4c9c-91ea-f6f92bfffe33"
+            //   ),
             // },
             // {
             //   label: "Questionnaire_prototype2-23-B-pig",
-            //   url: "http://127.0.0.1:3000/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
+            //   url: negotiationGenerateUrl(
+            //     "3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4"
+            //   ),
             // },
             // {
             //   label: "Questionnaire_prototype3",
-            //   url: "http://127.0.0.1:3000/negotiation/generate/fd603604-8934-4282-892b-87a1fe1f8dc8",
+            //   url: negotiationGenerateUrl(
+            //     "fd603604-8934-4282-892b-87a1fe1f8dc8"
+            //   ),
             // },
             // {
             //   label: "Questionnaire_prototype4",
-            //   url: "http://127.0.0.1:3000/negotiation/generate/36681bc2-0654-4a06-8a38-8d829298d8ee",
+            //   url: negotiationGenerateUrl(
+            //     "36681bc2-0654-4a06-8a38-8d829298d8ee"
+            //   ),
             // },
-
             {
-              label: "Questionnaire_prototype1-23-A-cow",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
+              label: "Basic Data Request",
+              url: negotiationGenerateUrl(
+                "75cb9450-01af-40b2-9cd5-e7fb0d82b59d"
+              ),
             },
             {
-              label: "Questionnaire_prototype1-23-B-pig",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
-            },
-            {
-              label: "Questionnaire_prototype2-23-A-cow",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
-            },
-            {
-              label: "Questionnaire_prototype2-23-B-pig",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
-            },
-            {
-              label: "Questionnaire_prototype3",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/fd603604-8934-4282-892b-87a1fe1f8dc8",
-            },
-            {
-              label: "Questionnaire_prototype4",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/36681bc2-0654-4a06-8a38-8d829298d8ee",
+              label: "Detailed Data Request",
+              url: negotiationGenerateUrl(
+                "b5c921ba-7108-44bf-9870-9e4126cd8f9a"
+              ),
             },
           ],
         },
@@ -208,29 +210,53 @@ const content = {
           title: "Commencer le questionnaire",
           desc: "Cliquez sur un lien ci-dessous pour démarrer votre questionnaire :",
           links: [
+            // {
+            //   label: "Questionnaire_prototype1-23-A-cow",
+            //   url: negotiationGenerateUrl(
+            //     "e540b3a9-b26e-435f-aff4-19bfa23a21cb"
+            //   ),
+            // },
+            // {
+            //   label: "Questionnaire_prototype1-23-B-pig",
+            //   url: negotiationGenerateUrl(
+            //     "8ce1026c-e41c-4a03-a0a1-ede1a1630e5e"
+            //   ),
+            // },
+            // {
+            //   label: "Questionnaire_prototype2-23-A-cow",
+            //   url: negotiationGenerateUrl(
+            //     "14ca6112-935e-4c9c-91ea-f6f92bfffe33"
+            //   ),
+            // },
+            // {
+            //   label: "Questionnaire_prototype2-23-B-pig",
+            //   url: negotiationGenerateUrl(
+            //     "3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4"
+            //   ),
+            // },
+            // {
+            //   label: "Nouveau questionnaire de test",
+            //   url: negotiationGenerateUrl(
+            //     "fd603604-8934-4282-892b-87a1fe1f8dc8"
+            //   ),
+            // },
+            // {
+            //   label: "Questionnaire_prototype4",
+            //   url: negotiationGenerateUrl(
+            //     "36681bc2-0654-4a06-8a38-8d829298d8ee"
+            //   ),
+            // },
             {
-              label: "Questionnaire_prototype1-23-A-cow",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/e540b3a9-b26e-435f-aff4-19bfa23a21cb",
+              label: "Demande de données de base",
+              url: negotiationGenerateUrl(
+                "75cb9450-01af-40b2-9cd5-e7fb0d82b59d"
+              ),
             },
             {
-              label: "Questionnaire_prototype1-23-B-pig",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/8ce1026c-e41c-4a03-a0a1-ede1a1630e5e",
-            },
-            {
-              label: "Questionnaire_prototype2-23-A-cow",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/14ca6112-935e-4c9c-91ea-f6f92bfffe33",
-            },
-            {
-              label: "Questionnaire_prototype2-23-B-pig",
-              url: "https://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/3ef65781-f2ed-4a4e-a7bb-d85d21e79ae4",
-            },
-            {
-              label: "Nouveau questionnaire de test",
-              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/fd603604-8934-4282-892b-87a1fe1f8dc8",
-            },
-            {
-              label: "Questionnaire_prototype4",
-              url: "http://drt-test.canadacentral.cloudapp.azure.com/negotiation/generate/36681bc2-0654-4a06-8a38-8d829298d8ee",
+              label: "Demande de données détaillées",
+              url: negotiationGenerateUrl(
+                "b5c921ba-7108-44bf-9870-9e4126cd8f9a"
+              ),
             },
           ],
         },
@@ -595,7 +621,7 @@ export default function HomePage() {
               </p>
 
               <a
-                href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/owner/homepage"
+                href="/negotiation/owner/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-center text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
@@ -614,7 +640,7 @@ export default function HomePage() {
                 {t.requestorsBody}
               </p>
               <a
-                href="https://drt-test.canadacentral.cloudapp.azure.com/negotiation/homepage"
+                href="/negotiation/homepage"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-center text-[rgb(70,160,35)] hover:text-[rgb(55,125,28)] underline text-lg sm:text-xl md:text-2xl font-sans mt-6 sm:mt-8"
