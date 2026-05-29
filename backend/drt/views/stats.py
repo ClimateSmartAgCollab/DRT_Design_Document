@@ -26,7 +26,7 @@ from datastore.cache_keys import (
     questionnaire_json_key,
 )
 from jinja2 import Template, Environment, FileSystemLoader, select_autoescape
-from drt.services.license import flatten_form_data        
+from drt.services.license import build_license_context
 from .questionnaire import create_archive_snapshot
 from django.conf import settings
 
@@ -1086,19 +1086,12 @@ def submission_view(request):
             license_template_content = fetch_license_template(license_id)
         
         if license_template_content:
-            # Create template from string content and render it as human-readable text
             template = Template(license_template_content)
             content_type = "application/json"
             filename = "license.json"
-            owner_table = cache.get("owner_table")
-            
-            # Import the flatten function from license service
-            details = flatten_form_data(submission)
-            
-            context = {"submission": details, "owner_table": owner_table}
+            context = build_license_context(submission_data=submission)
             rendered = template.render(**context)
         else:
-            # Fallback to hardcoded template if GitHub fetch fails
             print(f"⚠️ License template not found for {license_id}, using fallback template")
             env = Environment(
                 loader=FileSystemLoader("drt/templates"),
@@ -1107,11 +1100,7 @@ def submission_view(request):
             template = env.get_template("license_template_fallback.jinja")
             content_type = "application/json"
             filename = "license.json"
-            owner_table = cache.get("owner_table")
-            
-            details = flatten_form_data(submission)
-            
-            context = {"submission": details, "owner_table": owner_table}
+            context = build_license_context(submission_data=submission)
             rendered = template.render(**context)
 
     # elif fmt == "odrl":
@@ -1152,26 +1141,25 @@ def regenerate_license_view(request, negotiation_id):
         if not submission:
             return JsonResponse({"error": "No requestor responses found for this negotiation"}, status=400)
         
-        details = flatten_form_data(submission)
-        
+        context = build_license_context(negotiation=negotiation, nlink=nlink)
+
         license_id = getattr(nlink, 'license_id', None) or 'l-001-test'
         cache_key = license_template_key(license_id)
         license_template_content = cache.get(cache_key)
-        
+
         if not license_template_content:
-            
             license_template_content = fetch_license_template(license_id)
-            
+
         if license_template_content:
             template = Template(license_template_content)
-            rendered = template.render(submission=details, owner_table=owner_table)
+            rendered = template.render(**context)
         else:
             env = Environment(
                 loader=FileSystemLoader("drt/templates"),
                 autoescape=select_autoescape(['html', 'xml', 'json'])
             )
             template = env.get_template("license_template_fallback.jinja")
-            rendered = template.render(submission=details, owner_table=owner_table)
+            rendered = template.render(**context)
         
         response = HttpResponse(rendered, content_type="application/json")
         response["Content-Disposition"] = f'attachment; filename="license_{negotiation_id}.json"'
