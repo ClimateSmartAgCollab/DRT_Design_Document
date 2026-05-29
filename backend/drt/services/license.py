@@ -52,18 +52,48 @@ def flatten_form_data(submission_data):
     return flattened
 
 
+def build_license_context(negotiation=None, nlink=None, submission_data=None):
+    """Context for GitHub license templates (expects `dr`, `submission`, `owner_table`)."""
+    if submission_data is None and negotiation is not None:
+        submission_data = negotiation.requestor_responses
+
+    details = flatten_form_data(submission_data)
+    owner_table = cache.get(KEY_OWNER_TABLE) or {}
+    dr = dict(details)
+
+    if nlink is not None:
+        owner_info = owner_table.get(nlink.owner_id, {}) or {}
+        dr.update({
+            "data_label": nlink.data_label,
+            "record_label": nlink.record_label,
+            "visible_label": nlink.visible_label or nlink.record_label or nlink.data_label or "",
+            "tags": nlink.tags or [],
+            "requestor_email": nlink.requestor_email,
+            "owner_id": nlink.owner_id,
+            "owner_email": owner_info.get("owner_email"),
+            "owner_username": owner_info.get("username"),
+            "license_id": nlink.license_id,
+            "link_id": str(nlink.link_id),
+        })
+
+    if negotiation is not None:
+        dr.update({
+            "negotiation_id": str(negotiation.negotiation_id),
+            "questionnaire_id": negotiation.questionnaire_SAID,
+            "state": negotiation.state,
+            "timestamps": negotiation.timestamps.isoformat() if negotiation.timestamps else None,
+        })
+
+    return {"submission": details, "dr": dr, "owner_table": owner_table}
+
+
 def generate_license_and_notify_owner(nlink):
     """Generate license and send email"""
     try:
         negotiation = nlink.negotiation
-        submission = negotiation.requestor_responses
-
-        # Flatten the nested form data structure
-        details = flatten_form_data(submission)
+        context = build_license_context(negotiation=negotiation, nlink=nlink)
 
         attachments = []
-
-        owner_table = cache.get(KEY_OWNER_TABLE)
 
         license_id = getattr(nlink, 'license_id', None)
         cache_key = license_template_key(license_id)
@@ -84,7 +114,7 @@ def generate_license_and_notify_owner(nlink):
         if license_template_content:
             # Create template from string content and render it
             template = Template(license_template_content)
-            txt = template.render(submission=details, owner_table=owner_table)
+            txt = template.render(**context)
         else:
             # Fallback to default template if GitHub fetch fails
             logger.warning(f"Using fallback template for license {license_id}")
@@ -93,7 +123,7 @@ def generate_license_and_notify_owner(nlink):
                 autoescape=select_autoescape(['html', 'xml', 'json'])
             )
             tpl = env.get_template("license_template_fallback.jinja")
-            txt = tpl.render(submission=details, owner_table=owner_table)
+            txt = tpl.render(**context)
 
         license_filename = f"license_{negotiation.negotiation_id}.json"
         attachments.append((license_filename, txt, "application/json"))
