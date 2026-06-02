@@ -409,14 +409,17 @@ EMAIL_HOST_PASSWORD=your-smtp-password
 DEFAULT_FROM_EMAIL=noreply@yourdomain.com
 ```
 
-### 7.3 Customize Email Templates
+### 7.3 Customize Email and License Templates
 
-Edit email templates in `backend/drt/templates/`:
-- `email_base_template.html` - Base email layout
-- `request_access.html` - Request access email
-- `owner_review.html` - Owner review notification
-- `otp_verification.html` - OTP verification email
-- `license_odrl.xml.jinja` - License generation template
+**Email content** is built in Python, not HTML files. Edit the helpers in `backend/drt/utils/email_helpers.py`:
+- `get_email_base_html()` - Shared layout and styling for all emails
+- `get_verification_email_html()` - Magic-link / OTP verification emails
+- `get_notification_email_html()` - Owner review and requestor submission notifications
+- `get_rejection_email_html()`, `get_clarification_email_html()`, etc. - Workflow-specific emails
+
+**License templates** live in your GitHub datastore under `source_library/license/` and are referenced from `license_table.csv`. The backend fetches and caches them via `fetch_license_template()`.
+
+The only local template file is `backend/drt/templates/license_template_fallback.jinja`, used when a GitHub license template cannot be loaded.
 
 ---
 
