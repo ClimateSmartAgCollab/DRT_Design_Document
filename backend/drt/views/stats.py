@@ -25,8 +25,7 @@ from datastore.cache_keys import (
     license_template_key,
     questionnaire_json_key,
 )
-from jinja2 import Template, Environment, FileSystemLoader, select_autoescape
-from drt.services.license import build_license_context
+from drt.services.license import build_license_context, render_license
 from .questionnaire import create_archive_snapshot
 from django.conf import settings
 
@@ -1085,23 +1084,10 @@ def submission_view(request):
         if not license_template_content:
             license_template_content = fetch_license_template(license_id)
         
-        if license_template_content:
-            template = Template(license_template_content)
-            content_type = "application/json"
-            filename = "license.json"
-            context = build_license_context(submission_data=submission)
-            rendered = template.render(**context)
-        else:
-            print(f"⚠️ License template not found for {license_id}, using fallback template")
-            env = Environment(
-                loader=FileSystemLoader("drt/templates"),
-                autoescape=select_autoescape(["html", "xml", "json"])
-            )
-            template = env.get_template("license_template_fallback.jinja")
-            content_type = "application/json"
-            filename = "license.json"
-            context = build_license_context(submission_data=submission)
-            rendered = template.render(**context)
+        content_type = "text/plain"
+        filename = "license.txt"
+        context = build_license_context(submission_data=submission)
+        rendered = render_license(license_template_content, context)
 
     # elif fmt == "odrl":
     #     print("📃 rendering license_odrl.xml.jinja")
@@ -1150,19 +1136,10 @@ def regenerate_license_view(request, negotiation_id):
         if not license_template_content:
             license_template_content = fetch_license_template(license_id)
 
-        if license_template_content:
-            template = Template(license_template_content)
-            rendered = template.render(**context)
-        else:
-            env = Environment(
-                loader=FileSystemLoader("drt/templates"),
-                autoescape=select_autoescape(['html', 'xml', 'json'])
-            )
-            template = env.get_template("license_template_fallback.jinja")
-            rendered = template.render(**context)
-        
-        response = HttpResponse(rendered, content_type="application/json")
-        response["Content-Disposition"] = f'attachment; filename="license_{negotiation_id}.json"'
+        rendered = render_license(license_template_content, context)
+
+        response = HttpResponse(rendered, content_type="text/plain")
+        response["Content-Disposition"] = f'attachment; filename="license_{negotiation_id}.txt"'
         return response
         
     except Exception as e:
