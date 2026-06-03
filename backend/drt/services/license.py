@@ -9,6 +9,7 @@ from datastore.cache_keys import (
     TTL_24H,
     license_template_key,
 )
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,55 @@ def build_license_context(negotiation=None, nlink=None, submission_data=None):
             "timestamps": negotiation.timestamps.isoformat() if negotiation.timestamps else None,
         })
 
-    return {"submission": details, "dr": dr, "owner_table": owner_table}
+    # Expose the flattened answers at the top level so license templates can
+    # use bare placeholders like {{ name }} / {{ affiliation }} directly, while
+    # keeping `submission`/`dr`/`owner_table` available for richer templates.
+    context = dict(details)
+    context.update({"submission": details, "dr": dr, "owner_table": owner_table})
+    return context
+
+
+def extract_jinja_source(license_template_content):
+    """Return the renderable Jinja source from a license template.
+
+    Datastore license templates are JSON documents shaped like
+    ``{"jinja": "...", "d": ..., "oca_package_d": ..., "type": ...}`` where only
+    the ``jinja`` field is the renderable template. Accepts a JSON string, an
+    already-parsed dict, or a plain Jinja string (returned as-is for backward
+    compatibility).
+    """
+    if not license_template_content:
+        return ""
+
+    content = license_template_content
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except ValueError:
+            return content  # plain Jinja string, not a JSON document
+
+    if isinstance(content, dict):
+        return content.get("jinja", "")
+
+    return ""
+
+
+def render_license(license_template_content, context):
+    """Render a license attachment from a datastore license template.
+
+    Uses the template's ``jinja`` field when available, otherwise falls back to
+    the local default template.
+    """
+    jinja_source = extract_jinja_source(license_template_content)
+    if jinja_source:
+        return Template(jinja_source).render(**context)
+
+    logger.warning("Using fallback license template")
+    env = Environment(
+        loader=FileSystemLoader("drt/templates"),
+        autoescape=select_autoescape(['html', 'xml', 'json']),
+    )
+    return env.get_template("license_template_fallback.jinja").render(**context)
 
 
 def generate_license_and_notify_owner(nlink):
@@ -111,22 +160,10 @@ def generate_license_and_notify_owner(nlink):
                 logger.error(f"Error fetching license template: {str(e)}")
                 license_template_content = None
 
-        if license_template_content:
-            # Create template from string content and render it
-            template = Template(license_template_content)
-            txt = template.render(**context)
-        else:
-            # Fallback to default template if GitHub fetch fails
-            logger.warning(f"Using fallback template for license {license_id}")
-            env = Environment(
-                loader=FileSystemLoader("drt/templates"),
-                autoescape=select_autoescape(['html', 'xml', 'json'])
-            )
-            tpl = env.get_template("license_template_fallback.jinja")
-            txt = tpl.render(**context)
+        txt = render_license(license_template_content, context)
 
-        license_filename = f"license_{negotiation.negotiation_id}.json"
-        attachments.append((license_filename, txt, "application/json"))
+        license_filename = f"license_{negotiation.negotiation_id}.txt"
+        attachments.append((license_filename, txt, "text/plain"))
 
         owner_table = cache.get(KEY_OWNER_TABLE, {})
         owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
