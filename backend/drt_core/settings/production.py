@@ -38,12 +38,14 @@ SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
 SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
 
-POSTGRES_DB = os.environ.get("POSTGRES_DB")
-POSTGRES_USER = os.environ.get("POSTGRES_USER")
-POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST");
+POSTGRES_DB = _required("POSTGRES_DB")
+POSTGRES_USER = _required("POSTGRES_USER")
+POSTGRES_PASSWORD = _required("POSTGRES_PASSWORD")
+POSTGRES_HOST = _required("POSTGRES_HOST")
 POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
 POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA", "public")
+if not POSTGRES_SCHEMA.isidentifier():
+    raise ImproperlyConfigured("POSTGRES_SCHEMA must be a valid Python/PostgreSQL identifier (e.g. public, tenant1)")
 
 DATABASES = {
     "default": {
