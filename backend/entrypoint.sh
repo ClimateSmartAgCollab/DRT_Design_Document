@@ -2,9 +2,9 @@
 # set -e
 
 # Wait for the database to be ready before migrating
-if [ ! -z "$DB_HOST" ]; then
-  >&2 echo "Waiting for database connection on $DB_HOST:$DB_PORT"
-  until nc -z $DB_HOST $DB_PORT
+if [ ! -z "$POSTGRES_HOST" ]; then
+  >&2 echo "Waiting for database connection on $POSTGRES_HOST:$POSTGRES_PORT"
+  until nc -z $POSTGRES_HOST $POSTGRES_PORT
   do
     >&2 echo "Waiting for database connection..."
     sleep 1
