@@ -58,6 +58,7 @@ DATABASES = {
         'PASSWORD': POSTGRES_PASSWORD,
         'HOST': POSTGRES_HOST,
         'PORT': POSTGRES_PORT,
+        'CONN_MAX_AGE': int(os.environ.get("POSTGRES_CONN_MAX_AGE", "600")),
     }
 }
 
