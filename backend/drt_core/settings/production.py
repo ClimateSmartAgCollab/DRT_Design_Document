@@ -38,8 +38,25 @@ SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
 SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
 
+POSTGRES_DB = os.environ.get("POSTGRES_DB")
+POSTGRES_USER = os.environ.get("POSTGRES_USER")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST");
+POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
+POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA", "public")
+
 DATABASES = {
-    "default": dj_database_url.parse(_required("DATABASE_URL"), conn_max_age=600),
+    "default": {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'OPTIONS': {
+            'options': f'-c search_path={POSTGRES_SCHEMA}'
+        },
+        'NAME': POSTGRES_DB,
+        'USER': POSTGRES_USER,
+        'PASSWORD': POSTGRES_PASSWORD,
+        'HOST': POSTGRES_HOST,
+        'PORT': POSTGRES_PORT,
+    }
 }
 
 REDIS_URL = _required("REDIS_URL")
