@@ -109,10 +109,8 @@ services:
 
   postgres:
     image: postgres:13
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB (e.g. docker compose --env-file ../.env.production)}
-      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    env_file:
+      - ../.env.production
     volumes:
       - prod_db_data:/var/lib/postgresql/data
     restart: unless-stopped
