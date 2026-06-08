@@ -169,18 +169,36 @@ The core entities live in `backend/drt/models.py`.
 
 ## Environment & Configuration
 
-| Variable | Purpose | Location |
-| --- | --- | --- |
-| `DJANGO_SECRET_KEY` | Core Django secret | `backend/.env` |
-| `DATABASE_URL` or (`POSTGRES_*`, `DB_HOST`, `DB_PORT`) | Database connectivity | `backend/.env` |
-| `REDIS_URL` | Celery broker + cache | `backend/.env` |
-| `FRONTEND_BASE_URL` | Used in emails for deep links | `backend/.env` |
-| `GITHUB_API_URL` | GitHub API URL for datastore repository (format: `https://api.github.com/repos/OWNER/REPO/contents`) | `backend/.env` |
-| `GITHUB_TOKEN` | GitHub personal access token for datastore access | `backend/.env` |
-| `EMAIL_*` (`DEFAULT_FROM_EMAIL`, `ETHEREAL_USER`, etc.) | SMTP credentials | `backend/.env` |
-| `ADMIN_EMAILS` | Comma-separated list of admin email addresses for admin access | `backend/.env` |
-| `ADMIN_ENABLED` | Enable/disable admin functionality (`true`/`false`) | `backend/.env` |
-| `NEXT_PUBLIC_API_BASE_URL` | Frontend → API endpoint | `frontend/.env.local` |
+Settings modules: **local development** uses `drt_core.settings.local`; **production** uses `drt_core.settings.production`. Copy `.env.example` for local work and `.env.production.example` for deploys.
+
+### Local development (`backend/.env`)
+
+| Variable | Purpose |
+| --- | --- |
+| `DJANGO_SECRET_KEY` | Core Django secret |
+| `POSTGRES_*` + `DB_HOST` / `DB_PORT` | PostgreSQL connectivity (or set `DATABASE_URL` to override) |
+| `USE_SQLITE` | Set `true` for quick SQLite-only runs |
+| `REDIS_URL` | Celery broker + cache |
+| `FRONTEND_BASE_URL` | Used in emails for deep links |
+| `GITHUB_API_URL` | GitHub API URL for datastore repository (format: `https://api.github.com/repos/OWNER/REPO/contents`) |
+| `GITHUB_TOKEN` | GitHub personal access token for datastore access |
+| `EMAIL_*` / `ETHEREAL_*` | SMTP or Ethereal sandbox credentials |
+| `ADMIN_EMAILS` | Comma-separated list of admin email addresses |
+| `ADMIN_ENABLED` | Enable/disable admin functionality (`true`/`false`) |
+| `NEXT_PUBLIC_API_BASE_URL` | Frontend → API endpoint (`frontend/.env.local`) |
+
+### Production (`.env.production`)
+
+| Variable | Purpose |
+| --- | --- |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` | Required database connection (production does **not** use `DATABASE_URL` or `DB_HOST`) |
+| `POSTGRES_SCHEMA` | PostgreSQL schema for DRT tables (default `public`; use a dedicated schema when sharing a managed database) |
+| `POSTGRES_CONN_MAX_AGE` | Connection pool lifetime in seconds (default `600`) |
+| `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` | Host and CSRF configuration |
+| `REDIS_URL`, `CELERY_BROKER_URL` | Redis and Celery |
+| `EMAIL_*` | Production SMTP (not `ETHEREAL_*`) |
+
+See [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) Step 6.3 and Step 9.2 for schema support and the full production checklist.
 
 **Secrets management**
 - Copy `backend/env.example` to `.env` and populate sensitive values.
@@ -226,7 +244,8 @@ Use `redis-server` or the Docker container to provide the broker/backend.
 ---
 
 ## Deployment & Operations
-- **Containers:** Build images from `infra/docker/backend.Dockerfile` (Django/Celery) and `frontend/frontend.Dockerfile`.
+- **Containers:** Build images from `infra/docker/backend.Dockerfile` (Django/Celery) and `frontend/frontend.Dockerfile`. Use `infra/docker-compose.prod.yml` with `.env.production`.
+- **Database:** Production requires `POSTGRES_*` variables (`POSTGRES_HOST`, not `DB_HOST`). Set `POSTGRES_SCHEMA=public` for a dedicated database, or a custom schema name when sharing a managed PostgreSQL instance (create the schema before migrate).
 - **Reverse proxy:** Nginx terminates TLS (80/443) and routes traffic to frontend/backend services.
 - **Static files:** `python manage.py collectstatic` prior to production deploy to upload assets.
 - **Email delivery:** external SMTP provider (Ethereal for staging, production provider TBD).

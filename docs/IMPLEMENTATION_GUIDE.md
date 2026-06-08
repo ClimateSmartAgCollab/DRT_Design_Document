@@ -176,15 +176,18 @@ DJANGO_SECRET_KEY=your-secret-key-here-generate-with-openssl-rand-hex-32
 ENVIRONMENT=development
 DJANGO_DEBUG=True
 
-# Database Configuration
+# Database Configuration (local development — drt_core.settings.local)
 USE_SQLITE=false  # Set to true only for initial testing
 POSTGRES_DB=drt
 POSTGRES_USER=drt
 POSTGRES_PASSWORD=your-secure-password
-DB_HOST=postgres  # Use 'localhost' if running outside Docker
+DB_HOST=postgres  # Use '127.0.0.1' if running Django on the host outside Docker
 DB_PORT=5432
-# Or use DATABASE_URL format:
-# DATABASE_URL=postgres://drt:password@localhost:5432/drt
+# Optional: DATABASE_URL overrides the POSTGRES_* / DB_HOST settings above when set
+# DATABASE_URL=postgres://drt:password@postgres:5432/drt
+#
+# Production uses drt_core.settings.production and POSTGRES_* variables instead
+# (including POSTGRES_HOST and POSTGRES_SCHEMA). See Step 9.2 and .env.production.example.
 
 # Redis Configuration
 REDIS_URL=redis://redis:6379/1  # Use 'redis://localhost:6379/1' if running outside Docker
@@ -364,14 +367,49 @@ docker compose up postgres redis -d
    GRANT ALL PRIVILEGES ON DATABASE drt TO drt;
    ```
 
-2. Update `backend/.env` with connection details
+2. Update `backend/.env` with connection details (`POSTGRES_*`, `DB_HOST`, `DB_PORT`, or `DATABASE_URL` — see Step 3.1)
 
 3. Run migrations:
    ```bash
    python manage.py migrate
    ```
 
-### 6.3 Initial Data Loading
+### 6.3 PostgreSQL Schema Support (Production)
+
+Many managed database providers allocate one database per account rather than one database per application. DRT supports **PostgreSQL schemas** so multiple projects can share a single database while keeping their tables in separate namespaces.
+
+In production (`drt_core.settings.production`), Django sets PostgreSQL `search_path` from the `POSTGRES_SCHEMA` environment variable. Migrations and queries then target that schema.
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `POSTGRES_DB` | Yes | — | Database name |
+| `POSTGRES_USER` | Yes | — | Database user |
+| `POSTGRES_PASSWORD` | Yes | — | Database password |
+| `POSTGRES_HOST` | Yes | — | Database host (e.g. `postgres` in Docker Compose, or your managed DB hostname) |
+| `POSTGRES_PORT` | No | `5432` | Database port |
+| `POSTGRES_SCHEMA` | No | `public` | PostgreSQL schema (namespace) for DRT tables |
+| `POSTGRES_CONN_MAX_AGE` | No | `600` | Persistent connection lifetime in seconds |
+
+**Single-project deployments:** leave `POSTGRES_SCHEMA=public` (the default). No extra setup is required.
+
+**Shared-database deployments:** set a dedicated schema name (e.g. `drt_prod`) and create it before the first migrate:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS drt_prod;
+GRANT ALL ON SCHEMA drt_prod TO your_db_user;
+```
+
+Then in `.env.production`:
+
+```bash
+POSTGRES_SCHEMA=drt_prod
+```
+
+> **Note:** Schemas provide logical separation of tables, not full security isolation. All schemas in a database share the same connection, backup scope, and database user unless your provider configures otherwise. See the [PostgreSQL schema documentation](https://www.postgresql.org/docs/current/ddl-schemas.html) for background.
+
+Production settings do **not** read `DATABASE_URL` or `DB_HOST`/`DB_PORT`. Copy `.env.production.example` to `.env.production` for the full production variable list.
+
+### 6.4 Initial Data Loading
 
 After setting up the GitHub datastore, trigger initial data load:
 ```bash
@@ -505,13 +543,32 @@ The only local template file is `backend/drt/templates/license_template_fallback
 
 ### 9.2 Production Environment Variables
 
-Create production `.env` files with:
-- Strong `DJANGO_SECRET_KEY`
-- Production database credentials
-- Production Redis URL
-- Production email SMTP settings
-- Production `FRONTEND_BASE_URL` (your domain)
-- Production `NEXT_PUBLIC_API_URL`
+1. Copy the production template:
+   ```bash
+   cp .env.production.example .env.production
+   ```
+
+2. Fill in every required value. Production loads `drt_core.settings.production`, which **fails fast** if required keys are missing.
+
+**Required groups:**
+
+| Group | Key variables |
+| --- | --- |
+| Django | `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` |
+| Database | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` |
+| Redis / Celery | `REDIS_URL`, `CELERY_BROKER_URL` |
+| Email | `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` |
+| GitHub datastore | `GITHUB_API_URL`, `GITHUB_TOKEN` |
+| Frontend | `FRONTEND_BASE_URL` |
+
+**Database notes for production:**
+
+- Use `POSTGRES_HOST` (not `DB_HOST`). The container entrypoint waits on `POSTGRES_HOST`/`POSTGRES_PORT` before running migrations.
+- Set `POSTGRES_SCHEMA=public` unless you are sharing a managed database with other apps (see [Step 6.3](#63-postgresql-schema-support-production)).
+- `DATABASE_URL` is ignored in production settings; configure `POSTGRES_*` explicitly.
+- Optional: `POSTGRES_CONN_MAX_AGE` (default `600`), `CORS_ALLOWED_ORIGINS`, `SECURE_HSTS_SECONDS`.
+
+The `infra/docker-compose.prod.yml` stack reads `.env.production` for the backend, Celery, frontend, and Postgres services. Set `DJANGO_MANAGE_MIGRATE=on` on the backend service (already configured in compose) so migrations run on startup.
 
 ### 9.3 Reverse Proxy (Nginx)
 
@@ -654,9 +711,10 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 - Consider implementing cache warming via Celery Beat
 
 **2. Database Connection Errors**
-- **Solution**: Verify `DATABASE_URL` or individual DB settings in `.env`
-- Check PostgreSQL is running and accessible
-- Verify network connectivity (Docker networking if using containers)
+- **Local development:** Verify `POSTGRES_*`, `DB_HOST`, `DB_PORT`, or `DATABASE_URL` in `.env` (see Step 3.1). Local settings are in `drt_core.settings.local`.
+- **Production:** Verify `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, and `POSTGRES_PORT` in `.env.production`. Production does not use `DATABASE_URL` or `DB_HOST`.
+- **Shared database / custom schema:** Ensure the schema exists (`CREATE SCHEMA ...`) and `POSTGRES_SCHEMA` matches before running migrations.
+- Check PostgreSQL is running and accessible; verify network connectivity (Docker networking if using containers).
 
 **3. Celery Tasks Not Executing**
 - **Solution**: Ensure Redis is running and accessible
