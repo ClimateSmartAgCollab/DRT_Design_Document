@@ -192,7 +192,7 @@ graph LR
 
 ### Notes
 
-- In production, Redis backs both the Django cache (DB index `/1`) and the Celery broker/result backend (DB index `/0`) on the same instance. In local development, Celery is configured eager (`CELERY_TASK_ALWAYS_EAGER = True`) and uses an in-process `memory://` broker, while the Django cache still points at Redis.
+- In production, Redis backs both the Django cache (DB index `/1`) and the Celery broker/result backend (DB index `/0`) on the same instance. PostgreSQL connectivity uses explicit `POSTGRES_*` settings with optional `POSTGRES_SCHEMA` (see `backend/drt_core/settings/production.py` and `docs/IMPLEMENTATION_GUIDE.md` Step 6.3). In local development, Celery is configured eager (`CELERY_TASK_ALWAYS_EAGER = True`) and uses an in-process `memory://` broker, while the Django cache still points at Redis.
 - Production deployments may split Redis roles or swap in managed equivalents; update the diagram as infrastructure evolves.
 
 ---
@@ -251,5 +251,6 @@ The frontend uses React Query as a second cache tier:
 - Startup warm thread: `backend/datastore/apps.py`
 - Async fetch + refresh tasks: `backend/drt/tasks.py` (`fetch_questionnaire_task`, `refresh_data_task`)
 - Celery Beat schedule: `backend/drt_core/settings/production.py`
+- Production database / schema config: `backend/drt_core/settings/production.py` (`POSTGRES_*`, `POSTGRES_SCHEMA`)
 - Cache layer tests: `backend/datastore/tests.py`
 

@@ -9,6 +9,7 @@ Use this directory to capture architecture notes, decision records, and design d
 
 Existing documents:
 
+- `IMPLEMENTATION_GUIDE.md` – step-by-step setup, local development, production deployment, and PostgreSQL schema configuration (`POSTGRES_SCHEMA`).
 - `cache-architecture.md` – GitHub-backed caching flow, detailed sequence/decision diagrams, and operational topology.
 
 If you are migrating existing documentation from elsewhere in the repo, move the markdown or diagrams here and update links accordingly.
