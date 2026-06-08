@@ -40,7 +40,11 @@ Key variables in `.env.production`:
 - `REDIS_URL`, `CELERY_BROKER_URL`
 - `EMAIL_*` (production SMTP — not `ETHEREAL_*`)
 
-Production does **not** read `DATABASE_URL` or `DB_HOST`/`DB_PORT`. The container entrypoint waits on `POSTGRES_HOST` before migrations.
+Production does **not** read `DATABASE_URL` or `DB_HOST`/`DB_PORT`.
+
+### Container entrypoint
+
+`backend/entrypoint.sh` runs before the app in Docker. It polls `POSTGRES_HOST`/`POSTGRES_PORT` until Postgres accepts connections (Compose `depends_on` does not guarantee readiness). When `DJANGO_MANAGE_MIGRATE=on`, it runs `collectstatic`, `migrate`, and `createcachetable`. If `DJANGO_SUPERUSER_USERNAME` and `DJANGO_SUPERUSER_PASSWORD` are set, it also runs `createsuperuser --noinput` — useful for first deploy without shell access; see commented examples in `.env.production.example`.
 
 See [docs/IMPLEMENTATION_GUIDE.md](../docs/IMPLEMENTATION_GUIDE.md) Step 6.3 and Step 9.2 for schema support and the full production checklist.
 
