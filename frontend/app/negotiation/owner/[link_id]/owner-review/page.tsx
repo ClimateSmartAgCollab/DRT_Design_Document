@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -32,6 +33,25 @@ import {
   parseOwnerResponses,
 } from "./utils/formUtils";
 
+const TERMINAL_ACTIONS = ["accept", "reject", "request_clarification"];
+
+function isAuthError(error: Error): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("401") ||
+    msg.includes("authentication") ||
+    msg.includes("owner authentication required")
+  );
+}
+
+function isAcceptedError(error: Error): boolean {
+  return error.message.toLowerCase().includes("accepted");
+}
+
+function isRequestorOpenError(error: Error): boolean {
+  return error.message.toLowerCase().includes("requestor_open");
+}
+
 export default function OwnerReviewPage() {
   const { link_id } = useParams();
   const router = useRouter();
@@ -61,7 +81,8 @@ export default function OwnerReviewPage() {
   const {
     data: negotiation,
     error: fetchError,
-    isLoading: loadingNegotiation,
+    isPending: pendingNegotiation,
+    isSuccess: successNegotiation,
     isError: errorNegotiation,
   } = useQuery<NegotiationData, Error>({
     queryKey: ["ownerReview", linkIdStr],
@@ -70,7 +91,7 @@ export default function OwnerReviewPage() {
     // enabled: !!linkIdStr && isAuthenticated === true,
   });
 
-  const { data: history, isLoading: loadingHistory } = useQuery<
+  const { data: history, isPending: pendingHistory } = useQuery<
     NegotiationHistory,
     Error
   >({
@@ -82,33 +103,26 @@ export default function OwnerReviewPage() {
 
   const { historyEntries } = useNegotiationHistory(history);
 
+  const isDataReady = successNegotiation && !pendingHistory && !!negotiation;
+
   const currentData = useMemo(() => {
-    if (!negotiation) {
-      console.log("⚠️ No negotiation data available");
-      return null;
-    }
+    if (!isDataReady || !negotiation) return undefined;
 
     const totalEntries = historyEntries.length;
 
     if (currentHistoryIndex === totalEntries) {
       return {
         ...negotiation,
-        // Keep the current owner responses and comments for the latest version
         owner_responses: negotiation.owner_responses,
         comments: negotiation.comments,
       };
     }
 
-    const historyIndex = currentHistoryIndex;
-    const historyEntry = historyEntries[historyIndex];
-
-    if (!historyEntry) {
-      console.log("⚠️ Falling back to negotiation data");
-      return negotiation;
-    }
+    const historyEntry = historyEntries[currentHistoryIndex];
+    if (!historyEntry) return negotiation;
 
     return historyEntry.data;
-  }, [negotiation, historyEntries, currentHistoryIndex]);
+  }, [isDataReady, negotiation, historyEntries, currentHistoryIndex]);
 
   const parsedSteps = useMemo(() => {
     return parseQuestionnaire(currentData?.questionnaire);
@@ -198,13 +212,7 @@ export default function OwnerReviewPage() {
   }, [isQuestionnaireLoading, loadingTimedOut, loadingAttempts, qc, linkIdStr]);
 
   useEffect(() => {
-    if (
-      errorNegotiation &&
-      fetchError &&
-      (fetchError.message.includes("401") ||
-        fetchError.message.includes("403") ||
-        fetchError.message.toLowerCase().includes("authentication"))
-    ) {
+    if (errorNegotiation && fetchError && isAuthError(fetchError)) {
       setRedirecting(true);
       router.replace("/negotiation/owner/email-entry");
     }
@@ -240,15 +248,13 @@ export default function OwnerReviewPage() {
       console.error("Action error:", err);
       setStatusMessage(err.message);
     },
-    onSuccess(result, action) {
+    onSuccess(_result, action) {
       setStatusMessage(null);
-      qc.invalidateQueries({ queryKey: ["ownerReview", linkIdStr] });
-      qc.invalidateQueries({ queryKey: ["negotiationHistory", linkIdStr] });
-      
-      // Add a small delay to ensure the backend has processed the request
-      setTimeout(() => {
-        router.push(`/negotiation/owner/${linkIdStr}/result/${action}`);
-      }, 1000);
+      if (!TERMINAL_ACTIONS.includes(action)) {
+        qc.invalidateQueries({ queryKey: ["ownerReview", linkIdStr] });
+        qc.invalidateQueries({ queryKey: ["negotiationHistory", linkIdStr] });
+      }
+      router.push(`/negotiation/owner/${linkIdStr}/result/${action}`);
     },
   });
 
@@ -256,9 +262,7 @@ export default function OwnerReviewPage() {
   const isVerifyingEmail = emailVerificationMutation.status === "pending";
 
   const handleActionClick = async (action: string) => {
-    const restrictedActions = ["accept", "reject", "request_clarification"];
-
-    if (restrictedActions.includes(action)) {
+    if (TERMINAL_ACTIONS.includes(action)) {
       let authStatus = isAuthenticated;
       if (authStatus === null) {
         authStatus = await checkUserAuth();
@@ -282,42 +286,32 @@ export default function OwnerReviewPage() {
   };
 
   useEffect(() => {
-    const pendingAction = sessionStorage.getItem("pendingOwnerAction");
-    if (pendingAction) {
-      console.log("Found pending action:", pendingAction);
-      sessionStorage.removeItem("pendingOwnerAction");
-      setStatusMessage(
-        "Authentication successful! Executing your pending action..."
-      );
+    const storedAction = sessionStorage.getItem("pendingOwnerAction");
+    if (!storedAction) return;
 
-      setTimeout(async () => {
-        const authStatus = await checkUserAuth();
-        console.log("User authenticated:", authStatus);
-        setIsAuthenticated(authStatus);
-        if (authStatus) {
-          console.log("Executing pending action:", pendingAction);
-          actionMutation.mutate(pendingAction);
-        } else {
-          setStatusMessage(
-            "Authentication expired. Please try the action again."
-          );
-        }
-      }, 1000);
-    }
+    sessionStorage.removeItem("pendingOwnerAction");
+    setStatusMessage(
+      "Authentication successful! Executing your pending action..."
+    );
+
+    setTimeout(async () => {
+      const authStatus = await checkUserAuth();
+      setIsAuthenticated(authStatus);
+      if (authStatus) {
+        actionMutation.mutate(storedAction);
+      } else {
+        setStatusMessage(
+          "Authentication expired. Please try the action again."
+        );
+      }
+    }, 1000);
   }, [actionMutation]);
 
-  if (
-    redirecting ||
-    (errorNegotiation &&
-      fetchError &&
-      (fetchError?.message?.includes("401") ||
-        fetchError?.message?.includes("403") ||
-        fetchError?.message?.toLowerCase().includes("authentication")))
-  ) {
+  if (redirecting || (errorNegotiation && fetchError && isAuthError(fetchError))) {
     return null;
   }
 
-  if (loadingNegotiation || loadingHistory) {
+  if (pendingNegotiation || pendingHistory) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -347,7 +341,7 @@ export default function OwnerReviewPage() {
     );
   }
 
-  if (loadingNegotiation || loadingHistory || isQuestionnaireLoading) {
+  if (pendingNegotiation || pendingHistory || isQuestionnaireLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <p>
@@ -359,11 +353,61 @@ export default function OwnerReviewPage() {
     );
   }
 
+  if (errorNegotiation && fetchError) {
+    if (isAcceptedError(fetchError)) {
+      return (
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center space-y-4">
+            <p className="text-lg text-gray-600">
+              This negotiation has already been accepted and is no longer
+              editable.
+            </p>
+            <div className="flex flex-col gap-2 items-center">
+              <Link
+                href={`/negotiation/owner/${linkIdStr}/result/accept`}
+                className="text-[rgb(70,160,35)] underline hover:text-[rgb(55,125,28)]"
+              >
+                View acceptance outcome
+              </Link>
+              <Link
+                href="/negotiation/owner/homepage"
+                className="text-[rgb(70,160,35)] underline hover:text-[rgb(55,125,28)]"
+              >
+                Go to dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (isRequestorOpenError(fetchError)) {
+      return (
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <p className="text-lg text-gray-600">
+              The requestor has not submitted their questionnaire yet.
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              You will be able to review this request once it has been
+              submitted.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-lg text-gray-600">Unable to load negotiation</p>
+          <p className="text-sm text-gray-500 mt-2">{fetchError.message}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!negotiation || !currentData) {
-    console.log("⚠️ Missing required data:", {
-      negotiation: !!negotiation,
-      currentData: !!currentData,
-    });
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
