@@ -13,33 +13,12 @@ type WhoamiResponse = {
   email: string;
 };
 
-type LoadResponse = {
-  status: string;
-  data?: any;
-};
-
 async function fetchWhoami(): Promise<WhoamiResponse> {
   const res = await fetchApi("/drt/requestor/whoami/", {
-    credentials: "include", // ensure cookies (session/token) are sent
+    credentials: "include",
   });
   if (!res.ok) {
     throw new Error("Not authenticated");
-  }
-  return res.json();
-}
-
-async function fetchLoadData(): Promise<LoadResponse> {
-  const res = await fetchApi("/datastore/load-data/");
-  if (!res.ok) {
-    // try to extract a JSON error if available
-    let msg = res.statusText;
-    try {
-      const errBody = await res.json();
-      msg = errBody.error ?? msg;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
   }
   return res.json();
 }
@@ -61,21 +40,6 @@ export default function RequestorHomePage() {
     }
   }, [whoamiQuery.isError, router]);
 
-  const loadDataQuery = useQuery<LoadResponse, Error>({
-    queryKey: ["datastore", "load-data"],
-    queryFn: fetchLoadData,
-    enabled: !!whoamiQuery.data, // wait for whoami
-    retry: 1, // retry once
-    staleTime: Infinity, // keep in cache for session
-  });
-
-  // handle error side effects
-  React.useEffect(() => {
-    if (loadDataQuery.isError) {
-      console.error("Failed to load cache data:", loadDataQuery.error);
-    }
-  }, [loadDataQuery.isError, loadDataQuery.error]);
-
   const logoutMutation = useMutation({
     mutationFn: async () => {
       const response = await fetchApi('/drt/requestor/logout/', {
@@ -93,7 +57,6 @@ export default function RequestorHomePage() {
     onError: (error) => {
       console.error('Logout error:', error);
       setIsLoggingOut(false);
-      // Still redirect even if logout fails
       router.push('/negotiation/email-entry');
     },
   });
@@ -110,42 +73,19 @@ export default function RequestorHomePage() {
       </div>
     );
   }
-  // whoamiQuery.onError already redirected, so we can bail silently:
   if (whoamiQuery.isError || !whoamiQuery.data) {
     return null;
   }
 
-  if (loadDataQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-gray-600">
-        Loading cache…
-      </div>
-    );
-  }
-  if (loadDataQuery.isError) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-red-600">
-        Error: {loadDataQuery.error.message}
-      </div>
-    );
-  }
-
   const email = (whoamiQuery.data as unknown as WhoamiResponse).email;
 
-  // ender the dashboard
   const requestorPages = [
     { name: "Negotiation List", href: `/negotiation/list`, emoji: "📋" },
-    // {
-    //   name: "Summary Statistics",
-    //   href: `/negotiation/summary?requestor=${encodeURIComponent(email)}`,
-    //   emoji: "📊",
-    // },
   ];
 
   return (
     <Providers>
       <main className="min-h-dvh bg-white flex flex-col">
-        {/* Header Bar */}
         <Header
           title="Requestor Dashboard"
           homepageLink={{

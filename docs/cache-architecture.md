@@ -217,12 +217,11 @@ All datastore cache keys and TTLs are centralized in `backend/datastore/cache_ke
 
 ## Cache Warm-Up Paths
 
-There are four paths that populate the GitHub-backed cache; all call `warm_github_cache()`:
+There are three paths that populate the GitHub-backed cache; all call `warm_github_cache()`:
 
 1. **App startup** -- `DatastoreConfig.ready()` spawns a daemon thread on every Django worker start.
-2. **Manual / programmatic** -- `GET /datastore/load-data/` (used by admin tooling and a few frontend pages).
-3. **Celery Beat** -- `prewarm-github-cache` runs every 12 hours.
-4. **GitHub webhook** -- `POST /datastore/webhook/` deletes keys synchronously, then enqueues `refresh_data_task` (which calls `warm_github_cache()`).
+2. **Celery Beat** -- `prewarm-github-cache` runs every 12 hours.
+3. **GitHub webhook** -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then enqueues `refresh_data_task` (which calls `warm_github_cache()`).
 
 `warm_github_cache()` short-circuits when all four `HOT_CACHE_KEYS` are present **and truthy** -- empty dicts from a previously failed warm do not count as "already warm."
 
@@ -240,7 +239,6 @@ There are four paths that populate the GitHub-backed cache; all call `warm_githu
 The frontend uses React Query as a second cache tier:
 
 - **Negotiations lists:** `staleTime: 5m`, refetch on focus + on mount. Mutations call `invalidateQueries({ queryKey: ["negotiations"] })` to refresh after state changes. Background polling was removed -- negotiation state only changes on user actions.
-- **`/datastore/load-data/`:** `staleTime: Infinity` on homepages (one warm call per session). Treat this as a safety net; the backend warm paths above are the real source of freshness.
 - **`/datastore/cached-data/{key}/`:** dev/debug-only viewer, 5m stale, manual reload via mutation.
 
 ## Related References

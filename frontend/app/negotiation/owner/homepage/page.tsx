@@ -13,27 +13,6 @@ type WhoamiResponse = {
   email: string;
 };
 
-type LoadResponse = {
-  status: string;
-  data?: any;
-};
-
-async function fetchLoadData(): Promise<LoadResponse> {
-  const res = await fetchApi("/datastore/load-data/");
-  if (!res.ok) {
-    // try to extract a JSON error if available
-    let msg = res.statusText;
-    try {
-      const errBody = await res.json();
-      msg = errBody.error ?? msg;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return res.json();
-}
-
 export default function OwnerHomePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -55,21 +34,6 @@ export default function OwnerHomePage() {
     }
   }, [whoamiQuery.isError, router]);
 
-  const loadDataQuery = useQuery<LoadResponse, Error>({
-    queryKey: ["datastore", "load-data"],
-    queryFn: fetchLoadData,
-    enabled: !!whoamiQuery.data, // wait for whoami
-    retry: 1, // retry once
-    staleTime: Infinity, // keep in cache for session
-  });
-
-  // handle error side effects
-  React.useEffect(() => {
-    if (loadDataQuery.isError) {
-      console.error("Failed to load cache data:", loadDataQuery.error);
-    }
-  }, [loadDataQuery.isError, loadDataQuery.error]);
-
   const logoutMutation = useMutation({
     mutationFn: async () => {
       const response = await fetchApi('/drt/owner/logout/', {
@@ -87,7 +51,6 @@ export default function OwnerHomePage() {
     onError: (error) => {
       console.error('Logout error:', error);
       setIsLoggingOut(false);
-      // Still redirect even if logout fails
       router.push('/negotiation/owner/email-entry');
     },
   });
@@ -104,24 +67,8 @@ export default function OwnerHomePage() {
       </div>
     );
   }
-  // whoamiQuery.onError already redirected, so we can bail silently:
   if (whoamiQuery.isError || !whoamiQuery.data) {
     return null;
-  }
-
-  if (loadDataQuery.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-gray-600">
-        Loading cache…
-      </div>
-    );
-  }
-  if (loadDataQuery.isError) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-red-600">
-        Error: {loadDataQuery.error.message}
-      </div>
-    );
   }
 
   const email = (whoamiQuery.data as unknown as WhoamiResponse).email;
@@ -138,7 +85,6 @@ export default function OwnerHomePage() {
   return (
     <Providers>
       <main className="min-h-dvh bg-white flex flex-col">
-        {/* Header Bar */}
         <Header
           title="Owner Dashboard"
           homepageLink={{
