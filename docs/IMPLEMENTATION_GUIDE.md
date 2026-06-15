@@ -411,14 +411,7 @@ Production settings do **not** read `DATABASE_URL` or `DB_HOST`/`DB_PORT`. Copy 
 
 ### 6.4 Initial Data Loading
 
-After setting up the GitHub datastore, trigger initial data load:
-```bash
-# Via API endpoint (if available)
-curl -X POST http://localhost:8000/api/datastore/load-github-data/
-
-# Or via Django management command (if implemented)
-python manage.py load_github_data
-```
+After setting up the GitHub datastore, cache tables are warmed automatically on backend startup. Changes to the datastore repo trigger refresh via the GitHub webhook; Celery Beat also re-warms every 12 hours as a backstop.
 
 ---
 
@@ -521,9 +514,8 @@ The only local template file is `backend/drt/templates/license_template_fallback
    Open http://127.0.0.1:3000 in your browser
 
 3. **Test GitHub datastore connection**:
-   ```bash
-   curl -X POST http://localhost:8000/api/datastore/load-github-data/
-   ```
+   - Restart the backend and confirm startup warm logs, or
+   - Push a change to the Datastore repo and verify the webhook delivery in GitHub
 
 ---
 

@@ -34,19 +34,27 @@ from datastore.cache_keys import (
 logger = logging.getLogger(__name__)
 
 try:
-    from datastore.views import fetch_questionnaire_json, load_github_data
+    from datastore.views import fetch_questionnaire_json, warm_github_cache
 except ImportError as e:
     logger.error(f"Failed to import datastore helpers: {e}")
     fetch_questionnaire_json = None
-    load_github_data = None
+    warm_github_cache = None
 
 @csrf_exempt
 @api_view(['GET'])
 def generate_nlinks(request, link_id):
     link_table = cache.get(KEY_LINK_TABLE)
     if not link_table:
-        logger.error("Link table not found in cache.")
-        return Response({'error': 'Link table not found in cache'}, status=404)
+        logger.warning("generate_nlinks: cache cold, warming synchronously")
+        if warm_github_cache is not None:
+            warm_github_cache()
+        link_table = cache.get(KEY_LINK_TABLE)
+    if not link_table:
+        logger.error("generate_nlinks: cache still empty after warm-up")
+        return Response(
+            {'error': 'Service temporarily unavailable, please retry'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
     example_link = link_table.get(link_id) or next(
         (data for url, data in link_table.items() if link_id in url), None)
@@ -121,28 +129,27 @@ def preview_questionnaire(_request):
         if not questionnaire_table:
             logger.info("Preview: questionnaire_table cache is empty; attempting cache warm-up")
 
-            if load_github_data is None:
-                logger.error("Preview: load_github_data function not available")
+            if warm_github_cache is None:
+                logger.error("Preview: warm_github_cache function not available")
                 return Response({
                     'error': 'Questionnaire table not found in cache and automatic warm-up is unavailable.',
-                    'hint': 'Call /datastore/load-data/ to populate the cache',
+                    'hint': 'Verify GITHUB_API_URL and GITHUB_TOKEN configuration',
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            try:
-                # Warm cache on-demand so preview works when opened independently.
-                load_github_data(_request)
-            except Exception as warmup_error:
-                logger.error(
-                    f"Preview: failed to warm cache via load_github_data: {warmup_error}",
-                    exc_info=True
-                )
+            result = warm_github_cache()
+            if not result.get("ok"):
+                logger.error("Preview: cache warm-up failed: %s", result.get("error"))
+                return Response({
+                    'error': 'Cache warm-up failed.',
+                    'detail': result.get("error"),
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
             questionnaire_table = cache.get(KEY_QUESTIONNAIRE_TABLE)
             if not questionnaire_table:
                 logger.error("Preview: questionnaire_table still empty after warm-up")
                 return Response({
                     'error': 'Questionnaire table not found in cache after automatic warm-up.',
-                    'hint': 'Verify GitHub datasource configuration and call /datastore/load-data/',
+                    'hint': 'Verify GitHub datasource configuration (GITHUB_API_URL, GITHUB_TOKEN)',
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         available_questionnaire_ids = list(questionnaire_table.keys())
@@ -150,7 +157,7 @@ def preview_questionnaire(_request):
             logger.error("Preview: questionnaire_table is empty")
             return Response({
                 'error': 'No questionnaires available in questionnaire table.',
-                'hint': 'Call /datastore/load_github_data/ to populate the cache'
+                'hint': 'Verify questionnaire_table.csv in the GitHub datastore repository',
             }, status=status.HTTP_404_NOT_FOUND)
         
         preferred_questionnaire_id = PREFERRED_QUESTIONNAIRE_ID

@@ -62,7 +62,7 @@ def warm_github_cache():
     """Load GitHub-backed tables into cache and return status metadata."""
     try:
         if all(cache.get(k) for k in HOT_CACHE_KEYS):
-            logger.info("load_github_data: cache already warm; skipping GitHub fetch")
+            logger.info("warm_github_cache: cache already warm; skipping GitHub fetch")
             return {
                 "ok": True,
                 "status": "already cached",
@@ -157,25 +157,12 @@ def warm_github_cache():
             "elapsed_time": elapsed,
         }
     except Exception as e:
-        logger.error(f"Error in load_github_data view: {str(e)}")
+        logger.error(f"Error in warm_github_cache: {str(e)}")
         return {
             "ok": False,
             "error": f"Error loading data: {str(e)}",
         }
 
-
-# View to load GitHub data and store it only in cache
-@csrf_exempt
-def load_github_data(_request):
-    """HTTP wrapper around warm_github_cache."""
-    result = warm_github_cache()
-    if not result.get("ok"):
-        return JsonResponse({"error": result.get("error", "Unknown error")}, status=500)
-    return JsonResponse({
-        "status": result.get("status"),
-        "message": result.get("message"),
-        "elapsed_time": result.get("elapsed_time"),
-    })
 
 # fetch questionnaire JSON by questionnaire_id
 def fetch_questionnaire_json(questionnaire_id):
