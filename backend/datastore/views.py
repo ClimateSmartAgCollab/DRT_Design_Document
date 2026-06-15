@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import os
 from django.core.cache import cache
 from django.http import JsonResponse
@@ -317,24 +319,76 @@ def preload_license_templates():
         logger.error(f"Error in preload_license_templates: {str(e)}")
 
 
+def _verify_github_signature(request) -> bool:
+    """Return True if X-Hub-Signature-256 matches request.body."""
+    secret = (os.environ.get("GITHUB_WEBHOOK_SECRET") or "").strip()
+    if not secret:
+        logger.error("GITHUB_WEBHOOK_SECRET is not configured")
+        return False
+
+    signature_header = request.headers.get("X-Hub-Signature-256", "")
+    if not signature_header.startswith("sha256="):
+        return False
+
+    github_signature = signature_header[7:]
+    our_signature = hmac.new(
+        secret.encode("utf-8"),
+        request.body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(our_signature, github_signature)
+
+
 # GitHub webhook for automatic cache invalidation
 @csrf_exempt
 def github_webhook(request):
-    """Webhook to clear cache and refresh data when GitHub changes"""
-    if request.method == 'POST':
-        try:
-            for key in HOT_CACHE_KEYS:
-                cache.delete(key)
-            cache.delete_pattern('questionnaire_json_*')
-            cache.delete_pattern('license_template_*')
-            
-            # Refresh data in background using Celery
-            refresh_data_task.delay()
-            
-            return JsonResponse({'status': 'Cache cleared, refresh started'}, status=200)
-            
-        except Exception as e:
-            logger.error(f"Error processing webhook: {str(e)}")
-            return JsonResponse({'error': 'Internal error'}, status=500)
-    
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
+    """Webhook to clear cache and refresh data when GitHub changes."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    if not _verify_github_signature(request):
+        logger.warning(
+            "GitHub webhook rejected: invalid or missing signature (delivery=%s)",
+            request.headers.get("X-GitHub-Delivery", "unknown"),
+        )
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    event = request.headers.get("X-GitHub-Event", "")
+    delivery_id = request.headers.get("X-GitHub-Delivery", "unknown")
+
+    if event == "ping":
+        logger.info("GitHub webhook ping accepted (delivery=%s)", delivery_id)
+        return JsonResponse({"status": "pong"}, status=200)
+
+    if event != "push":
+        return JsonResponse({"status": "ignored"}, status=200)
+
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        logger.warning(
+            "GitHub webhook push rejected: invalid JSON (delivery=%s)",
+            delivery_id,
+        )
+        return JsonResponse({"error": "Bad request"}, status=400)
+
+    if payload.get("ref") != "refs/heads/main":
+        logger.info(
+            "GitHub webhook push ignored for ref %s (delivery=%s)",
+            payload.get("ref"),
+            delivery_id,
+        )
+        return JsonResponse({"status": "ignored branch"}, status=200)
+
+    try:
+        for key in HOT_CACHE_KEYS:
+            cache.delete(key)
+        cache.delete_pattern("questionnaire_json_*")
+        cache.delete_pattern("license_template_*")
+        refresh_data_task.delay()
+        logger.info("GitHub webhook push processed (delivery=%s)", delivery_id)
+        return JsonResponse({"status": "Cache cleared, refresh started"}, status=200)
+    except Exception as e:
+        logger.error("Error processing webhook: %s", e, exc_info=True)
+        return JsonResponse({"error": "Internal error"}, status=500)
