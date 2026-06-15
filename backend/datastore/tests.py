@@ -13,10 +13,14 @@ Redis server. They cover the highest-risk paths:
     upstream fetch fails (otherwise retries would be blocked for 30s).
 """
 
+import hashlib
+import hmac
+import json
+import os
 from unittest.mock import patch
 
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 
 from datastore import views as datastore_views
 from datastore.cache_keys import (
@@ -139,6 +143,96 @@ class InflightLockTests(TestCase):
 
         self.assertEqual(cache.get(questionnaire_json_key("q-ok")), {"ok": True})
         self.assertIsNone(cache.get(questionnaire_inflight_key("q-ok")))
+
+
+WEBHOOK_SECRET = "test-webhook-secret"
+
+
+def _github_signature(body: bytes, secret: str = WEBHOOK_SECRET) -> str:
+    digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    return f"sha256={digest}"
+
+
+@override_settings(CACHES={
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+})
+class GithubWebhookTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        cache.clear()
+
+    @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": WEBHOOK_SECRET})
+    def test_rejects_missing_signature(self):
+        response = self.client.post(
+            "/datastore/webhook/",
+            data=b"{}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": WEBHOOK_SECRET})
+    def test_rejects_invalid_signature(self):
+        body = b'{"ref": "refs/heads/main"}'
+        response = self.client.post(
+            "/datastore/webhook/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_HUB_SIGNATURE_256="sha256=invalid",
+            HTTP_X_GITHUB_EVENT="push",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": WEBHOOK_SECRET})
+    def test_ping_does_not_invalidate_cache(self):
+        cache.set(KEY_OWNER_TABLE, {"owner": True})
+        body = b'{"zen": "test"}'
+        response = self.client.post(
+            "/datastore/webhook/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_HUB_SIGNATURE_256=_github_signature(body),
+            HTTP_X_GITHUB_EVENT="ping",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(cache.get(KEY_OWNER_TABLE), {"owner": True})
+
+    @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": WEBHOOK_SECRET})
+    @patch("datastore.views.refresh_data_task.delay")
+    @patch("datastore.views.cache.delete_pattern", create=True)
+    def test_push_to_main_invalidates_cache(self, _mock_delete_pattern, mock_delay):
+        for key in HOT_CACHE_KEYS:
+            cache.set(key, {"warm": True})
+
+        body = json.dumps({"ref": "refs/heads/main"}).encode()
+        response = self.client.post(
+            "/datastore/webhook/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_HUB_SIGNATURE_256=_github_signature(body),
+            HTTP_X_GITHUB_EVENT="push",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_delay.assert_called_once()
+        for key in HOT_CACHE_KEYS:
+            self.assertIsNone(cache.get(key))
+
+    @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": WEBHOOK_SECRET})
+    @patch("datastore.views.refresh_data_task.delay")
+    def test_push_to_other_branch_is_ignored(self, mock_delay):
+        cache.set(KEY_OWNER_TABLE, {"owner": True})
+        body = json.dumps({"ref": "refs/heads/dev"}).encode()
+        response = self.client.post(
+            "/datastore/webhook/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_HUB_SIGNATURE_256=_github_signature(body),
+            HTTP_X_GITHUB_EVENT="push",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_delay.assert_not_called()
+        self.assertEqual(cache.get(KEY_OWNER_TABLE), {"owner": True})
 
 
 class RefreshDataTaskTests(TestCase):
