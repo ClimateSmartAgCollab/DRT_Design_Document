@@ -2,6 +2,25 @@
 
 from functools import wraps
 from django.http import JsonResponse
+from rest_framework.authentication import SessionAuthentication
+
+
+class CSRFEnforcedSessionAuthentication(SessionAuthentication):
+    """Run Django's CSRF check on DRF views that mutate session state.
+
+    DRF marks every ``@api_view`` as ``csrf_exempt`` at the middleware level
+    and only runs the CSRF check inside ``SessionAuthentication`` when a
+    ``django.contrib.auth`` user is authenticated. This project authenticates
+    with its own session keys (``owner_email`` / ``requestor_email`` /
+    ``admin_email``) instead of ``request.user``, so the stock check never
+    fires. Calling ``enforce_csrf`` unconditionally restores CSRF protection
+    on the endpoints that write to the session, without changing the custom
+    magic-link auth flow.
+    """
+
+    def authenticate(self, request):
+        self.enforce_csrf(request)
+        return None
 
 def owner_auth_required(view_func):
     @wraps(view_func)

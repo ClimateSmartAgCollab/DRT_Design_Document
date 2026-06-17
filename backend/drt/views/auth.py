@@ -6,15 +6,16 @@ from django.core.validators import validate_email
 from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes
 from rest_framework.response import Response
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.core.cache import cache
 from django.conf import settings
 import datetime
 import logging
 import secrets
 from ..tasks import send_owner_email_task, send_requestor_email_task
+from .utils import CSRFEnforcedSessionAuthentication
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +91,8 @@ def owner_email_entry(request):
         return Response({'error': f'Internal server error: {str(e)}'}, status=500)
 
 
-@csrf_exempt
 @api_view(["POST"])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def verify_owner_magic_link(request):
     try:
         token = request.data.get('token')
@@ -142,11 +143,25 @@ def verify_owner_magic_link(request):
 
 
 @require_GET
+@ensure_csrf_cookie
 def whoami(request):
     owner_email = request.session.get("owner_email")
     if not owner_email:
         return JsonResponse({"email": None}, status=401)
     return JsonResponse({"email": owner_email}, status=200)
+
+
+@require_GET
+@ensure_csrf_cookie
+def csrf_token(request):
+    """Set the ``csrftoken`` cookie for the decoupled frontend.
+
+    The verify pages are often the browser's first contact with Django, so no
+    CSRF cookie exists yet. The SPA calls this once before POSTing to a
+    session-writing endpoint so it can echo the token in the X-CSRFToken
+    header. Safe to call anonymously.
+    """
+    return JsonResponse({"detail": "CSRF cookie set"}, status=200)
 
 
 @csrf_exempt
@@ -207,8 +222,8 @@ def req_email_entry(request):
         return Response({'error': f'Internal server error: {str(e)}'}, status=500)
 
 
-@csrf_exempt
 @api_view(['POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def verify_req_magic_link(request):
     try:
         token = request.data.get('token')
@@ -242,6 +257,7 @@ def verify_req_magic_link(request):
 
 
 @require_GET
+@ensure_csrf_cookie
 def req_whoami(request):
     requestor_email = request.session.get("requestor_email")
     if not requestor_email:
@@ -275,8 +291,8 @@ def generate_owner_magic_link_with_target(email, target_url):
     return magic_link, expiry
 
 
-@csrf_exempt
 @api_view(['POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def owner_logout(request):
     """Logout endpoint for owner users"""
     try:
@@ -294,8 +310,8 @@ def owner_logout(request):
         return Response({'error': 'Internal server error'}, status=500)
 
 
-@csrf_exempt
 @api_view(['POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def requestor_logout(request):
     """Logout endpoint for requestor users"""
     try:

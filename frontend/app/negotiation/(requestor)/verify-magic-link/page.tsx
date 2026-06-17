@@ -23,6 +23,9 @@ function VerifyMagicLinkContent() {
 
     const verifyMagicLink = async () => {
       try {
+        // First contact with Django: fetch the CSRF cookie so the POST below
+        // can send a valid X-CSRFToken header.
+        await fetchApi('/drt/auth/csrf/');
         const response = await fetchApi('/drt/auth/verify-req-magic-link/', {
           method: 'POST',
           headers: {
