@@ -7,10 +7,11 @@ from .stats import (export_summary_to_drt_view, delete_old_negotiations_view,
                     reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view)
 from .questionnaire import fill_questionnaire, request_access, generate_nlinks, owner_review, preview_questionnaire
 from .auth import (owner_email_entry, verify_owner_magic_link, whoami, req_whoami, verify_req_magic_link,
-                   req_email_entry, test_endpoint, generate_owner_magic_link_with_target, requestor_logout, owner_logout)
+                   req_email_entry, test_endpoint, generate_owner_magic_link_with_target, requestor_logout, owner_logout,
+                   csrf_token)
 
 __all__ = [
-    'owner_email_entry', 'verify_owner_magic_link', 'whoami',
+    'owner_email_entry', 'verify_owner_magic_link', 'whoami', 'csrf_token',
     'req_email_entry', 'verify_req_magic_link', 'req_whoami', 'test_endpoint',
     'generate_owner_magic_link_with_target',
     'requestor_email_entry', 'verify_magic_link_view',

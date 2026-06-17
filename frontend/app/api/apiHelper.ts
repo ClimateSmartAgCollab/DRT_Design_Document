@@ -35,11 +35,14 @@ const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
   const csrfToken = match ? match[1] : "";
   const defaultOptions: RequestInit = {
     credentials: "include", // Includes cookies for cross-origin requests
+    ...options,
+    // Merge headers last so X-CSRFToken is always sent, even when the caller
+    // passes its own headers (e.g. Content-Type). Caller headers still win on
+    // conflicting keys.
     headers: {
       "X-CSRFToken": csrfToken,
       ...options.headers,
     },
-    ...options,
   };
 
   try {

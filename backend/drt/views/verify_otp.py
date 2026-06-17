@@ -1,9 +1,8 @@
 from django.urls import reverse
 from django.core.cache import cache
-from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes
 from rest_framework import status
 from rest_framework.response import Response
 from django.conf import settings
@@ -12,12 +11,13 @@ from ..models import Requestor, NLink
 import secrets
 import logging
 from ..tasks import send_magic_link_resend_email_task
+from .utils import CSRFEnforcedSessionAuthentication
 
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
 @api_view(['GET', 'POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def verify_magic_link_view(request, link_id):
     try:
         nlink = NLink.objects.get(requestor_link=link_id)  
