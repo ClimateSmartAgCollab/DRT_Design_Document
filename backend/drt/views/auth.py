@@ -28,6 +28,23 @@ def test_endpoint(request):
 
 
 @csrf_exempt
+@api_view(['GET'])
+@authentication_classes([])
+def public_config(request):
+    """Public sandbox configuration for the frontend testing UI."""
+    payload = {"testing_mode": settings.TESTING_MODE}
+    if settings.TESTING_MODE:
+        payload.update(
+            {
+                "ethereal_user": settings.ETHEREAL_USER,
+                "ethereal_pass": settings.ETHEREAL_PASS,
+                "owner_email": settings.OWNER_EMAIL,
+            }
+        )
+    return Response(payload, status=200)
+
+
+@csrf_exempt
 @api_view(['POST'])
 def owner_email_entry(request):
     try:
