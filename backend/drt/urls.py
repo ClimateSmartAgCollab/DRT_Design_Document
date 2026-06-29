@@ -4,9 +4,9 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     owner_email_entry, verify_owner_magic_link, owner_review, archive_view,
                     export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
-                    req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint, csrf_token,
-                    regenerate_license_view, negotiation_history_view, negotiation_history_view_req,
-                    requestor_logout, owner_logout,
+                    req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint, public_config,
+                    csrf_token, regenerate_license_view, negotiation_history_view,
+                    negotiation_history_view_req, requestor_logout, owner_logout,
                     reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view
                     )
 from .views.admin import (
@@ -19,6 +19,10 @@ urlpatterns = [
     path('test/',
          test_endpoint,
          name='test_endpoint'),
+
+    path('public-config/',
+         public_config,
+         name='public_config'),
 
     # CSRF bootstrap: sets the csrftoken cookie before SPA POSTs
     path('auth/csrf/',

@@ -1,12 +1,24 @@
 // app/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Header from "@/app/components/Header";
+import fetchApi from "@/app/api/apiHelper";
 
 const negotiationGenerateUrl = (linkId: string) =>
   `/negotiation/generate/${linkId}`;
+
+interface PublicConfig {
+  testing_mode: boolean;
+  ethereal_user?: string;
+  ethereal_pass?: string;
+  owner_email?: string;
+}
+
+const fallbackPublicConfig: PublicConfig = {
+  testing_mode: false,
+};
 
 const content = {
   EN: {
@@ -121,7 +133,7 @@ const content = {
         },
         {
           title: "Owner Email Review",
-          desc: "Verify using <em><u>owner@drt.ca</u></em> in the sandbox email to review all questionnaire responses. <em>For testing, this is the only valid owner email—other emails will not show owner-side history.</em>",
+          desc: "Verify using <em><u>{{OWNER_EMAIL}}</u></em> in the sandbox email to review all questionnaire responses. <em>For testing, this is the only valid owner email—other emails will not show owner-side history.</em>",
         },
         {
           title: "Make a Decision",
@@ -142,7 +154,7 @@ const content = {
         },
         {
           title: "Review Generated License",
-          desc: "View the generated license document attached in the sandbox email sent to the <em><u>owner@drt.ca</u></em>.",
+          desc: "View the generated license document attached in the sandbox email sent to the <em><u>{{OWNER_EMAIL}}</u></em>.",
         },
       ],
       dashboardTitle: "Dashboard Overview and Alternative Testing Method",
@@ -154,7 +166,7 @@ const content = {
       ],
       dashboardSubPoints: [
         "Log in as the requestor with the <em>same email</em> you used to answer the questionnaire to view your negotiation history and communications.",
-        "Log in as the owner with <em><u>owner@drt.ca</u></em>.\n <em>For testing, this is the only valid owner email—other emails will not show owner-side history.</em>",
+        "Log in as the owner with <em><u>{{OWNER_EMAIL}}</u></em>.\n <em>For testing, this is the only valid owner email—other emails will not show owner-side history.</em>",
       ],
     },
   },
@@ -270,7 +282,7 @@ const content = {
         },
         {
           title: "Revue de l'e-mail du propriétaire",
-          desc: "Vérifiez en utilisant <em><u>owner@drt.ca</u></em> dans l'e-mail sandbox pour examiner toutes les réponses au questionnaire. <em>Pour les tests, c'est le seul e-mail de propriétaire valide—les autres e-mails ne montreront pas l'historique côté propriétaire.</em>",
+          desc: "Vérifiez en utilisant <em><u>{{OWNER_EMAIL}}</u></em> dans l'e-mail sandbox pour examiner toutes les réponses au questionnaire. <em>Pour les tests, c'est le seul e-mail de propriétaire valide—les autres e-mails ne montreront pas l'historique côté propriétaire.</em>",
         },
         {
           title: "Prendre une décision",
@@ -291,7 +303,7 @@ const content = {
         },
         {
           title: "Revoir la licence générée",
-          desc: "Consultez le document de licence généré en pièce jointe dans l'e-mail envoyé au <em><u>owner@drt.ca</u></em>.",
+          desc: "Consultez le document de licence généré en pièce jointe dans l'e-mail envoyé au <em><u>{{OWNER_EMAIL}}</u></em>.",
         },
       ],
       dashboardTitle:
@@ -304,7 +316,7 @@ const content = {
       ],
       dashboardSubPoints: [
         "Connectez-vous en tant que demandeur avec le <em>même e-mail</em> que vous avez utilisé pour répondre au questionnaire pour voir votre historique de négociation et vos communications.",
-        "Connectez-vous en tant que propriétaire avec <em><u>owner@drt.ca</u></em>.\n <em>Pour les tests, c'est le seul e-mail de propriétaire valide—les autres e-mails ne montreront pas l'historique côté propriétaire.</em>",
+        "Connectez-vous en tant que propriétaire avec <em><u>{{OWNER_EMAIL}}</u></em>.\n <em>Pour les tests, c'est le seul e-mail de propriétaire valide—les autres e-mails ne montreront pas l'historique côté propriétaire.</em>",
       ],
     },
   },
@@ -316,7 +328,38 @@ export default function HomePage() {
     field: "",
     status: false,
   });
+  const [config, setConfig] = useState<PublicConfig | null>(null);
   const t = content[lang];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadConfig = async () => {
+      try {
+        const response = await fetchApi("/drt/public-config/");
+        if (!response.ok) {
+          if (!cancelled) {
+            setConfig(fallbackPublicConfig);
+          }
+          return;
+        }
+        const data: PublicConfig = await response.json();
+        if (!cancelled) {
+          setConfig(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setConfig(fallbackPublicConfig);
+        }
+      }
+    };
+
+    void loadConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const handleCopy = (value: string, field: string) => {
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(value).then(() => {
@@ -351,16 +394,22 @@ export default function HomePage() {
     }
   };
 
-  // Helper function to render text with HTML formatting
+  // Helper function to render text with HTML formatting. The {{OWNER_EMAIL}}
+  // token is substituted with the sandbox owner email from the backend config.
   const renderFormattedText = (text: string) => {
-    return <span dangerouslySetInnerHTML={{ __html: text }} />;
+    const resolved = text.replaceAll(
+      "{{OWNER_EMAIL}}",
+      config?.owner_email ?? ""
+    );
+    return <span dangerouslySetInnerHTML={{ __html: resolved }} />;
   };
   return (
     <main className="min-h-dvh bg-white flex flex-col">
-      {/* Testing Environment Banner */}
-      <div className="w-full bg-white text-red-700 text-center py-1 sm:py-2 font-bold text-sm sm:text-lg tracking-widest sticky top-0 z-50">
-        {t.testingBanner}
-      </div>
+      {config?.testing_mode && (
+        <div className="w-full bg-white text-red-700 text-center py-1 sm:py-2 font-bold text-sm sm:text-lg tracking-widest sticky top-0 z-50">
+          {t.testingBanner}
+        </div>
+      )}
       {/* Header Bar */}
       <Header
         title={t.headerTitle}
@@ -386,6 +435,7 @@ export default function HomePage() {
             {t.csdccBody2}
           </p>
 
+          {config?.testing_mode && (
           <div className="bg-red-200 rounded-md p-4 sm:p-6 mb-6 sm:mb-8">
             <h2 className="text-black font-bold text-lg sm:text-xl mb-2">
               {t.attentionCard.title}
@@ -413,13 +463,14 @@ export default function HomePage() {
                     {t.attentionCard.username}
                   </span>
                   <span className="font-mono select-all text-sm sm:text-base">
-                    timothy.okon@ethereal.email
+                    {config.ethereal_user ?? ""}
                   </span>
                   <button
                     onClick={() =>
-                      handleCopy("timothy.okon@ethereal.email", "username")
+                      handleCopy(config.ethereal_user ?? "", "username")
                     }
-                    className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                    disabled={!config.ethereal_user}
+                    className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700 disabled:opacity-50"
                     title={t.copy}
                   >
                     <svg
@@ -453,11 +504,14 @@ export default function HomePage() {
                     {t.attentionCard.password}
                   </span>
                   <span className="font-mono select-all text-sm sm:text-base">
-                    fPvxnHHH143UyCh5vv
+                    {config.ethereal_pass ?? ""}
                   </span>
                   <button
-                    onClick={() => handleCopy("fPvxnHHH143UyCh5vv", "password")}
-                    className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                    onClick={() =>
+                      handleCopy(config.ethereal_pass ?? "", "password")
+                    }
+                    disabled={!config.ethereal_pass}
+                    className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700 disabled:opacity-50"
                     title={t.copy}
                   >
                     <svg
@@ -511,13 +565,14 @@ export default function HomePage() {
                         </div>
                         <div className="flex items-center flex-wrap gap-1 sm:gap-2">
                           <span className="font-mono select-all text-sm sm:text-base">
-                            owner@drt.ca
+                            {config.owner_email ?? ""}
                           </span>
                           <button
                             onClick={() =>
-                              handleCopy("owner@drt.ca", "owner-email")
+                              handleCopy(config.owner_email ?? "", "owner-email")
                             }
-                            className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700"
+                            disabled={!config.owner_email}
+                            className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700 disabled:opacity-50"
                             title={t.copy}
                           >
                             <svg
@@ -602,6 +657,7 @@ export default function HomePage() {
               </ul>
             </div>
           </div>
+          )}
 
           {/* Data Owners Card */}
           <div className="bg-[rgba(180,230,160,0.3)] border-2 border-[rgb(55,125,28)] rounded-md p-4 sm:p-6 mb-4 sm:mb-6">

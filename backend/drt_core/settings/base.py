@@ -142,3 +142,9 @@ STORAGES = {
 
 # Magic link TTL in minutes (default: 7 days)
 MAGIC_LINK_TTL_MINUTES = int(os.environ.get("MAGIC_LINK_TTL_MINUTES", str(60 * 24 * 7)))
+
+# Public sandbox/testing configuration (exposed via /drt/public-config/ when enabled)
+TESTING_MODE = os.environ.get("TESTING_MODE", "false").lower() == "true"
+ETHEREAL_USER = os.environ.get("ETHEREAL_USER", "")
+ETHEREAL_PASS = os.environ.get("ETHEREAL_PASS", "")
+OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "")
