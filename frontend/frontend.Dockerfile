@@ -36,6 +36,6 @@ RUN mkdir -p /app/.next/cache/images \
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["npm", "start"]

@@ -133,7 +133,7 @@ def preview_questionnaire(_request):
                 logger.error("Preview: warm_github_cache function not available")
                 return Response({
                     'error': 'Questionnaire table not found in cache and automatic warm-up is unavailable.',
-                    'hint': 'Verify GITHUB_API_URL and GITHUB_TOKEN configuration',
+                    'hint': 'Verify CONTEXT_HUB_URL and CONTEXT_HUB_API_KEY (or GITHUB_API_URL if DATASTORE_BACKEND=github)',
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             result = warm_github_cache()
@@ -149,7 +149,7 @@ def preview_questionnaire(_request):
                 logger.error("Preview: questionnaire_table still empty after warm-up")
                 return Response({
                     'error': 'Questionnaire table not found in cache after automatic warm-up.',
-                    'hint': 'Verify GitHub datasource configuration (GITHUB_API_URL, GITHUB_TOKEN)',
+                    'hint': 'Verify ContextHub datastore configuration (CONTEXT_HUB_URL, CONTEXT_HUB_API_KEY)',
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         available_questionnaire_ids = list(questionnaire_table.keys())

@@ -12,7 +12,6 @@ class DatastoreConfig(AppConfig):
         if os.environ.get("RUN_MAIN") != "true":
             return
 
-        # pre-warm cache with GitHub data
         def _prewarm_cache():
             from .views import warm_github_cache
             warm_github_cache()

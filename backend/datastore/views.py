@@ -24,6 +24,7 @@ from .cache_keys import (
     license_template_key,
     questionnaire_json_key,
 )
+from . import contexthub
 
 logger = logging.getLogger(__name__)
 
@@ -31,21 +32,27 @@ logger = logging.getLogger(__name__)
 # imported the constant directly from this module.
 CACHE_TIMEOUT_24H = TTL_24H
 
-GITHUB_API_URL = (os.environ.get("GITHUB_API_URL") or "").strip()
-if not GITHUB_API_URL:
-    raise ValueError(
-        "GITHUB_API_URL is not set or empty. Set it in .env / .env.production "
-        "(see .env.example and .env.production.example)."
-    )
-
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 
-# Helper function to fetch a file from GitHub
+
+def datastore_backend():
+    """contexthub (default) or github (rollback)."""
+    return (os.environ.get("DATASTORE_BACKEND") or "contexthub").strip().lower()
+
+
+def _github_api_url():
+    return (os.environ.get("GITHUB_API_URL") or "").strip()
+
+
 def fetch_file_from_github(file_path):
-    url = f"{GITHUB_API_URL}/{file_path}"
-    headers = {'Authorization': f'token {GITHUB_TOKEN}'}
+    url_root = _github_api_url()
+    if not url_root:
+        logger.error("GITHUB_API_URL is not set")
+        return None
+    url = f"{url_root}/{file_path}"
+    headers = {'Authorization': f'token {GITHUB_TOKEN}'} if GITHUB_TOKEN else {}
     try:
-        response = requests.get(url, headers=headers, timeout=10)  # 10 second timeout
+        response = requests.get(url, headers=headers, timeout=10)
 
         if response.status_code == 200:
             content = base64.b64decode(response.json()['content']).decode('utf-8')
@@ -58,154 +65,238 @@ def fetch_file_from_github(file_path):
         logger.error(f"Error fetching file from GitHub {file_path}: {str(e)}")
         return None
 
+
 def warm_github_cache():
-    """Load GitHub-backed tables into cache and return status metadata."""
+    """Load datastore tables into cache. Name kept for existing callers."""
+    return warm_datastore_cache()
+
+
+def warm_datastore_cache():
+    """Load ContextHub (or GitHub) tables into cache and return status metadata."""
     try:
         if all(cache.get(k) for k in HOT_CACHE_KEYS):
-            logger.info("warm_github_cache: cache already warm; skipping GitHub fetch")
+            logger.info("warm_datastore_cache: cache already warm; skipping fetch")
             return {
                 "ok": True,
                 "status": "already cached",
                 "message": "Core datastore tables already present in cache.",
             }
 
-        # Fetch all files in parallel using ThreadPoolExecutor
-        start_time = time.time()
-        file_paths = [
-            'owner_table.csv',
-            'linktable.csv',
-            'source_library/questionnaire_table.csv',
-            'source_library/license_table.csv'
-        ]
-        
-        results = {}
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {executor.submit(fetch_file_from_github, path): path for path in file_paths}
-            for future in as_completed(futures):
-                file_path = futures[future]
-                try:
-                    results[file_path] = future.result()
-                except Exception as e:
-                    logger.error(f"Error fetching {file_path}: {str(e)}")
-                    results[file_path] = None
-        
-        owner_table_csv = results.get('owner_table.csv')
-        link_table_csv = results.get('linktable.csv')
-        questionnaire_table_csv = results.get('source_library/questionnaire_table.csv')
-        license_table_csv = results.get('source_library/license_table.csv')
-        
-        elapsed = time.time() - start_time
-        logger.info(f"Parallel file fetch completed in {elapsed:.2f} seconds")
-        print(f"[DATASTORE] Parallel file fetch completed in {elapsed:.2f} seconds")
-
-        if owner_table_csv:
-            owner_table = {}  
-            reader = csv.DictReader(io.StringIO(owner_table_csv))
-            for row in reader:
-                owner_table[row['owner_id']] = {
-                    'username': row['username'],
-                    'owner_email': row['owner_email']
-                }
-            cache.set(KEY_OWNER_TABLE, owner_table, timeout=TTL_24H)
-
-        if link_table_csv:
-            link_table = {}
-            reader = csv.DictReader(io.StringIO(link_table_csv))
-            for row in reader:
-                # Support both new schema (link_uuid, visible_label) and old (link)
-                link_uuid = row.get('link_uuid', '').strip()
-                link_url = row.get('link', '').strip()
-                visible_label = (row.get('visible_label') or row.get('data_label', '')).strip()
-                entry = {
-                    'questionnaire_id': row['questionnaire_id'],
-                    'license_id': row['license_id'],
-                    'owner_id': row['owner_id'],
-                    'expiry': row['expiry'],
-                    'data_label': row['data_label'],
-                    'tags': row['tags'].split(',') if row.get('tags') else [],
-                    'record_label': row.get('record_label', ''),
-                    'visible_label': visible_label,
-                    'link_uuid': link_uuid or None,
-                }
-                # Prefer link_uuid as key for new schema; fall back to link for backward compatibility
-                key = link_uuid if link_uuid else link_url
-                if key:
-                    link_table[key] = entry
-            cache.set(KEY_LINK_TABLE, link_table, timeout=TTL_24H)
-
-        if questionnaire_table_csv:
-            questionnaire_table = {}
-            reader = csv.DictReader(io.StringIO(questionnaire_table_csv))
-            for row in reader:
-                questionnaire_table[row['questionnaire_SAID']] = row['questionnaire_filename']
-            cache.set(KEY_QUESTIONNAIRE_TABLE, questionnaire_table, timeout=TTL_24H)
-
-        if license_table_csv:
-            license_table = {}
-            reader = csv.DictReader(io.StringIO(license_table_csv))
-            for row in reader:
-                license_table[row['license_SAID']] = row['license_filename']
-            cache.set(KEY_LICENSE_TABLE, license_table, timeout=TTL_24H)
-            
-            # Pre-load license templates after loading the license table
-            preload_license_templates()
-
-        return {
-            "ok": True,
-            "status": "loaded",
-            "message": "Data loaded successfully",
-            "elapsed_time": elapsed,
-        }
+        if datastore_backend() == "github":
+            return _warm_from_github()
+        return _warm_from_contexthub()
     except Exception as e:
-        logger.error(f"Error in warm_github_cache: {str(e)}")
+        logger.error(f"Error in warm_datastore_cache: {str(e)}")
         return {
             "ok": False,
             "error": f"Error loading data: {str(e)}",
         }
 
 
-# fetch questionnaire JSON by questionnaire_id
+def _warm_from_contexthub():
+    if not os.environ.get("CONTEXT_HUB_URL", "").strip():
+        return {
+            "ok": False,
+            "error": "CONTEXT_HUB_URL is not set or empty.",
+        }
+
+    start_time = time.time()
+    link_payload = contexthub.fetch_link_table()
+    owner_payload = contexthub.fetch_owner_table()
+    if link_payload is None:
+        return {
+            "ok": False,
+            "error": "Failed to fetch link-table from ContextHub.",
+        }
+    if owner_payload is None:
+        return {
+            "ok": False,
+            "error": "Failed to fetch owner-table from ContextHub.",
+        }
+
+    link_table = contexthub.link_table_from_payload(link_payload)
+    owner_table = contexthub.owner_table_from_payload(owner_payload)
+    questionnaire_table, license_table = contexthub.said_indexes_from_links(link_table)
+
+    cache.set(KEY_LINK_TABLE, link_table, timeout=TTL_24H)
+    cache.set(KEY_OWNER_TABLE, owner_table, timeout=TTL_24H)
+    cache.set(KEY_QUESTIONNAIRE_TABLE, questionnaire_table, timeout=TTL_24H)
+    cache.set(KEY_LICENSE_TABLE, license_table, timeout=TTL_24H)
+
+    elapsed = time.time() - start_time
+    logger.info("ContextHub datastore loaded in %.2f seconds", elapsed)
+
+    if license_table:
+        preload_license_templates()
+
+    return {
+        "ok": True,
+        "status": "loaded",
+        "message": "Data loaded successfully",
+        "elapsed_time": elapsed,
+    }
+
+
+def _warm_from_github():
+    if not _github_api_url():
+        return {
+            "ok": False,
+            "error": "GITHUB_API_URL is not set or empty.",
+        }
+
+    start_time = time.time()
+    file_paths = [
+        'owner_table.csv',
+        'linktable.csv',
+        'source_library/questionnaire_table.csv',
+        'source_library/license_table.csv'
+    ]
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(fetch_file_from_github, path): path for path in file_paths}
+        for future in as_completed(futures):
+            file_path = futures[future]
+            try:
+                results[file_path] = future.result()
+            except Exception as e:
+                logger.error(f"Error fetching {file_path}: {str(e)}")
+                results[file_path] = None
+
+    owner_table_csv = results.get('owner_table.csv')
+    link_table_csv = results.get('linktable.csv')
+    questionnaire_table_csv = results.get('source_library/questionnaire_table.csv')
+    license_table_csv = results.get('source_library/license_table.csv')
+
+    elapsed = time.time() - start_time
+    logger.info(f"Parallel file fetch completed in {elapsed:.2f} seconds")
+    print(f"[DATASTORE] Parallel file fetch completed in {elapsed:.2f} seconds")
+
+    if owner_table_csv:
+        owner_table = {}
+        reader = csv.DictReader(io.StringIO(owner_table_csv))
+        for row in reader:
+            owner_table[row['owner_id']] = {
+                'username': row['username'],
+                'owner_email': row['owner_email']
+            }
+        cache.set(KEY_OWNER_TABLE, owner_table, timeout=TTL_24H)
+
+    if link_table_csv:
+        link_table = {}
+        reader = csv.DictReader(io.StringIO(link_table_csv))
+        for row in reader:
+            link_uuid = row.get('link_uuid', '').strip()
+            link_url = row.get('link', '').strip()
+            visible_label = (row.get('visible_label') or row.get('data_label', '')).strip()
+            entry = {
+                'questionnaire_id': row['questionnaire_id'],
+                'license_id': row['license_id'],
+                'owner_id': row['owner_id'],
+                'expiry': row['expiry'],
+                'data_label': row['data_label'],
+                'tags': row['tags'].split(',') if row.get('tags') else [],
+                'record_label': row.get('record_label', ''),
+                'visible_label': visible_label,
+                'link_uuid': link_uuid or None,
+            }
+            key = link_uuid if link_uuid else link_url
+            if key:
+                link_table[key] = entry
+        cache.set(KEY_LINK_TABLE, link_table, timeout=TTL_24H)
+
+    if questionnaire_table_csv:
+        questionnaire_table = {}
+        reader = csv.DictReader(io.StringIO(questionnaire_table_csv))
+        for row in reader:
+            questionnaire_table[row['questionnaire_SAID']] = row['questionnaire_filename']
+        cache.set(KEY_QUESTIONNAIRE_TABLE, questionnaire_table, timeout=TTL_24H)
+
+    if license_table_csv:
+        license_table = {}
+        reader = csv.DictReader(io.StringIO(license_table_csv))
+        for row in reader:
+            license_table[row['license_SAID']] = row['license_filename']
+        cache.set(KEY_LICENSE_TABLE, license_table, timeout=TTL_24H)
+
+        preload_license_templates()
+
+    return {
+        "ok": True,
+        "status": "loaded",
+        "message": "Data loaded successfully",
+        "elapsed_time": elapsed,
+    }
+
+
 def fetch_questionnaire_json(questionnaire_id):
-    """
-    Fetch questionnaire JSON from GitHub based on questionnaire_id.
-    Returns the parsed JSON object or None if not found.
-    """
+    """Fetch questionnaire JSON by SAID. Returns parsed JSON or None."""
     try:
         questionnaire_table = cache.get(KEY_QUESTIONNAIRE_TABLE)
-        if not questionnaire_table:
+        if not questionnaire_table or questionnaire_id not in questionnaire_table:
             return None
-        
+
+        if datastore_backend() != "github":
+            parsed_json = contexthub.fetch_questionnaire(questionnaire_id)
+            if parsed_json:
+                cache.set(
+                    questionnaire_json_key(questionnaire_id),
+                    parsed_json,
+                    timeout=TTL_24H,
+                )
+            return parsed_json
+
         filename = questionnaire_table.get(questionnaire_id)
         if not filename:
             return None
-        
-        json_content = fetch_file_from_github(f'source_library/questionnaires/{filename}')
+
+        json_content = fetch_file_from_github(
+            f"source_library/questionnaires/{filename}"
+        )
         if json_content:
             parsed_json = json.loads(json_content)
-            cache.set(questionnaire_json_key(questionnaire_id), parsed_json, timeout=TTL_24H)
+            cache.set(
+                questionnaire_json_key(questionnaire_id),
+                parsed_json,
+                timeout=TTL_24H,
+            )
             return parsed_json
         return None
-            
+
     except Exception as e:
         logger.error(f"Error fetching questionnaire JSON for {questionnaire_id}: {str(e)}")
         return None
 
+
 def fetch_license_template(license_id):
+    """Fetch license template by SAID. ContextHub returns JSON; GitHub may return text."""
     try:
         license_table = cache.get(KEY_LICENSE_TABLE)
-        if not license_table:
+        if not license_table or license_id not in license_table:
             return None
-        
+
+        if datastore_backend() != "github":
+            license_content = contexthub.fetch_license(license_id)
+            if license_content:
+                cache.set(
+                    license_template_key(license_id),
+                    license_content,
+                    timeout=TTL_24H,
+                )
+            return license_content
+
         filename = license_table.get(license_id)
         if not filename:
             return None
-        
-        license_content = fetch_file_from_github(f'source_library/license/{filename}')
+
+        license_content = fetch_file_from_github(
+            f"source_library/license/{filename}"
+        )
         if license_content:
             cache.set(license_template_key(license_id), license_content, timeout=TTL_24H)
             return license_content
         return None
-            
+
     except Exception as e:
         logger.error(f"Error fetching license template for {license_id}: {str(e)}")
         return None
@@ -269,30 +360,40 @@ def preload_license_templates():
         
         logger.info("Pre-loading license templates into cache...")
         start_time = time.time()
-        
-        # Collect licenses that need to be fetched
+
         licenses_to_fetch = {}
         for license_id, filename in license_table.items():
             if not cache.get(license_template_key(license_id)):
                 licenses_to_fetch[license_id] = filename
-        
+
         if not licenses_to_fetch:
             logger.info("All license templates already cached")
             return
-        
-        # Fetch all licenses in parallel using ThreadPoolExecutor
+
+        use_github = datastore_backend() == "github"
+
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = {}
             for license_id, filename in licenses_to_fetch.items():
-                future = executor.submit(fetch_file_from_github, f'source_library/license/{filename}')
+                if use_github:
+                    future = executor.submit(
+                        fetch_file_from_github,
+                        f"source_library/license/{filename}",
+                    )
+                else:
+                    future = executor.submit(contexthub.fetch_license, license_id)
                 futures[future] = license_id
-            
+
             for future in as_completed(futures):
                 license_id = futures[future]
                 try:
                     license_content = future.result()
                     if license_content:
-                        cache.set(license_template_key(license_id), license_content, timeout=TTL_24H)
+                        cache.set(
+                            license_template_key(license_id),
+                            license_content,
+                            timeout=TTL_24H,
+                        )
                         logger.info(f"Pre-loaded license template: {license_id}")
                     else:
                         logger.warning(f"Failed to pre-load license template: {license_id}")
@@ -333,6 +434,12 @@ def github_webhook(request):
     """Webhook to clear cache and refresh data when GitHub changes."""
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    if datastore_backend() != "github":
+        return JsonResponse(
+            {"error": "GitHub webhook is disabled when DATASTORE_BACKEND is not github"},
+            status=410,
+        )
 
     if not _verify_github_signature(request):
         logger.warning(
