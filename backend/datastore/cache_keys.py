@@ -1,4 +1,4 @@
-"""Central registry of Redis cache keys and TTLs for the GitHub-backed datastore.
+"""Central registry of Redis cache keys and TTLs for the datastore.
 
 Use these constants and helpers instead of inline strings/integers so that key
 names and timeouts stay in sync across the backend. Auth-related cache keys
