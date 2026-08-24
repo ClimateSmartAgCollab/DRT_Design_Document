@@ -205,9 +205,9 @@ class GithubWebhookTests(TestCase):
         self.assertEqual(cache.get(KEY_OWNER_TABLE), {"owner": True})
 
     @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": WEBHOOK_SECRET})
-    @patch("datastore.views.refresh_data_task.delay")
+    @patch("datastore.views.refresh_data_task")
     @patch("datastore.views.cache.delete_pattern", create=True)
-    def test_push_to_main_invalidates_cache(self, _mock_delete_pattern, mock_delay):
+    def test_push_to_main_invalidates_cache(self, _mock_delete_pattern, mock_refresh):
         for key in HOT_CACHE_KEYS:
             cache.set(key, {"warm": True})
 
@@ -221,13 +221,13 @@ class GithubWebhookTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        mock_delay.assert_called_once()
+        mock_refresh.assert_called_once()
         for key in HOT_CACHE_KEYS:
             self.assertIsNone(cache.get(key))
 
     @patch.dict(os.environ, {"GITHUB_WEBHOOK_SECRET": WEBHOOK_SECRET})
-    @patch("datastore.views.refresh_data_task.delay")
-    def test_push_to_other_branch_is_ignored(self, mock_delay):
+    @patch("datastore.views.refresh_data_task")
+    def test_push_to_other_branch_is_ignored(self, mock_refresh):
         cache.set(KEY_OWNER_TABLE, {"owner": True})
         body = json.dumps({"ref": "refs/heads/dev"}).encode()
         response = self.client.post(
@@ -239,7 +239,7 @@ class GithubWebhookTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        mock_delay.assert_not_called()
+        mock_refresh.assert_not_called()
         self.assertEqual(cache.get(KEY_OWNER_TABLE), {"owner": True})
 
 
@@ -247,7 +247,7 @@ class RefreshDataTaskTests(TestCase):
     """Regression test for the broken `refresh_data_task` import.
 
     Before the fix, the task imported a non-existent `refresh_data` symbol, so
-    every webhook + Beat run cleared the cache and never refilled it.
+    every webhook run cleared the cache and never refilled it.
     """
 
     @patch("datastore.views.warm_github_cache")

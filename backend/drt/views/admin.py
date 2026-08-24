@@ -103,8 +103,7 @@ def admin_email_entry(request):
         )
         
         try:
-            # Use Celery to send email asynchronously
-            send_admin_email_task.delay(email, magic_link, expiry)
+            send_admin_email_task(email, magic_link, expiry)
         except Exception as email_error:
             logger.exception("Admin email sending failed")
             return Response({'error': f'Failed to send email: {str(email_error)}'}, status=500)

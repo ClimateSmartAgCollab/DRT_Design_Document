@@ -292,8 +292,7 @@ def fill_questionnaire(request, link_id):
             frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-test.canadacentral.cloudapp.azure.com/')
             owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
-            # Use Celery to send notification emails asynchronously
-            send_notification_emails_task.delay(nlink.link_id, owner_review_url)
+            send_notification_emails_task(nlink.link_id, owner_review_url)
 
             return JsonResponse({'message': 'Questionnaire submitted successfully!'})
 
@@ -307,13 +306,16 @@ def fill_questionnaire(request, link_id):
         if cached_json:
             questionnaire_json = cached_json
         else:
-            # Use Celery to fetch questionnaire asynchronously
             inflight_key = questionnaire_inflight_key(negotiation.questionnaire_SAID)
             lock_ttl_seconds = 30
             if cache.add(inflight_key, 1, timeout=lock_ttl_seconds):
-                fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
-            
-            questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
+                fetched = fetch_questionnaire_task(negotiation.questionnaire_SAID)
+                questionnaire_json = fetched or {
+                    "_loading": True,
+                    "message": "Questionnaire is being loaded...",
+                }
+            else:
+                questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
         
         saved_responses = negotiation.requestor_responses or {}
         owner_blob = negotiation.owner_responses or "{}"
@@ -347,14 +349,16 @@ def owner_review(request, link_id):
         if cached_json:
             questionnaire_json = cached_json
         else:
-            # Use the same anti-stampede lock as fill_questionnaire so concurrent
-            # owner GETs do not enqueue duplicate fetch tasks for the same questionnaire.
             inflight_key = questionnaire_inflight_key(negotiation.questionnaire_SAID)
             lock_ttl_seconds = 30
             if cache.add(inflight_key, 1, timeout=lock_ttl_seconds):
-                fetch_questionnaire_task.delay(negotiation.questionnaire_SAID)
-
-            questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
+                fetched = fetch_questionnaire_task(negotiation.questionnaire_SAID)
+                questionnaire_json = fetched or {
+                    "_loading": True,
+                    "message": "Questionnaire is being loaded...",
+                }
+            else:
+                questionnaire_json = {"_loading": True, "message": "Questionnaire is being loaded..."}
 
         return Response({
             'questionnaire': questionnaire_json,
@@ -424,7 +428,7 @@ def owner_review(request, link_id):
                 except Exception as e:
                     logger.error(f"Failed to archive accept action: {e}")
                 
-                generate_license_and_notify_owner_task.delay(nlink.link_id)
+                generate_license_and_notify_owner_task(nlink.link_id)
                 
                 return Response({'message': 'Request accepted, license generation started!'})
 
@@ -451,7 +455,7 @@ def owner_review(request, link_id):
                     logger.error(f"Failed to archive reject action: {e}")
                 
                 if rationale.strip():
-                    send_rejection_email_task.delay(nlink.requestor_email, nlink.requestor_link, rationale)
+                    send_rejection_email_task(nlink.requestor_email, nlink.requestor_link, rationale)
                 
                 return Response({'message': 'Request rejected!'})
 
@@ -480,7 +484,7 @@ def owner_review(request, link_id):
                 return Response({'message': 'Clarification requested!'})
 
             elif action_found == 'resend':
-                generate_license_and_notify_owner_task.delay(nlink.link_id)
+                generate_license_and_notify_owner_task(nlink.link_id)
                 
                 return Response({'message': 'Email resend started!'})
 
@@ -493,7 +497,7 @@ def send_clarification_email(requestor_email, link_id):
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
     # Send email directly (no threading needed since called with threading from view)
-    send_clarification_email_task.delay(requestor_email, clarification_url)
+    send_clarification_email_task(requestor_email, clarification_url)
 
 
 def send_rejection_email_with_rationale(requestor_email, requestor_link, rationale):

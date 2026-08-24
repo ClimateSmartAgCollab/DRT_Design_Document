@@ -64,8 +64,7 @@ def requestor_email_entry(request, link_id):
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?token={token}"
 
-        # Send email asynchronously using Celery
-        send_requestor_verification_email_task.delay(email, magic_link, expiry)
+        send_requestor_verification_email_task(email, magic_link, expiry)
 
         magic_link_path = f"/negotiation/{link_id}/magic-link-verification?token={token}"
         return Response({'redirect_url': settings.FRONTEND_BASE_URL + magic_link_path})

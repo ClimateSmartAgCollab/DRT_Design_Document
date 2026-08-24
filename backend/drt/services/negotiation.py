@@ -91,7 +91,7 @@ def send_abandonment_reminder_email(negotiation):
                 logger.warning(f"No requestor email found for negotiation {negotiation.negotiation_id}")
                 return False
             
-            send_abandonment_reminder_email_task.delay(
+            send_abandonment_reminder_email_task(
                 nlink.requestor_email,
                 str(nlink.requestor_link),
                 negotiation.questionnaire_SAID,
@@ -109,7 +109,7 @@ def send_abandonment_reminder_email(negotiation):
                 logger.warning(f"No owner email found for negotiation {negotiation.negotiation_id}")
                 return False
             
-            send_abandonment_reminder_email_task.delay(
+            send_abandonment_reminder_email_task(
                 owner_email,
                 str(nlink.owner_link),
                 negotiation.questionnaire_SAID,
@@ -145,7 +145,7 @@ def mark_negotiation_abandoned(negotiation):
             
             nlink = negotiation.link
             if nlink and nlink.requestor_email:
-                send_abandonment_notification_email_task.delay(
+                send_abandonment_notification_email_task(
                     nlink.requestor_email,
                     str(nlink.requestor_link),
                     negotiation.questionnaire_SAID
