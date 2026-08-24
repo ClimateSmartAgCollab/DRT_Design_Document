@@ -1,7 +1,6 @@
 import os
 
 import dj_database_url
-from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa
@@ -49,7 +48,7 @@ if not POSTGRES_SCHEMA.isidentifier():
 
 DATABASES = {
     "default": {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'ENGINE': 'django.db.backends.postgresql',
         'OPTIONS': {
             'options': f'-c search_path={POSTGRES_SCHEMA}'
         },
@@ -70,23 +69,6 @@ CACHES = {
         "TIMEOUT": 60 * 60 * 24,
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     }
-}
-
-CELERY_BROKER_URL = _required("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
-CELERY_TASK_ALWAYS_EAGER = False
-CELERY_TASK_IGNORE_RESULT = True
-CELERY_BEAT_SCHEDULE = {
-    "process-abandonment-policy": {
-        "task": "drt.tasks.process_abandonment_policy_task",
-        "schedule": crontab(hour=2, minute=0),
-        "options": {"expires": 3600},
-    },
-    "prewarm-github-cache": {
-        "task": "drt.tasks.refresh_data_task",
-        "schedule": crontab(minute=0, hour="*/12"),
-        "options": {"expires": 3600},
-    },
 }
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
