@@ -15,13 +15,14 @@ Edit `.env.local` if you need to point at a different backend API (defaults to `
 ```bash
 npm run dev
 ```
-The app runs at `http://127.0.0.1:3000`.
+The app runs at `http://127.0.0.1:3001`. From the repository root, `npm run dev` starts this app and Django together (Django uses `backend/.venv`; see the root README).
 
-## Production Build
+## Production
 ```bash
 npm run build
 npm start
 ```
+The Next image is built by `frontend.Dockerfile` (`npm run build`, then `npm start` on port 3000) and served from `infra/docker-compose.prod.yml`.
 
 ## Testing & Linting
 ```bash
@@ -29,6 +30,3 @@ npm run lint
 npm run test
 npm run type-check
 ```
-
-## Deployment (Netlify)
-Netlify builds are configured via the repository-level `netlify.toml` with `base = "frontend"` so that only this directory is installed and built. Ensure any new environment variables are added to Netlify’s UI as well.
