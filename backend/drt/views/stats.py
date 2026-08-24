@@ -766,7 +766,7 @@ def archive_view(request, negotiation_id):
 def generate_summary_statistics(sender, instance, **kwargs):
     """Auto-archive and export statistics when a negotiation is accepted, canceled, rejected, or abandoned."""
     if instance.state in ['accepted', 'canceled', 'rejected', 'abandoned'] and not instance.archived:
-        handle_negotiation_archive_and_summary_task.delay(instance.negotiation_id)
+        handle_negotiation_archive_and_summary_task(instance.negotiation_id)
 
 
 def handle_negotiation_archive_and_summary_async(negotiation, owner_id=None):
@@ -1280,9 +1280,9 @@ def reopen_negotiation_view(request, negotiation_id):
         if hasattr(negotiation, 'link') and negotiation.link:
             requestor_email = negotiation.link.requestor_email
             if requestor_email:
-                send_reopen_notification_email_task.delay(
-                    requestor_email, 
-                    str(negotiation.link.requestor_link), 
+                send_reopen_notification_email_task(
+                    requestor_email,
+                    str(negotiation.link.requestor_link),
                     previous_state
                 )
         

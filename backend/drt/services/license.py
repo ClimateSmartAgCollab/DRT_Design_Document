@@ -254,7 +254,7 @@ def _send_owner_license_email(nlink, owner_email: str, attachment: tuple) -> Non
     )
     email.attach_alternative(html_content, "text/html")
     email.attach(*attachment)
-    email.send(fail_silently=True)
+    email.send(fail_silently=False)
 
 
 def generate_license_and_notify_owner(nlink) -> None:

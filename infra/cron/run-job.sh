@@ -1,17 +1,8 @@
 #!/usr/bin/env bash
-# Host cron wrapper for DRT scheduled jobs (drt-test and a future prod host).
-# Local laptops do not need this; run the same manage.py commands by hand.
-#
+
 # Crontab uses the host timezone (Azure images are usually UTC):
 #   0 2 * * *    /path/to/repo/infra/cron/run-job.sh abandonment
 #   0 */12 * * * /path/to/repo/infra/cron/run-job.sh cache
-#
-# Optional Healthchecks.io ping URLs live in repo-root .env.production:
-#   CRON_HEALTHCHECK_ABANDONMENT_URL=https://hc-ping.com/<uuid>
-#   CRON_HEALTHCHECK_CACHE_URL=https://hc-ping.com/<uuid>
-# Success: GET the URL. Failure: GET <url>/fail.
-# Size Healthchecks grace to worst-case job time (not gunicorn's 120s);
-# this process is compose exec, not a gunicorn worker.
 
 set -euo pipefail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"

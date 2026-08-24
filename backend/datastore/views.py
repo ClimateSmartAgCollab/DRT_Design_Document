@@ -480,9 +480,9 @@ def github_webhook(request):
             cache.delete(key)
         cache.delete_pattern("questionnaire_json_*")
         cache.delete_pattern("license_template_*")
-        refresh_data_task.delay()
+        refresh_data_task()
         logger.info("GitHub webhook push processed (delivery=%s)", delivery_id)
-        return JsonResponse({"status": "Cache cleared, refresh started"}, status=200)
+        return JsonResponse({"status": "Cache cleared and refreshed"}, status=200)
     except Exception as e:
         logger.error("Error processing webhook: %s", e, exc_info=True)
         return JsonResponse({"error": "Internal error"}, status=500)

@@ -1,5 +1,4 @@
 import logging
-from celery import shared_task
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from django.core.cache import cache
@@ -12,9 +11,8 @@ from .utils.email_helpers import (
 logger = logging.getLogger(__name__)
 
 
-@shared_task
 def send_owner_email_task(email, magic_link, expiry):
-    """Send owner email asynchronously using Celery"""
+    """Send owner email."""
     try:
         # Generate consistent HTML content
         html_content = get_verification_email_html(
@@ -43,16 +41,15 @@ def send_owner_email_task(email, magic_link, expiry):
             to=[email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
         logger.info(f"Owner email sent successfully to {email}")
     except Exception as e:
         logger.error(f"Error sending owner email: {str(e)}")
         raise
 
 
-@shared_task
 def send_admin_email_task(email, magic_link, expiry):
-    """Send admin email asynchronously using Celery"""
+    """Send admin email."""
     try:
         html_content = get_verification_email_html(
             magic_link=magic_link,
@@ -79,16 +76,15 @@ def send_admin_email_task(email, magic_link, expiry):
             to=[email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
         logger.info(f"Admin email sent successfully to {email}")
     except Exception as e:
         logger.error(f"Error sending admin email: {str(e)}")
         raise
 
 
-@shared_task
 def send_requestor_email_task(email, magic_link, expiry):
-    """Send requestor email asynchronously using Celery"""
+    """Send requestor email."""
     try:
         html_content = get_verification_email_html(
             magic_link=magic_link,
@@ -115,16 +111,15 @@ def send_requestor_email_task(email, magic_link, expiry):
             to=[email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
         logger.info(f"Requestor email sent successfully to {email}")
     except Exception as e:
         logger.error(f"Error sending requestor email: {str(e)}")
         raise
 
 
-@shared_task
 def send_notification_emails_task(nlink_id, owner_review_url):
-    """Send notification emails asynchronously using Celery"""
+    """Send notification emails to owner and requestor."""
     try:
         from .models import NLink
         from .views.auth import generate_owner_magic_link_with_target
@@ -195,7 +190,7 @@ def send_notification_emails_task(nlink_id, owner_review_url):
             to=[owner_email],
         )
         owner_msg.attach_alternative(owner_html_content, "text/html")
-        owner_msg.send(fail_silently=True)
+        owner_msg.send(fail_silently=False)
 
         # Send email to requestor
         req_subject = (
@@ -236,7 +231,7 @@ def send_notification_emails_task(nlink_id, owner_review_url):
             to=[nlink.requestor_email],
         )
         requestor_msg.attach_alternative(requestor_html_content, "text/html")
-        requestor_msg.send(fail_silently=True)
+        requestor_msg.send(fail_silently=False)
 
         logger.info(f"Notification emails sent for negotiation {nlink_id}")
     except Exception as e:
@@ -244,9 +239,8 @@ def send_notification_emails_task(nlink_id, owner_review_url):
         raise
 
 
-@shared_task
 def fetch_questionnaire_task(questionnaire_said):
-    """Fetch questionnaire asynchronously using Celery"""
+    """Fetch questionnaire JSON and cache it."""
     try:
         from datastore.views import fetch_questionnaire_json
         from datastore.cache_keys import (
@@ -271,9 +265,8 @@ def fetch_questionnaire_task(questionnaire_said):
         raise
 
 
-@shared_task
 def generate_license_and_notify_owner_task(nlink_id):
-    """Generate license and notify owner asynchronously using Celery"""
+    """Generate license and notify owner."""
     try:
         from .models import NLink
         from .services.license import generate_license_and_notify_owner
@@ -289,9 +282,8 @@ def generate_license_and_notify_owner_task(nlink_id):
         raise
 
 
-@shared_task
 def send_rejection_email_task(requestor_email, requestor_link, rationale):
-    """Send rejection email asynchronously using Celery"""
+    """Send rejection email."""
     try:
         dashboard_url = f"{settings.FRONTEND_BASE_URL}/negotiation/homepage"
         questionnaire_url = f"{settings.FRONTEND_BASE_URL}/negotiation/{requestor_link}/fill-questionnaire"
@@ -341,7 +333,7 @@ def send_rejection_email_task(requestor_email, requestor_link, rationale):
             to=[requestor_email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
 
         logger.info(f"Rejection email sent to {requestor_email}")
     except Exception as e:
@@ -349,9 +341,8 @@ def send_rejection_email_task(requestor_email, requestor_link, rationale):
         raise
 
 
-@shared_task
 def send_clarification_email_task(requestor_email, clarification_url):
-    """Send clarification email asynchronously using Celery"""
+    """Send clarification email."""
     try:
         # Generate consistent HTML content
         html_content = get_clarification_email_html(
@@ -378,7 +369,7 @@ def send_clarification_email_task(requestor_email, clarification_url):
             to=[requestor_email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
 
         logger.info(f"Clarification email sent to {requestor_email}")
     except Exception as e:
@@ -386,9 +377,8 @@ def send_clarification_email_task(requestor_email, clarification_url):
         raise
 
 
-@shared_task
 def send_magic_link_resend_email_task(requestor_email, magic_link):
-    """Send magic link resend email asynchronously using Celery"""
+    """Send magic link resend email."""
     try:
         # Generate consistent HTML content
         html_content = get_magic_link_resend_html(magic_link=magic_link)
@@ -410,7 +400,7 @@ def send_magic_link_resend_email_task(requestor_email, magic_link):
             to=[requestor_email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
 
         logger.info(f"Magic link resend email sent to {requestor_email}")
     except Exception as e:
@@ -418,9 +408,8 @@ def send_magic_link_resend_email_task(requestor_email, magic_link):
         raise
 
 
-@shared_task
 def send_requestor_verification_email_task(email, magic_link, expiry):
-    """Send requestor verification email asynchronously using Celery"""
+    """Send requestor verification email."""
     try:
         # Generate consistent HTML content
         html_content = get_verification_email_html(
@@ -449,7 +438,7 @@ def send_requestor_verification_email_task(email, magic_link, expiry):
             to=[email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
 
         logger.info(f"Requestor verification email sent to {email}")
     except Exception as e:
@@ -457,9 +446,8 @@ def send_requestor_verification_email_task(email, magic_link, expiry):
         raise
 
 
-@shared_task
 def handle_negotiation_archive_and_summary_task(negotiation_id):
-    """Handle negotiation archive and summary asynchronously using Celery"""
+    """Handle negotiation archive and summary."""
     try:
         from .models import Negotiation
         from .views.stats import handle_negotiation_archive_and_summary_async
@@ -473,12 +461,11 @@ def handle_negotiation_archive_and_summary_task(negotiation_id):
         raise
 
 
-@shared_task
 def refresh_data_task():
-    """Refresh GitHub-backed cache asynchronously using Celery.
+    """Refresh GitHub-backed cache.
 
     Called by:
-      - Celery Beat (`prewarm-github-cache`, every 12h)
+      - `python manage.py refresh_datastore_cache` (cron every 12h on the VM)
       - GitHub webhook handler (`datastore.views.github_webhook`) after invalidation
     """
     try:
@@ -498,9 +485,8 @@ def refresh_data_task():
         raise
 
 
-@shared_task
 def send_reopen_notification_email_task(requestor_email, requestor_link, previous_state):
-    """Send reopen notification email asynchronously using Celery"""
+    """Send reopen notification email."""
     try:
         # Debug: Log email configuration
         logger.info(f"Email config - BACKEND: {settings.EMAIL_BACKEND}, HOST: {settings.EMAIL_HOST}, USER: {settings.EMAIL_HOST_USER}")
@@ -574,9 +560,8 @@ def send_reopen_notification_email_task(requestor_email, requestor_link, previou
         raise
 
 
-@shared_task
 def send_abandonment_reminder_email_task(recipient_email, link_id, questionnaire_said, recipient_type):
-    """Send abandonment reminder email asynchronously using Celery"""
+    """Send abandonment reminder email."""
     try:
         if recipient_type == 'requestor':
             subject = "Data Access Request - Action Required"
@@ -625,7 +610,7 @@ def send_abandonment_reminder_email_task(recipient_email, link_id, questionnaire
             to=[recipient_email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
 
         logger.info(f"Abandonment reminder email sent to {recipient_type} at {recipient_email}")
     except Exception as e:
@@ -633,9 +618,8 @@ def send_abandonment_reminder_email_task(recipient_email, link_id, questionnaire
         raise
 
 
-@shared_task
 def send_abandonment_notification_email_task(requestor_email, requestor_link, questionnaire_said):
-    """Send abandonment notification email to requestor asynchronously using Celery"""
+    """Send abandonment notification email to the requestor."""
     try:
         # Create the specific questionnaire link
         questionnaire_url = f"{settings.FRONTEND_BASE_URL}/negotiation/{requestor_link}/fill-questionnaire"
@@ -669,7 +653,7 @@ def send_abandonment_notification_email_task(requestor_email, requestor_link, qu
             to=[requestor_email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
 
         logger.info(f"Abandonment notification email sent to {requestor_email}")
     except Exception as e:
@@ -677,9 +661,8 @@ def send_abandonment_notification_email_task(requestor_email, requestor_link, qu
         raise
 
 
-@shared_task
 def process_abandonment_policy_task():
-    """Process abandonment policy asynchronously using Celery"""
+    """Process abandonment policy for inactive negotiations."""
     try:
         from .services.negotiation import process_abandonment_policy
         result = process_abandonment_policy()

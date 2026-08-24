@@ -55,8 +55,7 @@ def verify_magic_link_view(request, link_id):
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?token={token}"
 
-        # Send email asynchronously using Celery
-        send_magic_link_resend_email_task.delay(requestor.requestor_email, magic_link)
+        send_magic_link_resend_email_task(requestor.requestor_email, magic_link)
 
         return Response({'message': 'Access link resent successfully.'},
                         status=status.HTTP_200_OK)

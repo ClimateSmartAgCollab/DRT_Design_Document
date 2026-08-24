@@ -94,8 +94,7 @@ def owner_email_entry(request):
         )
 
         try:
-            # Use Celery to send email asynchronously
-            send_owner_email_task.delay(email, magic_link, expiry)
+            send_owner_email_task(email, magic_link, expiry)
         except Exception as email_error:
             logger.exception("Email sending failed")
             # Return the real SMTP exception to the client for now
@@ -225,8 +224,7 @@ def req_email_entry(request):
             settings.EMAIL_HOST_USER,
         )
         try:
-            # Use Celery to send email asynchronously
-            send_requestor_email_task.delay(email, magic_link, expiry)
+            send_requestor_email_task(email, magic_link, expiry)
         except Exception as email_error:
             logger.exception("Email sending failed")
             # Return the real SMTP exception to the client for now
