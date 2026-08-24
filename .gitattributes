@@ -1,0 +1,2 @@
+# Bash scripts must stay LF so they run on Linux hosts (drt-test).
+infra/cron/run-job.sh text eol=lf

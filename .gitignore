@@ -2,8 +2,10 @@
 # Real env files (never commit). Templates with the ".example" suffix are committed.
 .env
 .env.production
+# Leftover names from an earlier layout (still ignore if present):
+.env.staging
+infra/.env
 !.env.example
-!.env.production.example
 .cursor/
 pgdata/
 drt_landing_page/
@@ -110,10 +112,6 @@ ipython_config.py
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
 # SageMath parsed files
 *.sage.py
 
@@ -144,3 +142,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .next/
+.netlify/
