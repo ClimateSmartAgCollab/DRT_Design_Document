@@ -22,12 +22,14 @@ This guide provides step-by-step instructions for implementing your own instance
 ## Overview
 
 DRT is a full-stack platform built with:
-- **Backend**: Django REST Framework with PostgreSQL, Redis, and Celery
+- **Backend**: Django REST Framework with PostgreSQL and Redis (cache)
 - **Frontend**: Next.js 14 (App Router) with TypeScript
-- **Infrastructure**: Docker Compose for local development, containerized deployment for production
+- **Infrastructure**: Docker Compose for local Postgres/Redis; the same remote Compose shape (gunicorn, Next, nginx) for staging and production
 - **Data Storage**: GitHub repository for static assets (questionnaires, licenses, metadata)
 
 The platform manages data access negotiations between requestors and dataset owners through a structured workflow.
+
+**Staging is a small production, not a shared laptop.** Copy [`.env.example`](../.env.example) to `.env` (laptop) or `.env.production` (any remote host). Fill **derived** secrets per host — do not clone production keys and flip `TESTING_MODE`.
 
 ---
 
@@ -36,9 +38,9 @@ The platform manages data access negotiations between requestors and dataset own
 Before starting, ensure you have:
 
 1. **Development Environment**:
-   - Python 3.9+ (for Django backend)
+   - Python 3.12 or 3.13 (Django 5.1; `npm run setup:backend` prefers these)
    - Node.js 18+ and npm (for Next.js frontend)
-   - Docker and Docker Compose (recommended for local development)
+   - Docker and Docker Compose (recommended for local Postgres/Redis)
    - Git
 
 2. **Services & Accounts**:
@@ -64,9 +66,10 @@ Before starting, ensure you have:
    ```
 
 2. **Review Project Structure**:
-   - `backend/` - Django API and Celery tasks
+   - `backend/` - Django API
    - `frontend/` - Next.js application
-   - `infra/` - Docker configuration and deployment files
+   - `scripts/` - `venv-python.js` so root npm scripts use `backend/.venv`
+   - `infra/` - Docker Compose, Dockerfiles, and host cron wrapper
    - `docs/` - Documentation
 
 3. **Set Up Git** (if creating a new repository):
@@ -162,97 +165,45 @@ https://api.github.com/repos/your-org/your-datastore/contents
 
 ### 3.1 Environment Variables
 
-1. **Copy the example environment file**:
+1. **Copy the example environment file** to the runtime file for this host (never commit the copy):
    ```bash
-   cd backend
-   cp env.example .env
+   # Laptop
+   cp .env.example .env
+
+   # Any remote host (drt-test and a future prod VM)
+   cp .env.example .env.production
    ```
 
-2. **Configure `.env` file** with your values:
+2. Fill every required value in [`.env.example`](../.env.example). Uncommented defaults are for the laptop (`127.0.0.1:5433` / `6380`, `drt_core.settings.local`). Remote hosts uncomment Compose hostnames (`postgres` / `redis`) and `EMAIL_*`, set `DJANGO_SETTINGS_MODULE=drt_core.settings.production`, and use unique secrets.
+
+   Local Django loads **repo-root** `.env` via `settings/base.py`. Remote Compose always injects `.env.production` into the containers. On `drt-test` set `TESTING_MODE=true` and `ENVIRONMENT=staging`; on a production host set `TESTING_MODE=false` and `ENVIRONMENT=production`.
+
+### 3.2 Install Python Dependencies
+
+From the repository root. Creates `backend/.venv` if missing (prefers Python 3.12 or 3.13) and installs `backend/requirements.txt`. You do not activate the virtualenv afterward.
 
 ```bash
-# Django Core
-DJANGO_SECRET_KEY=your-secret-key-here-generate-with-openssl-rand-hex-32
-ENVIRONMENT=development
-DJANGO_DEBUG=True
-
-# Database Configuration (local development — drt_core.settings.local)
-USE_SQLITE=false  # Set to true only for initial testing
-POSTGRES_DB=drt
-POSTGRES_USER=drt
-POSTGRES_PASSWORD=your-secure-password
-DB_HOST=postgres  # Use '127.0.0.1' if running Django on the host outside Docker
-DB_PORT=5432
-# Optional: DATABASE_URL overrides the POSTGRES_* / DB_HOST settings above when set
-# DATABASE_URL=postgres://drt:password@postgres:5432/drt
-#
-# Production uses drt_core.settings.production and POSTGRES_* variables instead
-# (including POSTGRES_HOST and POSTGRES_SCHEMA). See Step 9.2 and .env.production.example.
-
-# Redis Configuration
-REDIS_URL=redis://redis:6379/1  # Use 'redis://localhost:6379/1' if running outside Docker
-CELERY_BROKER_URL=redis://redis:6379/0
-CELERY_RESULT_BACKEND=redis://redis:6379/0
-
-# GitHub Datastore Configuration
-# Format: https://api.github.com/repos/OWNER/REPO/contents
-GITHUB_API_URL=https://api.github.com/repos/your-org/your-datastore/contents
-GITHUB_TOKEN=your-github-personal-access-token
-
-# Email Configuration (see Step 7 for details)
-ETHEREAL_USER=your-ethereal-user  # For development/testing
-ETHEREAL_PASS=your-ethereal-pass
-# For production, configure SMTP settings:
-# EMAIL_HOST=smtp.example.com
-# EMAIL_PORT=587
-# EMAIL_USE_TLS=True
-# EMAIL_HOST_USER=your-email@example.com
-# EMAIL_HOST_PASSWORD=your-email-password
-# DEFAULT_FROM_EMAIL=noreply@yourdomain.com
-
-# Frontend URL (used in email links)
-FRONTEND_BASE_URL=http://127.0.0.1:3000  # Change for production
-
-# Django Management
-DJANGO_MANAGE_MIGRATE=on
-
-# Admin Configuration
-# Comma-separated list of admin email addresses
-ADMIN_EMAILS=admin1@example.com,admin2@example.com
-ADMIN_ENABLED=true
+npm run setup:backend
 ```
 
-### 3.2 Generate Django Secret Key
-
-Generate a secure secret key:
-```bash
-python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-```
-
-### 3.3 Install Python Dependencies
+### 3.3 Generate Django Secret Key
 
 ```bash
-cd backend
-pip install -r requirements.txt
-```
-
-Or using Pipenv (if available):
-```bash
-pipenv install
+npm run manage -- shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
 
 ### 3.4 Database Migrations
 
 Run migrations to set up the database schema:
 ```bash
-python manage.py migrate
+npm run migrate
 ```
 
 ### 3.5 Create Superuser (Optional)
 
 For Django admin access:
 ```bash
-python manage.py createsuperuser
+npm run manage -- createsuperuser
 ```
 
 **Note**: Django admin is accessible at `/django-admin/` (not `/admin/`) to avoid conflicts with Next.js admin routes. After creating a superuser, access Django admin at:
@@ -352,10 +303,9 @@ Place custom logos and images in:
 
 ### 6.1 Using Docker Compose (Recommended)
 
-The `infra/docker-compose.yml` includes a PostgreSQL service. Simply start it:
+The `infra/docker-compose.yml` includes PostgreSQL (host **5433**) and Redis (host **6380**) so they do not collide with ContextHub (5432 / 6379). Start them from the repo root:
 ```bash
-cd infra
-docker compose up postgres redis -d
+docker compose -f infra/docker-compose.yml up -d
 ```
 
 ### 6.2 Using External PostgreSQL
@@ -367,11 +317,11 @@ docker compose up postgres redis -d
    GRANT ALL PRIVILEGES ON DATABASE drt TO drt;
    ```
 
-2. Update `backend/.env` with connection details (`POSTGRES_*`, `DB_HOST`, `DB_PORT`, or `DATABASE_URL` — see Step 3.1)
+2. Update `.env` with connection details (`POSTGRES_*`, `DB_HOST`, `DB_PORT`, or `DATABASE_URL` — see Step 3.1)
 
 3. Run migrations:
    ```bash
-   python manage.py migrate
+   npm run migrate
    ```
 
 ### 6.3 PostgreSQL Schema Support (Production)
@@ -407,11 +357,11 @@ POSTGRES_SCHEMA=drt_prod
 
 > **Note:** Schemas provide logical separation of tables, not full security isolation. All schemas in a database share the same connection, backup scope, and database user unless your provider configures otherwise. See the [PostgreSQL schema documentation](https://www.postgresql.org/docs/current/ddl-schemas.html) for background.
 
-Production settings do **not** read `DATABASE_URL` or `DB_HOST`/`DB_PORT`. Copy `.env.production.example` to `.env.production` for the full production variable list.
+Production settings do **not** read `DATABASE_URL` or `DB_HOST`/`DB_PORT`. Copy [`.env.example`](../.env.example) to `.env.production` and uncomment the remote `POSTGRES_*` keys.
 
 ### 6.4 Initial Data Loading
 
-After setting up the GitHub datastore, cache tables are warmed automatically on backend startup. Changes to the datastore repo trigger refresh via the GitHub webhook; Celery Beat also re-warms every 12 hours as a backstop.
+After setting up the GitHub datastore, cache tables are warmed automatically on backend startup. Changes to the datastore repo trigger refresh via the GitHub webhook; host cron re-warms every 12 hours as a backstop (`infra/cron/run-job.sh cache`).
 
 ---
 
@@ -421,7 +371,7 @@ After setting up the GitHub datastore, cache tables are warmed automatically on 
 
 1. Sign up at https://ethereal.email/
 2. Create a new account
-3. Copy username and password to `backend/.env`:
+3. Copy username and password to `.env`:
    ```bash
    ETHEREAL_USER=your-ethereal-user
    ETHEREAL_PASS=your-ethereal-pass
@@ -429,7 +379,7 @@ After setting up the GitHub datastore, cache tables are warmed automatically on 
 
 ### 7.2 Production (SMTP)
 
-Configure production SMTP in `backend/.env`:
+Configure SMTP in `.env.production` (sandbox on `drt-test`, real provider on production). Do not reuse staging credentials on production.
 ```bash
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.example.com
@@ -456,52 +406,32 @@ The only local template file is `backend/drt/templates/license_template_fallback
 
 ## Step 8: Local Development
 
-### Option A: Docker Compose (Recommended)
+Docker runs **only Postgres and Redis** (same idea as ContextHub). Django and Next.js run on the host in one terminal via `npm run dev`. Root npm scripts use `backend/.venv` through `scripts/venv-python.js`, so you do not activate the virtualenv in your shell.
 
-1. **Start all services**:
+1. **First time**:
    ```bash
-   cd infra
-   docker compose up --build
+   npm run setup:backend
+   npm --prefix frontend install
    ```
 
-2. **Access services**:
-   - Backend API: http://127.0.0.1:8000
-   - Frontend: http://127.0.0.1:3000
-   - Django Admin: http://127.0.0.1:8000/django-admin (Note: Changed from `/admin/` to avoid conflict with Next.js admin routes)
-   - Next.js Admin: http://127.0.0.1:3000/admin/email-entry
+   Prefer Python 3.12 or 3.13 on PATH (Django 5.1). `setup:backend` creates `backend/.venv` if missing and installs `backend/requirements.txt`. If an existing venv was created with Python 3.14, delete `backend/.venv` and rerun `setup:backend`.
 
-3. **View logs**:
+2. **Every session**:
    ```bash
-   docker compose logs -f
-   ```
-
-### Option B: Manual Setup
-
-1. **Start PostgreSQL and Redis** (if not using Docker)
-
-2. **Backend**:
-   ```bash
-   cd backend
-   python manage.py runserver 0.0.0.0:8000
-   ```
-
-3. **Celery Worker** (in separate terminal):
-   ```bash
-   cd backend
-   celery -A drt_core worker --loglevel=info
-   ```
-
-4. **Celery Beat** (in separate terminal):
-   ```bash
-   cd backend
-   celery -A drt_core beat --loglevel=info
-   ```
-
-5. **Frontend** (in separate terminal):
-   ```bash
-   cd frontend
+   docker compose -f infra/docker-compose.yml up -d
+   npm run migrate
    npm run dev
    ```
+
+   If those fail with `Backend virtualenv not found`, run `npm run setup:backend`. Other Django commands: `npm run manage -- createsuperuser`.
+
+3. **Access**:
+   - Backend API: http://127.0.0.1:8000
+   - Frontend: http://127.0.0.1:3001
+   - Django Admin: http://127.0.0.1:8000/django-admin
+   - Next.js Admin: http://127.0.0.1:3001/admin/email-entry
+
+Local Django settings send email and refresh cache in-request. There is no Celery. Use `infra/docker-compose.prod.yml` on `drt-test` (or a future prod host) for the full container stack (gunicorn, Next image, nginx).
 
 ### 8.1 Verify Installation
 
@@ -511,11 +441,10 @@ The only local template file is `backend/drt/templates/license_template_fallback
    ```
 
 2. **Check frontend**:
-   Open http://127.0.0.1:3000 in your browser
+   Open http://127.0.0.1:3001 in your browser
 
-3. **Test GitHub datastore connection**:
-   - Restart the backend and confirm startup warm logs, or
-   - Push a change to the Datastore repo and verify the webhook delivery in GitHub
+3. **Test datastore connection**:
+   - Restart the backend and confirm ContextHub cache warm logs (or GitHub, if `DATASTORE_BACKEND=github`).
 
 ---
 
@@ -533,14 +462,18 @@ The only local template file is `backend/drt/templates/license_template_fallback
    docker build -f frontend/frontend.Dockerfile -t drt-frontend:latest ./frontend
    ```
 
-### 9.2 Production Environment Variables
+### 9.2 Environment Variables (derived per host)
 
-1. Copy the production template:
-   ```bash
-   cp .env.production.example .env.production
-   ```
+Copy [`.env.example`](../.env.example) and fill **new** secrets. Staging is not production with one flag flipped.
 
-2. Fill in every required value. Production loads `drt_core.settings.production`, which **fails fast** if required keys are missing.
+```bash
+# Any remote host
+cp .env.example .env.production
+# If this host previously used .env.staging:
+#   mv .env.staging .env.production && rm -f infra/.env
+```
+
+Fill every required value. Remote containers load `drt_core.settings.production`, which **fails fast** if required keys are missing.
 
 **Required groups:**
 
@@ -548,10 +481,19 @@ The only local template file is `backend/drt/templates/license_template_fallback
 | --- | --- |
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` |
 | Database | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` |
-| Redis / Celery | `REDIS_URL`, `CELERY_BROKER_URL` |
+| Redis | `REDIS_URL` (cache only) |
 | Email | `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` |
 | GitHub datastore | `GITHUB_API_URL`, `GITHUB_TOKEN` |
 | Frontend | `FRONTEND_BASE_URL` |
+
+**Derived-secrets checklist** (each host unique):
+
+- `DJANGO_SECRET_KEY`
+- Database password
+- SMTP user/password (`EMAIL_*`; Ethereal/sandbox on staging, real provider on production)
+- ContextHub API key and GitHub token / webhook secret
+- Hostnames (`DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `FRONTEND_BASE_URL`)
+- `TESTING_MODE=true` and `ENVIRONMENT=staging` on `drt-test`; `TESTING_MODE=false` and `ENVIRONMENT=production` on a real prod host
 
 **Database notes for production:**
 
@@ -560,7 +502,7 @@ The only local template file is `backend/drt/templates/license_template_fallback
 - `DATABASE_URL` is ignored in production settings; configure `POSTGRES_*` explicitly.
 - Optional: `POSTGRES_CONN_MAX_AGE` (default `600`), `CORS_ALLOWED_ORIGINS`, `SECURE_HSTS_SECONDS`.
 
-The `infra/docker-compose.prod.yml` stack reads `.env.production` for the backend, Celery, frontend, and Postgres services. Set `DJANGO_MANAGE_MIGRATE=on` on the backend service (already configured in compose) so migrations run on startup.
+The `infra/docker-compose.prod.yml` stack reads `../.env.production` for the backend, frontend, and Postgres services. Set `DJANGO_MANAGE_MIGRATE=on` on the backend service (already configured in compose) so migrations run on startup.
 
 ### 9.3 Reverse Proxy (Nginx)
 
@@ -607,11 +549,32 @@ server {
 }
 ```
 
-### 9.4 SSL/TLS Certificates
+### 9.4 Scheduled jobs (host cron)
+
+Email and cache refresh run **in the request**. The two clocks (abandonment policy and datastore cache warm) run on the VM via [`infra/cron/run-job.sh`](../infra/cron/run-job.sh). Local laptops do not need cron; operators can run the same commands with `npm run manage -- process_abandonment_policy` and `npm run manage -- refresh_datastore_cache`.
+
+```cron
+# Host timezone (Azure images are usually UTC)
+0 2 * * *    /path/to/repo/infra/cron/run-job.sh abandonment
+0 */12 * * * /path/to/repo/infra/cron/run-job.sh cache
+```
+
+The script `docker compose exec`s into the running `backend` service (this is not a gunicorn request; Healthchecks grace should cover the whole job, not 120s). Optional Healthchecks.io URLs in `.env.production`:
+
+```bash
+CRON_HEALTHCHECK_ABANDONMENT_URL=https://hc-ping.com/your-abandonment-uuid
+CRON_HEALTHCHECK_CACHE_URL=https://hc-ping.com/your-cache-uuid
+```
+
+Success pings the URL; failure pings `<url>/fail`. If a URL is unset, the script still runs the job.
+
+After switching from Celery, remove leftover worker containers if they still exist: `docker rm -f drt-prod-celery-worker drt-prod-celery-beat`.
+
+### 9.5 SSL/TLS Certificates
 
 Use Let's Encrypt with Certbot (included in docker-compose.yml) or your preferred certificate authority.
 
-### 9.5 Database Backups
+### 9.6 Database Backups
 
 Set up regular PostgreSQL backups:
 ```bash
@@ -619,11 +582,11 @@ Set up regular PostgreSQL backups:
 pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 ```
 
-### 9.6 Monitoring & Logging
+### 9.7 Monitoring & Logging
 
 - Configure logging in Django settings
 - Set up application monitoring (e.g., Sentry, DataDog)
-- Monitor Celery task execution
+- Watch Healthchecks.io for missed/failed cron pings
 - Track API performance metrics
 
 ---
@@ -639,7 +602,7 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 **Workflow Customization**:
 - Edit `backend/drt/views/questionnaire.py` for questionnaire handling
 - Modify `backend/drt/services/license.py` for license generation logic
-- Update `backend/drt/tasks.py` for Celery task behavior
+- Update `backend/drt/tasks.py` for email and cache-refresh helpers
 
 ### 10.2 API Customization
 
@@ -672,12 +635,12 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 **Add Custom Fields**:
 1. Create migration:
    ```bash
-   python manage.py makemigrations
+   npm run manage -- makemigrations
    ```
 2. Review migration file
 3. Apply migration:
    ```bash
-   python manage.py migrate
+   npm run migrate
    ```
 
 **Add New Models**:
@@ -700,7 +663,7 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 **1. GitHub API Rate Limiting**
 - **Solution**: Ensure Redis caching is working. Check cache TTL settings in `backend/datastore/views.py`
 - Use GitHub Personal Access Token with appropriate rate limits
-- Consider implementing cache warming via Celery Beat
+- Consider running `npm run manage -- refresh_datastore_cache` locally (or host cron `run-job.sh cache`)
 
 **2. Database Connection Errors**
 - **Local development:** Verify `POSTGRES_*`, `DB_HOST`, `DB_PORT`, or `DATABASE_URL` in `.env` (see Step 3.1). Local settings are in `drt_core.settings.local`.
@@ -708,11 +671,11 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 - **Shared database / custom schema:** Ensure the schema exists (`CREATE SCHEMA ...`) and `POSTGRES_SCHEMA` matches before running migrations.
 - Check PostgreSQL is running and accessible; verify network connectivity (Docker networking if using containers).
 
-**3. Celery Tasks Not Executing**
-- **Solution**: Ensure Redis is running and accessible
-- Check `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` settings
-- Verify Celery worker and beat processes are running
-- Check Celery logs for errors
+**3. Cron jobs not running (remote)**
+- Confirm crontab entries point at `infra/cron/run-job.sh`
+- Confirm the backend container is up: `docker compose -f infra/docker-compose.prod.yml ps`
+- Run the script by hand and check its exit code
+- If Healthchecks.io URLs are set, a miss or `/fail` ping means the job did not complete
 
 **4. Frontend Can't Connect to Backend**
 - **Solution**: Verify `NEXT_PUBLIC_API_URL` in `frontend/.env.local`
@@ -722,7 +685,7 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 **5. Email Not Sending**
 - **Solution**: Verify email configuration in `.env`
 - Test SMTP connection separately
-- Check Celery worker logs for email task errors
+- Check Django logs for SMTP errors (`EMAIL_TIMEOUT` defaults to 10 seconds)
 - For Ethereal, verify credentials are correct
 
 **6. GitHub Datastore Not Loading**
@@ -730,6 +693,12 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 - Check `GITHUB_TOKEN` has appropriate permissions
 - Verify repository structure matches expected format
 - Check backend logs for GitHub API errors
+
+**7. `Backend virtualenv not found` or `ModuleNotFoundError`**
+- Run `npm run setup:backend` from the repository root (creates `backend/.venv` and installs requirements)
+- Do not activate the venv; `npm run migrate`, `npm run dev`, and `npm run manage` call it through `scripts/venv-python.js`
+- If the venv was created with Python 3.14, delete `backend/.venv` and rerun `setup:backend` (Django 5.1 is tested on 3.12–3.13)
+- Do not run `python backend/manage.py` with system Python — that interpreter will not have project dependencies
 
 ### Debug Mode
 
@@ -740,8 +709,7 @@ Enable Django debug toolbar (already configured in settings):
 ### Logging
 
 Check logs:
-- Django: `backend/drt_core/logs/drt.log`
-- Celery: Check terminal output or configure file logging
+- Django: `backend/drt_core/logs/drt.log` (or container logs: `docker compose -f infra/docker-compose.prod.yml logs backend`)
 - Frontend: Browser console and Next.js terminal output
 
 ---

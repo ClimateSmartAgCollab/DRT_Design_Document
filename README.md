@@ -58,7 +58,17 @@ DRT replaces this chaos with a structured, transparent, automated workflow that 
 
 ## System Architecture
 
-DRT is composed of independently deployable services orchestrated via Docker Compose in development and container platforms in production.
+**Staging is a small production, not a shared Local.** One deploy shape, stripped down for the Local. `drt-test` is the only remote host today; a future prod host copies the same Compose file with a **derived** env (sandbox secrets replaced, not a flipped `TESTING_MODE` on prod keys).
+
+| | Local | Staging (`drt-test`) | Production (future host) |
+| --- | --- | --- | --- |
+| Purpose | Edit → refresh | Does the real stack work? | Users |
+| Compose | `infra/docker-compose.yml` (Postgres + Redis) | `infra/docker-compose.prod.yml` | Same file |
+| Apps | Django `runserver` + Next `npm run dev` on the host | gunicorn + `npm start` + nginx | Same as staging |
+| Env file | `.env` | `.env.production` | `.env.production` |
+| Settings | `drt_core.settings.local` | `drt_core.settings.production` | `drt_core.settings.production` |
+| `TESTING_MODE` / `ENVIRONMENT` | `true` / `development` | `true` / `staging` | `false` / `production` |
+| Background | In-request | In-request + host cron | In-request + host cron |
 
 ```mermaid
 graph LR;
@@ -73,8 +83,7 @@ graph LR;
     end
     subgraph App Tier
         Django[DRT Django API]
-        CeleryWorker[Celery Workers]
-        CeleryBeat[Celery Beat Scheduler]
+        Cron[Host cron]
     end
     subgraph Data Layer
         Postgres[(PostgreSQL)]
@@ -89,9 +98,7 @@ graph LR;
     Django -->|Negotiation state| Postgres
     Django -->|Cache lookups| Redis
     Django -->|Fetch/Publish metadata| GitHub
-    CeleryWorker -->|Async tasks| Redis
-    CeleryWorker --> Postgres
-    CeleryBeat --> CeleryWorker
+    Cron -->|abandonment + cache warm| Django
     Nginx --> Frontend
     Nginx --> Django
 ```
@@ -99,7 +106,8 @@ graph LR;
 **Key architectural decisions**
 - **Separation of dynamic vs. static data:** PostgreSQL tracks negotiations and auditing, while GitHub holds immutable datasets, questionnaires, and license templates.
 - **Caching strategy:** Redis caches frequently accessed GitHub payloads and owner lookups to reduce API calls and improve response times.
-- **Task orchestration:** Celery handles outbound email, cache warmups, periodic GitHub polling, and license generation without blocking web traffic.
+- **In-request work:** email, license generation, and cache refresh run in the Django process. Keep `EMAIL_TIMEOUT` at 5–10s so a hung SMTP call cannot occupy a gunicorn worker for the full 120s timeout.
+- **Scheduled jobs:** host cron on remote boxes runs `process_abandonment_policy` (02:00) and `refresh_datastore_cache` (every 12 hours) via `infra/cron/run-job.sh`. Local has no cron.
 - **Composable UI:** the Next.js frontend consumes the Django API and reuses shared design tokens for multiple client themes.
 - See `docs/cache-architecture.md` for a deeper dive into GitHub-backed caching and refresh flows.
 
@@ -124,7 +132,7 @@ graph LR;
    - Responses persist in PostgreSQL as part of the `Negotiation` entity.
 3. **Owner review**
    - The dataset owner receives notification via email. They access the owner portal using their invitation link (`NLink` record). Owners review submissions, request clarifications (triggers an email back to the requestor), reject with rationale (archived with reason), or Approve (triggers license generation) via the Next.js negotiation workspace.
-   - Each state transition is stored and archived; Celery dispatches notifications (`backend/drt/tasks.py`).
+   - Each state transition is stored and archived; notifications are sent in-request (`backend/drt/tasks.py`).
 4. **License issuance**
    - Approval flows call `generate_license_and_notify_owner` to produce the license using Jinja templates and email it to the owner.
    - (Planned) Automatic archival of generated licenses to GitHub is not yet implemented; artifacts are currently delivered via email only.
@@ -137,18 +145,18 @@ graph LR;
 
 ## Module Overview
 - **`backend/drt_core` & `backend/drt` (Django)**
-  - API endpoints, negotiation models, and Celery task definitions.
-  - Management commands for cache maintenance and GitHub synchronization.
+  - API endpoints, negotiation models, and in-request email/license helpers.
+  - Management commands for abandonment policy and datastore cache refresh.
   - Email templates and utilities for owner/requestor communications.
 - **`backend/datastore`**
   - Gateway for GitHub-hosted questionnaire assets and metadata.
-  - Cache-aware fetch routines reused by Celery.
+  - Cache-aware fetch routines used by the API and the cache-refresh command.
 - **`frontend/app` (Next.js 14 / App Router)**
   - Requestor and owner flows, dashboards, and shared components.
   - Theming via `frontend/theme/tokens.*.ts`.
   - REST client wrappers inside `frontend/app/api/apiHelper.ts`.
 - **`infra`**
-  - Dockerfiles and `docker-compose.yml` for local orchestration of PostgreSQL, Redis, Django, Celery, frontend, and Nginx.
+  - Local Compose (`docker-compose.yml`) for Postgres + Redis. Remote Compose (`docker-compose.prod.yml`) for gunicorn, Next, nginx, Postgres, Redis. Host cron wrapper in `infra/cron/`.
 - **`docs`**
   - Living design documentation, architecture notes, and ADRs.
 
@@ -169,95 +177,104 @@ The core entities live in `backend/drt/models.py`.
 
 ## Environment & Configuration
 
-Settings modules: **local development** uses `drt_core.settings.local`; **production** uses `drt_core.settings.production`. Copy `.env.example` for local work and `.env.production.example` for deploys.
+Settings modules: **local** uses `drt_core.settings.local`; **staging and production** use `drt_core.settings.production`. Copy [`.env.example`](.env.example) to `.env` (laptop) or `.env.production` (any remote host). Fill values per host; do not reuse secrets. App behavior follows `TESTING_MODE` and `ENVIRONMENT` inside the file. Compose always injects `.env.production`.
 
-### Local development (`backend/.env`)
+### Local development (`.env`)
 
 | Variable | Purpose |
 | --- | --- |
-| `DJANGO_SECRET_KEY` | Core Django secret |
+| `DJANGO_SECRET_KEY` | Core Django secret (unique per host) |
 | `POSTGRES_*` + `DB_HOST` / `DB_PORT` | PostgreSQL connectivity (or set `DATABASE_URL` to override) |
 | `USE_SQLITE` | Set `true` for quick SQLite-only runs |
-| `REDIS_URL` | Celery broker + cache |
+| `REDIS_URL` | Django cache (`127.0.0.1:6380` locally) |
 | `FRONTEND_BASE_URL` | Used in emails for deep links |
 | `GITHUB_API_URL` | GitHub API URL for datastore repository (format: `https://api.github.com/repos/OWNER/REPO/contents`) |
 | `GITHUB_TOKEN` | GitHub personal access token for datastore access |
 | `EMAIL_*` / `ETHEREAL_*` | SMTP or Ethereal sandbox credentials |
+| `EMAIL_TIMEOUT` | SMTP hang bound in seconds (default `10`) |
+| `TESTING_MODE` | Homepage banner + `/drt/public-config/` sandbox fields |
+| `ENVIRONMENT` | Log label only (`development` / `staging` / `production`) |
 | `ADMIN_EMAILS` | Comma-separated list of admin email addresses |
 | `ADMIN_ENABLED` | Enable/disable admin functionality (`true`/`false`) |
-| `NEXT_PUBLIC_API_BASE_URL` | Frontend → API endpoint (`frontend/.env.local`) |
+| `NEXT_PUBLIC_API_URL` | Frontend → API endpoint (`frontend/.env.local`) |
 
-### Production (`.env.production`)
+### Remote (`.env.production`)
 
 | Variable | Purpose |
 | --- | --- |
-| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` | Required database connection (production does **not** use `DATABASE_URL` or `DB_HOST`) |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` | Required database connection (production settings do **not** use `DATABASE_URL` or `DB_HOST`) |
 | `POSTGRES_SCHEMA` | PostgreSQL schema for DRT tables (default `public`; use a dedicated schema when sharing a managed database) |
 | `POSTGRES_CONN_MAX_AGE` | Connection pool lifetime in seconds (default `600`) |
 | `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` | Host and CSRF configuration |
-| `REDIS_URL`, `CELERY_BROKER_URL` | Redis and Celery |
-| `EMAIL_*` | Production SMTP (not `ETHEREAL_*`) |
+| `REDIS_URL` | Django cache (`redis://redis:6379/1` on the Compose network) |
+| `EMAIL_*` | SMTP (Ethereal/sandbox on staging; real provider on production — never staging keys) |
+| `CRON_HEALTHCHECK_*_URL` | Optional Healthchecks.io ping URLs for host cron |
 
 See [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) Step 6.3 and Step 9.2 for schema support and the full production checklist.
 
-**Secrets management**
-- Copy `backend/env.example` to `.env` and populate sensitive values.
-- Copy `frontend/env.local.example` to `.env.local`.
-- When running via Docker Compose, `.env` files at the repository root provide shared defaults.
+**Secrets management (derived, not copied)**
+- Copy [`.env.example`](.env.example) to the runtime file for that host and fill values. Never clone production secrets onto `drt-test` and flip `TESTING_MODE`.
+- Each host needs its own `DJANGO_SECRET_KEY`, database password, SMTP credentials, ContextHub API key, and GitHub token/webhook secret.
+- Copy `frontend/env.local.example` to `frontend/.env.local` on the laptop.
 
 ---
 
 ## Local Development
 
-### Option A — Docker Compose
-```bash
-cd infra
-docker compose up --build
-```
-- Backend: `http://127.0.0.1:8000`
-- Frontend: `http://127.0.0.1:3000`
-- Postgres and Redis volumes persist across runs (`db_data`, `redis_data`).
+Same pattern as ContextHub: Docker runs **only Postgres and Redis**. Django and Next.js run on the host via `npm run dev`. Root npm scripts call `backend/.venv` through `scripts/venv-python.js`, so you do not activate the virtualenv in your shell.
 
-### Option B — Manual run
 ```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-cp env.example .env
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
+# First time
+npm run setup:backend
+npm --prefix frontend install
 
-# Frontend
-cd frontend
-npm install
-cp env.local.example .env.local
+# Every session
+docker compose -f infra/docker-compose.yml up -d
+npm run migrate
 npm run dev
 ```
 
-**Celery workers**
+| Script | Purpose |
+| --- | --- |
+| `npm run setup:backend` | Create `backend/.venv` if missing (prefers Python 3.12 or 3.13) and install `backend/requirements.txt` |
+| `npm run migrate` | `manage.py migrate` via that venv |
+| `npm run manage -- <cmd>` | Any other Django command (e.g. `createsuperuser`) |
+| `npm run dev` | Next on **3001** and Django `runserver` on **8000** |
+
+- Backend: `http://127.0.0.1:8000`
+- Frontend: `http://127.0.0.1:3001`
+- Stop apps: Ctrl+C in the `npm run dev` terminal
+- Stop databases: `docker compose -f infra/docker-compose.yml down`
+
+If `npm run migrate` or `npm run dev` fails with `Backend virtualenv not found`, run `npm run setup:backend` first. If the venv was created with Python 3.14 (or another version outside 3.12–3.13), delete `backend/.venv` and rerun `setup:backend`.
+
+Email, license generation, and cache refresh run in-request. There is no Celery.
+
+**Fully containerized stack** (images, nginx, TLS) is remote only (`drt-test` today):
+
 ```bash
-celery -A drt_core worker --loglevel=info
-celery -A drt_core beat --loglevel=info
+docker compose -f infra/docker-compose.prod.yml up -d --build
 ```
-Use `redis-server` or the Docker container to provide the broker/backend.
+
 
 ---
 
 ## Deployment & Operations
-- **Containers:** Build images from `infra/docker/backend.Dockerfile` (Django/Celery) and `frontend/frontend.Dockerfile`. Use `infra/docker-compose.prod.yml` with `.env.production`.
+- **Containers:** Local Compose (`infra/docker-compose.yml`) is Postgres + Redis only. Remote apps use `infra/docker-compose.prod.yml` with `.env.production` on both `drt-test` and a future prod host.
 - **Database:** Production requires `POSTGRES_*` variables (`POSTGRES_HOST`, not `DB_HOST`). Set `POSTGRES_SCHEMA=public` for a dedicated database, or a custom schema name when sharing a managed PostgreSQL instance (create the schema before migrate).
 - **Reverse proxy:** Nginx terminates TLS (80/443) and routes traffic to frontend/backend services.
-- **Static files:** `python manage.py collectstatic` prior to production deploy to upload assets.
-- **Email delivery:** external SMTP provider (Ethereal for staging, production provider TBD).
-- **Monitoring hooks:** extendable via Django signals and Celery task logging; integrate with preferred observability stack.
+- **Static files:** the backend entrypoint runs `collectstatic` when `DJANGO_MANAGE_MIGRATE=on`. On a laptop: `npm run manage -- collectstatic`.
+- **Email delivery:** Ethereal (or equivalent sandbox) on local/staging; real SMTP on production. Never reuse staging SMTP on production.
+- **Cron (remote only):** `infra/cron/run-job.sh abandonment` at 02:00 and `… cache` every 12 hours. Optional Healthchecks.io URLs in the app env file ping on success and `<url>/fail` on failure.
 - **Disaster recovery:** PostgreSQL volume backups plus GitHub as authoritative store for questionnaires, license templates, and other static assets.
 
 ---
 
 ## Project Structure
-- `backend/` – Django API, Celery apps, static assets, management commands.
+- `backend/` – Django API, static assets, management commands.
 - `frontend/` – Next.js client, shared components, theming, and API helpers.
-- `infra/` – Docker Compose file and Docker build contexts.
+- `scripts/` – `venv-python.js` so root npm scripts use `backend/.venv` without activating it.
+- `infra/` – Docker Compose files, Dockerfiles, and host cron wrapper.
 - `docs/` – architecture notes, diagrams, ADRs.
 - `LICENCE` – project licensing.
 

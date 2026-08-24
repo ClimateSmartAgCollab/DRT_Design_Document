@@ -14,14 +14,11 @@ graph TD;
     DRT_Django_Backend --> |Warms cache from GitHub| Cache;
 
     GitHub --Webhook--> DRT_Django_Backend;
-    DRT_Django_Backend --Enqueues warm task--> Celery;
-    Celery --> |Refills cache| Cache;
+    DRT_Django_Backend --> |Warms cache in-request| Cache;
 
     subgraph "DRT System"
 
         DRT_Django_Backend
-
-        Celery
 
         Cache
 
@@ -42,11 +39,11 @@ graph TD;
 
 - **User Interaction:** Users submit requests through the Django web service (e.g., completing questionnaires or negotiating licenses).
 - **Cache-first Reads:** Django checks the cache for recently accessed or frequently used GitHub assets before reaching out to GitHub directly.
-- **Cache Refresh:** GitHub is the source of truth for static content. Changes in GitHub trigger cache refreshes via the webhook handler, and Celery Beat runs a scheduled pre-warm every 12 hours (`prewarm-github-cache`). There is no polling for change detection.
+- **Cache Refresh:** GitHub is the source of truth for static content. Changes in GitHub trigger cache refreshes via the webhook handler, and host cron re-warms every 12 hours (`infra/cron/run-job.sh cache`). There is no polling for change detection.
 - **Dynamic State:** Negotiation data lives in PostgreSQL, and Django reads/writes relational state there throughout the workflow.
-- **GitHub Reads:** When cached content is missing, Django fetches the questionnaire or license template directly from GitHub and stores the result in Redis for next time. For questionnaires, the fetch is offloaded to Celery and the view returns a `_loading` placeholder so the request never blocks on GitHub.
+- **GitHub Reads:** When cached content is missing, Django fetches the questionnaire or license template directly from GitHub and stores the result in Redis for next time. For questionnaires, the process that wins the inflight lock fetches synchronously and returns JSON; concurrent requests may still see `_loading` until that fetch completes.
 - **Future Work:** Automated upload of generated licenses to GitHub is planned but not yet implemented; current workflows deliver artifacts via email.
-- **Failure Behavior:** There is **no stale-on-error fallback**. If a GitHub fetch fails on a cold key, the endpoint returns 404/500 (or keeps returning `_loading` until the inflight task succeeds). Operators should rely on webhook + Beat pre-warm, not stale-serve semantics.
+- **Failure Behavior:** There is **no stale-on-error fallback**. If a GitHub fetch fails on a cold key, the endpoint returns 404/500 (or keeps returning `_loading` until the inflight fetch succeeds). Operators should rely on webhook + cron pre-warm, not stale-serve semantics.
 
 ---
 
@@ -54,8 +51,8 @@ graph TD;
 
 1. **Request Submission:** Requestors access DRT through UUID-backed links and submit data via dynamic questionnaires served by Django.
 2. **Cache Coordination:** Django retrieves questionnaire metadata and related assets from the cache; cache misses fall back to GitHub and repopulate the cache.
-3. **GitHub Synchronization:** GitHub changes trigger cache refreshes via the webhook handler. As a backstop, Celery Beat runs `refresh_data_task` every 12 hours to re-warm the cache regardless of webhook delivery.
-4. **Negotiation Management:** Negotiation states, conversations, and reminders reside in PostgreSQL, orchestrated by Django and auxiliary Celery tasks.
+3. **GitHub Synchronization:** GitHub changes trigger cache refreshes via the webhook handler. As a backstop, host cron runs `refresh_datastore_cache` every 12 hours to re-warm the cache regardless of webhook delivery.
+4. **Negotiation Management:** Negotiation states, conversations, and reminders reside in PostgreSQL, orchestrated by Django (email and license work run in-request).
 5. **Artifact Delivery:** Completed negotiations generate licenses that are emailed to requestors/owners; system-side archival to GitHub is a future enhancement.
 6. **Ongoing Serving:** Subsequent requests benefit from cached data, reducing GitHub traffic while ensuring freshness when updates occur.
 
@@ -68,14 +65,12 @@ sequenceDiagram
     participant GitHub
     participant Django
     participant Redis
-    participant Celery as Celery Worker
     participant User
 
     GitHub->>Django: POST /datastore/webhook/
     Django->>Redis: Delete HOT_CACHE_KEYS + per-entity patterns (sync)
-    Django->>Celery: Enqueue refresh_data_task (async)
-    Celery->>GitHub: Fetch CSV tables (parallel)
-    Celery->>Redis: cache.set HOT_CACHE_KEYS with TTL_24H
+    Django->>GitHub: Fetch CSV tables (in-request)
+    Django->>Redis: cache.set HOT_CACHE_KEYS with TTL_24H
     loop Subsequent requests
         User->>Django: Request dataset metadata
         Django->>Redis: Get cached payload
@@ -86,8 +81,8 @@ sequenceDiagram
 
 ### Notes
 
-- Invalidation is **synchronous** in Django; repopulation is **asynchronous** in Celery. There is a small window where both webhook-cleared keys and Beat-cleared keys can produce cache misses until the Celery worker finishes warming.
-- Webhooks are preferred; the `prewarm-github-cache` Celery Beat job (every 12 hours) ensures the cache is refilled even if no webhook arrives.
+- Invalidation and repopulation both run in the Django request that handles the webhook. Concurrent requests can miss until that warm finishes.
+- Webhooks are preferred; `infra/cron/run-job.sh cache` (every 12 hours) ensures the cache is refilled even if no webhook arrives.
 - Cache keys and TTLs are defined in `backend/datastore/cache_keys.py`. Use the constants and helpers from that module rather than re-typing string literals.
 
 ---
@@ -100,8 +95,8 @@ flowchart TD
     B -- Yes --> C[Serve cached payload]
     C --> Z[Return to client]
     B -- No, questionnaire JSON --> Q[cache.add inflight lock]
-    Q --> Qfetch[Enqueue fetch_questionnaire_task]
-    Qfetch --> Qresp[Return _loading placeholder]
+    Q --> Qfetch[Fetch questionnaire in this request]
+    Qfetch --> Qresp[Return JSON, or _loading if another request holds the lock]
     Qresp --> Z
     B -- No, table or license template --> D[Fetch from GitHub synchronously]
     D --> E{Fetch succeeded?}
@@ -113,9 +108,9 @@ flowchart TD
 
 ### Notes
 
-- All GitHub-backed assets share a uniform 24-hour TTL (`TTL_24H` in `cache_keys.py`). Freshness is driven by the webhook + Beat refresh path, not by TTL expiry.
+- All GitHub-backed assets share a uniform 24-hour TTL (`TTL_24H` in `cache_keys.py`). Freshness is driven by the webhook + cron refresh path, not by TTL expiry.
 - There is **no stale fallback**. A GitHub outage either keeps serving cache-warm content until the next invalidation, or surfaces 404/500 once keys are missing. Build a runbook around this rather than relying on graceful degradation.
-- Questionnaire JSON uses the async `_loading` pattern (Celery + `cache.add` inflight lock); list endpoints read cache-only and never fetch GitHub inline.
+- Questionnaire JSON uses an inflight lock: the request that wins the lock fetches now; other concurrent requests may see `_loading`. List endpoints read cache-only and never fetch GitHub inline.
 
 ---
 
@@ -137,11 +132,11 @@ graph LR
 
     QStart -->|Persist JSON payload| PG
     Review -->|State transitions / comments| PG
-    Approve -->|Trigger license generation| CeleryTask[Celery Task]
-    CeleryTask -->|Render Jinja template| License[License Artifact]
-    CeleryTask -. Planned GitHub archival .-> GH
-    CeleryTask -->|Warm cache entries| Redis
-    GH -->|Webhook event| CacheRefresh[Cache Refresh Task]
+    Approve -->|Trigger license generation| LicenseTask[In-request license + email]
+    LicenseTask -->|Render Jinja template| License[License Artifact]
+    LicenseTask -. Planned GitHub archival .-> GH
+    LicenseTask -->|Warm cache entries| Redis
+    GH -->|Webhook event| CacheRefresh[Cache refresh]
     CacheRefresh --> Redis
 ```
 
@@ -167,8 +162,7 @@ graph LR
 
     subgraph App Tier
         DjangoAPI[Django API]
-        CeleryWorker[Celery Workers]
-        CeleryBeat[Celery Beat]
+        HostCron[Host cron]
     end
 
     subgraph Data Services
@@ -183,16 +177,14 @@ graph LR
     DjangoAPI <--> RedisCache
     DjangoAPI <--> PostgresDB
     DjangoAPI --> GitHubRepo
-    CeleryWorker --> RedisCache
-    CeleryWorker --> PostgresDB
-    CeleryWorker --> GitHubRepo
-    CeleryBeat --> CeleryWorker
+    HostCron -->|manage.py via compose exec| DjangoAPI
     GitHubRepo -. webhooks .-> DjangoAPI
 ```
 
 ### Notes
 
-- In production, Redis backs both the Django cache (DB index `/1`) and the Celery broker/result backend (DB index `/0`) on the same instance. PostgreSQL connectivity uses explicit `POSTGRES_*` settings with optional `POSTGRES_SCHEMA` (see `backend/drt_core/settings/production.py` and `docs/IMPLEMENTATION_GUIDE.md` Step 6.3). In local development, Celery is configured eager (`CELERY_TASK_ALWAYS_EAGER = True`) and uses an in-process `memory://` broker, while the Django cache still points at Redis.
+- Redis backs the Django cache (DB index `/1`). PostgreSQL connectivity uses explicit `POSTGRES_*` settings with optional `POSTGRES_SCHEMA` (see `backend/drt_core/settings/production.py` and `docs/IMPLEMENTATION_GUIDE.md` Step 6.3). Local development uses the same cache Redis on host port 6380.
+- Production deployments may swap in managed Postgres/Redis; update the diagram as infrastructure evolves.
 - Production deployments may split Redis roles or swap in managed equivalents; update the diagram as infrastructure evolves.
 
 ---
@@ -203,10 +195,10 @@ All datastore cache keys and TTLs are centralized in `backend/datastore/cache_ke
 
 | Key | Type | TTL | Invalidated by |
 |-----|------|-----|----------------|
-| `owner_table` | dict | 24h | webhook, Beat |
-| `link_table` | dict | 24h | webhook, Beat |
-| `questionnaire_table` | dict | 24h | webhook, Beat |
-| `license_table` | dict | 24h | webhook, Beat |
+| `owner_table` | dict | 24h | webhook, cron |
+| `link_table` | dict | 24h | webhook, cron |
+| `questionnaire_table` | dict | 24h | webhook, cron |
+| `license_table` | dict | 24h | webhook, cron |
 | `questionnaire_json_{id}` | dict | 24h | webhook |
 | `license_template_{id}` | str | 24h | webhook |
 | `questionnaire_fetch_inflight:{id}` | int | 30s | TTL or fetch completion |
@@ -220,8 +212,8 @@ All datastore cache keys and TTLs are centralized in `backend/datastore/cache_ke
 There are three paths that populate the GitHub-backed cache; all call `warm_github_cache()`:
 
 1. **App startup** -- `DatastoreConfig.ready()` spawns a daemon thread on every Django worker start.
-2. **Celery Beat** -- `prewarm-github-cache` runs every 12 hours.
-3. **GitHub webhook** -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then enqueues `refresh_data_task` (which calls `warm_github_cache()`).
+2. **Host cron** -- `infra/cron/run-job.sh cache` runs `manage.py refresh_datastore_cache` every 12 hours.
+3. **GitHub webhook** -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then calls `refresh_data_task` (which calls `warm_github_cache()`).
 
 `warm_github_cache()` short-circuits when all four `HOT_CACHE_KEYS` are present **and truthy** -- empty dicts from a previously failed warm do not count as "already warm."
 
@@ -230,8 +222,8 @@ There are three paths that populate the GitHub-backed cache; all call `warm_gith
 `fill_questionnaire` and `owner_review` never fetch questionnaire JSON inline:
 
 1. On cache hit they return the cached payload.
-2. On cache miss they call `cache.add(questionnaire_fetch_inflight:{id}, 1, timeout=30)` to elect a single fetcher per `questionnaire_SAID`, enqueue `fetch_questionnaire_task`, and return `{"_loading": true}`.
-3. The Celery task fetches from GitHub, caches the JSON under `questionnaire_json_{id}` with `TTL_24H`, and **always** releases the inflight lock (including on failure, so retries are not blocked for 30 seconds).
+2. On cache miss they call `cache.add(questionnaire_fetch_inflight:{id}, 1, timeout=30)` to elect a single fetcher per `questionnaire_SAID`. The winner runs `fetch_questionnaire_task` in this request and returns the JSON; other requests may return `{"_loading": true}`.
+3. The fetch caches the JSON under `questionnaire_json_{id}` with `TTL_24H`, and **always** releases the inflight lock (including on failure, so retries are not blocked for 30 seconds).
 4. The frontend polls every 2 seconds and gives up after ~30 seconds, showing a retry button rather than spinning indefinitely.
 
 ## Client-Side Cache (TanStack Query)
@@ -247,8 +239,8 @@ The frontend uses React Query as a second cache tier:
 - Cache key registry & TTLs: `backend/datastore/cache_keys.py`
 - Warm logic, webhook, debug endpoints: `backend/datastore/views.py`
 - Startup warm thread: `backend/datastore/apps.py`
-- Async fetch + refresh tasks: `backend/drt/tasks.py` (`fetch_questionnaire_task`, `refresh_data_task`)
-- Celery Beat schedule: `backend/drt_core/settings/production.py`
+- Fetch + refresh helpers: `backend/drt/tasks.py` (`fetch_questionnaire_task`, `refresh_data_task`)
+- Host cron: `infra/cron/run-job.sh`
 - Production database / schema config: `backend/drt_core/settings/production.py` (`POSTGRES_*`, `POSTGRES_SCHEMA`)
 - Cache layer tests: `backend/datastore/tests.py`
 
