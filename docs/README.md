@@ -1,16 +1,15 @@
 # Documentation
 
-Use this directory to capture architecture notes, decision records, and design diagrams for the DRT platform. Suggested structure:
+Architecture, deploy-your-own instructions, and operational notes for DRT. Clone-and-run lives in the [root README](../README.md). How we work: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-- `architecture/` – high-level diagrams, ADRs, and data flow docs
-- `api/` – endpoint descriptions, example requests/responses
-- `frontend/` – UI guidelines, component documentation
-- `ops/` – deployment runbooks, incident response notes
+| Doc | Purpose |
+| --- | --- |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Environments, system diagram, domain workflow, data model |
+| [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) | Stand up your own instance: datastore, theming, production |
+| [cache-architecture.md](cache-architecture.md) | GitHub-backed cache, webhooks, cron warm, failure behavior |
 
-Existing documents:
+Module READMEs (local setup only where it differs from root):
 
-- `IMPLEMENTATION_GUIDE.md` – step-by-step setup, local development, production deployment, and PostgreSQL schema configuration (`POSTGRES_SCHEMA`).
-- `cache-architecture.md` – GitHub-backed caching flow, detailed sequence/decision diagrams, and operational topology.
-
-If you are migrating existing documentation from elsewhere in the repo, move the markdown or diagrams here and update links accordingly.
-
+- [backend/README.md](../backend/README.md)
+- [frontend/README.md](../frontend/README.md)
+- [infra/README.md](../infra/README.md)

@@ -1,52 +1,32 @@
-# OCA Parser Module
+# OCA parser
 
-A clean, modular TypeScript parser for OCA metadata that transforms JSON into structured, render-ready form steps.
-Built with a **Layered Architecture** pattern following Clean Architecture principles.
+Turns OCA (Overlays Capture Architecture) questionnaire JSON into `Step[]` the [dynamic form](../Form/README.md) can render. It is a library, not a route — requestor/owner pages and `FormWrapper` call it.
 
----
+Global contributing and license: [root README](../../../../README.md).
 
-## Layer Responsibilities
+## Public surface
 
-### **Facade Layer**
-- **FormStructureParser**: Single entry point orchestrating the entire parsing workflow
-- Public API for external consumers
-- Coordinates all parsing operations
+```ts
+import { parseJsonToFormStructure, FormStructureParser } from "@/app/components/parser";
 
-### **Domain Services Layer**
-- **PresentationsExtractor**: Parses ADC (old/new) layouts and extracts presentation data
-- **PresentationParser**: Converts pages/sections from a single AdcForm
-- **OverlayExtractor**: Gathers labels, options, types, and metadata
-- **RelationshipGraphBuilder**: Builds capture_base → children relationship graph
+const steps = parseJsonToFormStructure(questionnaireJson);
+// optional: new FormStructureParser({ debug: true, defaultLanguage: "eng" }).parse(json)
+```
 
-### **Construction Layer**
-- **FieldFactory**: Creates Field objects from OverlaySnapshot data
-- **FieldValidator**: Validates field integrity and references
-- **FieldDefaults**: Provides default field configurations
+`parseJsonToFormStructure` is the compatibility wrapper. Prefer it at call sites. Re-exported from `frontend/app/components/parser.ts` for older imports.
 
-### **Value Objects Layer**
-- **OverlaySnapshot**: Immutable overlay DTO with helper methods (labelsFor, getFieldType, etc.)
-- **LanguageMap**: Language-keyed lookups via Lang utility
+## How a parse runs
 
-### **Infrastructure / Ports Layer**
-- **EntityLocator**: Pluggable lookup strategy for entities
-- **DefaultEntityLocator**: Concrete implementation
+1. Normalize the bundle (`utils/helpers.ts`).
+2. Extract presentations (`parsers/presentation-parser.ts`).
+3. Build capture_base → children (`relationships/relationship-parser.ts`).
+4. Snapshot overlays — labels, types, options (`overlays/overlay-extractor.ts`).
+5. Build `Field` objects (`parsers/field-builder.ts`).
 
-### **Compatibility Layer**
-- **Legacy functions**: parseJsonToFormStructure and other procedural wrappers
-- Backward compatibility for existing code
-- Delegates to new layered architecture
+`DefaultEntityLocator` (`utils/entity-lookup.ts`) is the lookup strategy. Pass a different locator only if you are parsing a non-standard bundle shape.
 
----
+## Extending
 
-## 🎯 Design Patterns Used
-
-- **Layered Architecture**: Clear separation of concerns with dependency direction
-- **Facade Pattern**: Single entry point hiding complexity
-- **Factory Pattern**: FieldFactory for object creation
-- **Builder Pattern**: RelationshipGraphBuilder for complex object construction
-- **Strategy Pattern**: Pluggable EntityLocator implementations
-- **Snapshot Pattern**: Immutable OverlaySnapshot data
-- **Pipeline Pattern**: Sequential data transformation
-- **Dependency Injection**: Constructor-based dependency management
-
----
+- **New overlay or field metadata** — extend `OverlaySnapshot` / `OverlayExtractor`, then map it in `FieldFactory.build()`.
+- **New field type** — `FieldFactory` plus a matching branch in [`../Form/FieldRenderer.tsx`](../Form/FieldRenderer.tsx).
+- **Debug a bad questionnaire** — `parseJsonToFormStructure(json, { debug: true })`.

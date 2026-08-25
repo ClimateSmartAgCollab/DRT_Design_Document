@@ -1,4 +1,8 @@
-## Cache-Backed Data Flow
+# Cache architecture
+
+GitHub-backed caching for questionnaires, license templates, and related static assets. System-wide picture: [ARCHITECTURE.md](ARCHITECTURE.md). Clone-and-run: [root README](../README.md).
+
+## Cache-backed data flow
 
 ```mermaid
 graph TD;
