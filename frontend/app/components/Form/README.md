@@ -1,38 +1,40 @@
+# Dynamic Form
 
-# Dynamic Form (OO Domain + React MVVM)
+Renders OCA questionnaires as a multi-page form: child/parent steps, per-page validation, and review/submit. UI stays in React; rules live in TypeScript domain classes under `domain/`.
 
-This module implements a dynamic, multi-page form with **child/parent steps**, **validation**, and **review/submit** flows.
-UI is kept as **pure React views**, while business rules live in **TypeScript domain classes**.
+This module is separate because requestor and owner flows share one renderer. Parsing OCA JSON into steps is **not** this package — that is [`../parser`](../parser/README.md).
 
-* **Architecture:** Clean/Hexagonal + MVVM (Presentation Model)
-* **Key ideas:** Components render; hooks orchestrate; **domain classes** encapsulate rules; context acts as an **in-memory repository**.
+Global contributing and license: [root README](../../../../README.md).
 
----
+## Public surface
 
-## Architectural Overview
+| Entry | Role |
+| --- | --- |
+| `Form.tsx` | Thin re-export of `FormWrapper` |
+| `FormWrapper.tsx` | Orchestrates parse (if needed), `react-hook-form`, navigation, review |
+| `FieldRenderer.tsx` | Maps a `ParsedField` to a MUI control |
+| `context/FormDataContext.tsx` | In-memory store (sessionStorage sync) for parent/child answers |
+| `hooks/useDynamicForm/` | Navigation, validation schema, submit mapping |
 
-### Clean/Hexagonal + MVVM
+Typical use: pass `questionnaireJson` (or already-parsed `parsedSteps`) plus `onSave` / `onSubmit`. `FormWrapper` calls `parseJsonToFormStructure` when JSON is provided.
 
-* **View (React):** `FormWrapper`, `FieldRenderer`, `ReviewSection`, `Sidebar`, etc.
-* **View-Model / Controllers (Hooks):** `useDynamicFormCore`, `usePageNavigation`, `useHandleNavigate`
-* **Domain Services (OO):** `ReferenceFieldController`, `StepTreeBuilder`, `SubheadingFormatter`, `FormHeaderVM`, `ChildReviewPresenter`, `StepIndexResolver`
-* **Repository:** `FormDataContext` (CRUD APIs, in-memory store with sessionStorage sync)
+## Layout
 
----
+```
+Form/
+  FormWrapper.tsx          # view orchestration
+  FieldRenderer.tsx        # field type → control
+  domain/                  # navigation, step tree, validation, references
+  hooks/useDynamicForm/    # Yup schema, page navigation, OpenAIRE mapping
+  context/                 # FormDataProvider
+```
 
-## Design Patterns (where they appear)
+## Extending
 
-* **Repository:** `FormDataContext` (CRUD + queries for parent/child)
-* **Facade / Orchestrator:** `useDynamicFormCore`, `ReferenceFieldController`
-* **Mediator:** `usePageNavigation` (coordinates validation + navigation)
-* **Strategy:** validation rules (`validation.ts`, `validationSchema.ts`)
-* **Builder:** `validationSchema.ts` builds nested Yup schema
-* **Composite:** Steps → Pages → Sections → Fields (`steps.ts`, `step-tree.ts`)
-* **Adapter:** `FieldRenderer` adapts domain fields to `react-hook-form`
-* **Data Mapper (ACL):** `mapping.ts` → OpenAIRE `Submission`
-* **Null Object:** safe no-ops in `useDynamicFormCore` when `parsedSteps` missing
-* **Observer:** React state/contexts notify views
-* **Singleton (scoped):** Provider-scoped store via `FormDataProvider`
+**New field type**
 
----
+1. Teach the parser to emit that type (`../parser/parsers/field-builder.ts`).
+2. Add a branch in `FieldRenderer.tsx`.
+3. Add Yup rules in `hooks/useDynamicForm/validationSchema.ts` (and `domain/validation.ts` if the rule is shared).
 
+**New page or review behavior** — `hooks/useDynamicForm/usePageNavigation.ts` and `ReviewSection.tsx` / `ChildReview.tsx`. Keep components as views; put branching rules in `domain/`.

@@ -1,6 +1,6 @@
 # DRT Implementation Guide
 
-This guide provides step-by-step instructions for implementing your own instance of the DRT (Data Request Tracker) platform based on the DRT_Design_Document codebase.
+Step-by-step instructions for standing up **your own** DRT instance from this codebase. Clone-and-run for the Data Hub laptop is the [root README](../README.md) Quick start. How the system is shaped: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Table of Contents
 - [Overview](#overview)
@@ -23,7 +23,7 @@ This guide provides step-by-step instructions for implementing your own instance
 
 DRT is a full-stack platform built with:
 - **Backend**: Django REST Framework with PostgreSQL and Redis (cache)
-- **Frontend**: Next.js 14 (App Router) with TypeScript
+- **Frontend**: Next.js 15 (App Router) with TypeScript
 - **Infrastructure**: Docker Compose for local Postgres/Redis; the same remote Compose shape (gunicorn, Next, nginx) for staging and production
 - **Data Storage**: GitHub repository for static assets (questionnaires, licenses, metadata)
 
@@ -39,7 +39,7 @@ Before starting, ensure you have:
 
 1. **Development Environment**:
    - Python 3.12 or 3.13 (Django 5.1; `npm run setup:backend` prefers these)
-   - Node.js 18+ and npm (for Next.js frontend)
+   - Node.js 20+ and npm (for Next.js frontend)
    - Docker and Docker Compose (recommended for local Postgres/Redis)
    - Git
 
@@ -65,12 +65,12 @@ Before starting, ensure you have:
    cd DRT_Design_Document
    ```
 
-2. **Review Project Structure**:
+2. **Review Project Structure** (canonical tree: [root README](../README.md)):
    - `backend/` - Django API
    - `frontend/` - Next.js application
    - `scripts/` - `venv-python.js` so root npm scripts use `backend/.venv`
    - `infra/` - Docker Compose, Dockerfiles, and host cron wrapper
-   - `docs/` - Documentation
+   - `docs/` - Architecture, this guide, cache notes
 
 3. **Set Up Git** (if creating a new repository):
    ```bash
@@ -406,32 +406,16 @@ The only local template file is `backend/drt/templates/license_template_fallback
 
 ## Step 8: Local Development
 
-Docker runs **only Postgres and Redis** (same idea as ContextHub). Django and Next.js run on the host in one terminal via `npm run dev`. Root npm scripts use `backend/.venv` through `scripts/venv-python.js`, so you do not activate the virtualenv in your shell.
+Follow the **Quick start** in the [root README](../README.md). That is the canonical local workflow: Docker for Postgres + Redis only, Django and Next.js on the host, venv via `npm run setup:backend` (do not activate it).
 
-1. **First time**:
-   ```bash
-   npm run setup:backend
-   npm --prefix frontend install
-   ```
+Once the stack is up:
 
-   Prefer Python 3.12 or 3.13 on PATH (Django 5.1). `setup:backend` creates `backend/.venv` if missing and installs `backend/requirements.txt`. If an existing venv was created with Python 3.14, delete `backend/.venv` and rerun `setup:backend`.
+- Backend API: http://127.0.0.1:8000
+- Frontend: http://127.0.0.1:3001
+- Django Admin: http://127.0.0.1:8000/django-admin/
+- Next.js Admin: http://127.0.0.1:3001/admin/email-entry
 
-2. **Every session**:
-   ```bash
-   docker compose -f infra/docker-compose.yml up -d
-   npm run migrate
-   npm run dev
-   ```
-
-   If those fail with `Backend virtualenv not found`, run `npm run setup:backend`. Other Django commands: `npm run manage -- createsuperuser`.
-
-3. **Access**:
-   - Backend API: http://127.0.0.1:8000
-   - Frontend: http://127.0.0.1:3001
-   - Django Admin: http://127.0.0.1:8000/django-admin
-   - Next.js Admin: http://127.0.0.1:3001/admin/email-entry
-
-Local Django settings send email and refresh cache in-request. There is no Celery. Use `infra/docker-compose.prod.yml` on `drt-test` (or a future prod host) for the full container stack (gunicorn, Next image, nginx).
+Email, license generation, and cache refresh run in-request. There is no Celery. The full container stack (gunicorn, Next image, nginx) is remote only — [infra/README.md](../infra/README.md) and Step 9.
 
 ### 8.1 Verify Installation
 
@@ -730,18 +714,17 @@ After completing the basic setup:
 
 ## Additional Resources
 
-- **DRT Landing Page**: https://github.com/ClimateSmartAgCollab/DRT_ad
-- **Architecture Documentation**: See `docs/cache-architecture.md` for detailed caching architecture
-- **Support**: Contact `adc@uoguelph.ca` for questions or partnership inquiries
+- **Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+- **Cache architecture**: [cache-architecture.md](cache-architecture.md)
+- **Infrastructure**: [infra/README.md](../infra/README.md)
+- **DRT landing page**: https://github.com/ClimateSmartAgCollab/DRT_ad
+- **Support**: `adc@uoguelph.ca`
 
 ---
 
 ## Contributing Back
 
-If you've made improvements or customizations that could benefit others:
-1. Document your changes
-2. Consider contributing back to the main repository
-3. Share your implementation experience with the community
+Improvements that would help other implementers are welcome. See [CONTRIBUTING.md](../CONTRIBUTING.md) for branch naming, tests, and PR expectations. Security reports go to [SECURITY.md](../SECURITY.md), not public issues.
 
 ---
 
