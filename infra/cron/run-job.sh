@@ -77,7 +77,7 @@ fi
 
 cd "${INFRA_DIR}"
 set +e
-docker compose -f "${COMPOSE_FILE}" exec -T backend "${MANAGE_ARGS[@]}"
+docker-compose -f "${COMPOSE_FILE}" exec -T backend "${MANAGE_ARGS[@]}"
 status=$?
 set -e
 
