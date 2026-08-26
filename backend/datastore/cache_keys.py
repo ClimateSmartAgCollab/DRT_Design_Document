@@ -8,11 +8,13 @@ different `email`-based naming scheme and live alongside the auth views.
 
 TTL_24H = 60 * 60 * 24
 TTL_30S = 30
+TTL_PREWARM_LOCK = 60
 
 KEY_OWNER_TABLE = "owner_table"
 KEY_LINK_TABLE = "link_table"
 KEY_QUESTIONNAIRE_TABLE = "questionnaire_table"
 KEY_LICENSE_TABLE = "license_table"
+KEY_DATASTORE_PREWARM_LOCK = "datastore_prewarm_lock"
 
 HOT_CACHE_KEYS = (
     KEY_OWNER_TABLE,

@@ -20,7 +20,7 @@ import os
 from unittest.mock import patch
 
 from django.core.cache import cache
-from django.test import Client, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from datastore import views as datastore_views
 from datastore.cache_keys import (
@@ -419,3 +419,41 @@ class ContextHubClientTests(TestCase):
         self.assertEqual(url, "http://ch.test/api/v1/drt/link-table")
         self.assertEqual(headers["X-DRT-API-KEY"], "secret")
         self.assertEqual(result, {"ok": True})
+
+
+class ShouldPrewarmOnReadyTests(SimpleTestCase):
+    def test_runserver_child_prewarms(self):
+        from datastore.apps import should_prewarm_on_ready
+
+        self.assertTrue(
+            should_prewarm_on_ready(
+                argv=["manage.py", "runserver"],
+                environ={"RUN_MAIN": "true"},
+            )
+        )
+
+    def test_gunicorn_worker_prewarms(self):
+        from datastore.apps import should_prewarm_on_ready
+
+        self.assertTrue(
+            should_prewarm_on_ready(
+                argv=["/usr/local/bin/gunicorn"],
+                environ={},
+            )
+        )
+
+    def test_management_commands_do_not_prewarm(self):
+        from datastore.apps import should_prewarm_on_ready
+
+        self.assertFalse(
+            should_prewarm_on_ready(
+                argv=["manage.py", "migrate"],
+                environ={},
+            )
+        )
+        self.assertFalse(
+            should_prewarm_on_ready(
+                argv=["manage.py", "refresh_datastore_cache"],
+                environ={},
+            )
+        )

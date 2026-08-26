@@ -23,7 +23,7 @@ Remote Compose always injects `../.env.production`. Staging vs production is val
 
 ## Images
 
-- Backend: `infra/docker/backend.Dockerfile` (context `backend/`). Entrypoint waits for Postgres, then optionally `collectstatic` / `migrate` / `createcachetable` when `DJANGO_MANAGE_MIGRATE=on`.
+- Backend: `infra/docker/backend.Dockerfile` (context `backend/`). Entrypoint waits for Postgres, then optionally `collectstatic` / `migrate` / `createcachetable` when `DJANGO_MANAGE_MIGRATE=on`, waits for Redis, and runs `refresh_datastore_cache` before gunicorn.
 - Frontend: `frontend/frontend.Dockerfile` (`npm run build`, then `npm start` on port 3000).
 
 ## Cron (remote only)
