@@ -24,7 +24,7 @@ Settings modules: laptop uses `drt_core.settings.local` (loads repo-root `.env`)
 
 Production settings do **not** read `DATABASE_URL` or `DB_HOST`/`DB_PORT` — they require `POSTGRES_*` including `POSTGRES_HOST`. Optional `POSTGRES_SCHEMA` (default `public`) for a shared managed database.
 
-`backend/entrypoint.sh` (Docker) polls Postgres until it accepts connections, then runs `collectstatic` / `migrate` / `createcachetable` when `DJANGO_MANAGE_MIGRATE=on`. If `DJANGO_SUPERUSER_USERNAME` and `DJANGO_SUPERUSER_PASSWORD` are set, it also runs `createsuperuser --noinput`.
+`backend/entrypoint.sh` (Docker) polls Postgres until it accepts connections, then runs `collectstatic` / `migrate` / `createcachetable` when `DJANGO_MANAGE_MIGRATE=on`. It then waits for Redis and runs `refresh_datastore_cache` so gunicorn starts with a warm datastore (gunicorn does not set `RUN_MAIN`). If `DJANGO_SUPERUSER_USERNAME` and `DJANGO_SUPERUSER_PASSWORD` are set, it also runs `createsuperuser --noinput`.
 
 Env catalog and production checklist: [`.env.example`](../.env.example), [Implementation Guide](../docs/IMPLEMENTATION_GUIDE.md) Step 6.3 and Step 9.2.
 

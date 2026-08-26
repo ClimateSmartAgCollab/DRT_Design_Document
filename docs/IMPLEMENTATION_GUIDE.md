@@ -361,7 +361,7 @@ Production settings do **not** read `DATABASE_URL` or `DB_HOST`/`DB_PORT`. Copy 
 
 ### 6.4 Initial Data Loading
 
-After setting up the GitHub datastore, cache tables are warmed automatically on backend startup. Changes to the datastore repo trigger refresh via the GitHub webhook; host cron re-warms every 12 hours as a backstop (`infra/cron/run-job.sh cache`).
+After setting up the GitHub datastore, cache tables are warmed automatically on backend container start (`entrypoint.sh` runs `refresh_datastore_cache` before gunicorn). Changes to the datastore repo trigger refresh via the GitHub webhook; host cron re-warms every 12 hours as a backstop (`infra/cron/run-job.sh cache`).
 
 ---
 

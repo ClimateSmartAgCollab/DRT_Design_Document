@@ -213,11 +213,12 @@ All datastore cache keys and TTLs are centralized in `backend/datastore/cache_ke
 
 ## Cache Warm-Up Paths
 
-There are three paths that populate the GitHub-backed cache; all call `warm_github_cache()`:
+There are four paths that populate the GitHub-backed cache; all call `warm_github_cache()`:
 
-1. **App startup** -- `DatastoreConfig.ready()` spawns a daemon thread on every Django worker start.
-2. **Host cron** -- `infra/cron/run-job.sh cache` runs `manage.py refresh_datastore_cache` every 12 hours.
-3. **GitHub webhook** -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then calls `refresh_data_task` (which calls `warm_github_cache()`).
+1. **Container start (remote)** -- `backend/entrypoint.sh` waits for Redis, then runs `manage.py refresh_datastore_cache` once before gunicorn. This is the production path: gunicorn workers do not set `RUN_MAIN`.
+2. **App startup (backstop)** -- `DatastoreConfig.ready()` spawns a daemon thread for the `runserver` reloader child or a gunicorn worker. A Redis lock (`datastore_prewarm_lock`) ensures only one worker fetches.
+3. **Host cron** -- `infra/cron/run-job.sh cache` runs `manage.py refresh_datastore_cache` every 12 hours.
+4. **GitHub webhook** -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then calls `refresh_data_task` (which calls `warm_github_cache()`).
 
 `warm_github_cache()` short-circuits when all four `HOT_CACHE_KEYS` are present **and truthy** -- empty dicts from a previously failed warm do not count as "already warm."
 
