@@ -27,17 +27,6 @@ def test_endpoint(request):
     return Response({'message': 'Test endpoint working'}, status=200)
 
 
-def _testing_inbox_credentials():
-    """Sandbox login shown on the homepage when TESTING_MODE is on.
-    """
-    user = getattr(settings, "ETHEREAL_USER", "") or ""
-    password = getattr(settings, "ETHEREAL_PASS", "") or ""
-    if getattr(settings, "EMAIL_HOST", "") == "smtp.ethereal.email":
-        user = user or (getattr(settings, "EMAIL_HOST_USER", None) or "")
-        password = password or (getattr(settings, "EMAIL_HOST_PASSWORD", None) or "")
-    return user, password
-
-
 @csrf_exempt
 @api_view(['GET'])
 @authentication_classes([])
@@ -45,12 +34,10 @@ def public_config(request):
     """Public sandbox configuration for the frontend testing UI."""
     payload = {"testing_mode": settings.TESTING_MODE}
     if settings.TESTING_MODE:
-        ethereal_user, ethereal_pass = _testing_inbox_credentials()
         payload.update(
             {
-                "ethereal_user": ethereal_user,
-                "ethereal_pass": ethereal_pass,
                 "owner_email": settings.OWNER_EMAIL,
+                "inbox_url": settings.TESTING_INBOX_URL,
             }
         )
     return Response(payload, status=200)

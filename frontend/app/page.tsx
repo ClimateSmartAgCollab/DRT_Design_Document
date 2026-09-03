@@ -11,9 +11,8 @@ const negotiationGenerateUrl = (linkId: string) =>
 
 interface PublicConfig {
   testing_mode: boolean;
-  ethereal_user?: string;
-  ethereal_pass?: string;
   owner_email?: string;
+  inbox_url?: string;
 }
 
 const fallbackPublicConfig: PublicConfig = {
@@ -27,9 +26,6 @@ const content = {
     instructions: "Instructions:",
     attentionBody:
       "Currently every email redirects to the testing sandbox. Log into the sandbox email first to test as both a data owner and requestor.",
-    sandboxEmail: "Sandbox Email:",
-    username: "Username:",
-    password: "Password:",
     copy: "Copy",
     copied: "Copied!",
     csdccTitle: "CS-DCC helps you share data with custom agreements",
@@ -59,13 +55,10 @@ const content = {
     supportedBy: "Supported by",
     attentionCard: {
       title: "Attention Testers",
-      intro: "All test emails are routed here:",
-      sandboxEmail: "Sandbox Email:",
-      etherealLabel: "Ethereal Email Messages",
-      username: "Username:",
-      password: "Password:",
+      intro: "All test emails are routed to the shared inbox:",
+      inboxLabel: "Open Inbox",
       afterLogin:
-        'Once logged in, select the "Messages" tab to view all test emails.',
+        "View all test emails in the inbox above.",
       stepsTitle: "Testing Steps",
       steps: [
         {
@@ -176,9 +169,6 @@ const content = {
     instructions: "Instructions :",
     attentionBody:
       "Actuellement, chaque e-mail est redirigé vers la sandbox de test. Connectez-vous d'abord à l'e-mail sandbox pour tester en tant que propriétaire de données et demandeur.",
-    sandboxEmail: "E-mail Sandbox :",
-    username: "Nom d'utilisateur :",
-    password: "Mot de passe :",
     copy: "Copier",
     copied: "Copié !",
     csdccTitle:
@@ -209,13 +199,10 @@ const content = {
     supportedBy: "Soutenu par",
     attentionCard: {
       title: "Attention Testeurs",
-      intro: "Tous les e-mails de test sont redirigés ici :",
-      sandboxEmail: "E-mail Sandbox :",
-      etherealLabel: "Messages Email Ethereal",
-      username: "Nom d'utilisateur :",
-      password: "Mot de passe :",
+      intro: "Tous les e-mails de test sont redirigés vers la boîte de réception partagée :",
+      inboxLabel: "Ouvrir la boîte de réception",
       afterLogin:
-        'Une fois connecté, sélectionnez l\'onglet "Messages" pour voir tous les e-mails de test.',
+        "Consultez tous les e-mails de test dans la boîte de réception ci-dessus.",
       stepsTitle: "Étapes de test",
       steps: [
         {
@@ -444,102 +431,15 @@ export default function HomePage() {
               <p className="text-black mb-2 font-medium text-sm sm:text-base">
                 {t.attentionCard.intro}
               </p>
-              <div className="bg-white border border-red-300 rounded p-3 sm:p-4 mt-2 mb-4">
-                <div className="mb-1 flex items-center flex-wrap gap-1 sm:gap-2">
-                  <span className="font-medium text-sm sm:text-base">
-                    {t.attentionCard.sandboxEmail}
-                  </span>
-                  <a
-                    href="https://ethereal.email/messages"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-[rgb(70,160,35)] text-sm sm:text-base"
-                  >
-                    {t.attentionCard.etherealLabel}
-                  </a>
-                </div>
-                <div className="mb-1 flex items-center flex-wrap gap-1 sm:gap-2">
-                  <span className="font-medium text-sm sm:text-base">
-                    {t.attentionCard.username}
-                  </span>
-                  <span className="font-mono select-all text-sm sm:text-base">
-                    {config.ethereal_user ?? ""}
-                  </span>
-                  <button
-                    onClick={() =>
-                      handleCopy(config.ethereal_user ?? "", "username")
-                    }
-                    disabled={!config.ethereal_user}
-                    className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700 disabled:opacity-50"
-                    title={t.copy}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-3 h-3 sm:w-4 sm:h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <rect
-                        x="9"
-                        y="9"
-                        width="13"
-                        height="13"
-                        rx="2"
-                        ry="2"
-                        className="fill-white"
-                      />
-                      <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
-                    </svg>
-                    <span className="text-xs">
-                      {copied.field === "username" && copied.status
-                        ? t.copied
-                        : t.copy}
-                    </span>
-                  </button>
-                </div>
-                <div className="flex items-center flex-wrap gap-1 sm:gap-2">
-                  <span className="font-medium text-sm sm:text-base">
-                    {t.attentionCard.password}
-                  </span>
-                  <span className="font-mono select-all text-sm sm:text-base">
-                    {config.ethereal_pass ?? ""}
-                  </span>
-                  <button
-                    onClick={() =>
-                      handleCopy(config.ethereal_pass ?? "", "password")
-                    }
-                    disabled={!config.ethereal_pass}
-                    className="flex items-center gap-1 px-1 sm:px-2 py-1 text-xs bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none text-gray-700 disabled:opacity-50"
-                    title={t.copy}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-3 h-3 sm:w-4 sm:h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <rect
-                        x="9"
-                        y="9"
-                        width="13"
-                        height="13"
-                        rx="2"
-                        ry="2"
-                        className="fill-white"
-                      />
-                      <rect x="3" y="3" width="13" height="13" rx="2" ry="2" />
-                    </svg>
-                    <span className="text-xs">
-                      {copied.field === "password" && copied.status
-                        ? t.copied
-                        : t.copy}
-                    </span>
-                  </button>
-                </div>
+              <div className="bg-white border border-red-300 rounded p-3 sm:p-4 mt-2 mb-4 flex items-center gap-2">
+                <a
+                  href={config.inbox_url || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-[rgb(70,160,35)] font-medium text-sm sm:text-base"
+                >
+                  {t.attentionCard.inboxLabel}
+                </a>
               </div>
               <p className="text-black mb-4 text-sm sm:text-base">{t.attentionCard.afterLogin}</p>
               <h3 className="text-base sm:text-lg font-bold text-black mt-4 sm:mt-6 mb-2">

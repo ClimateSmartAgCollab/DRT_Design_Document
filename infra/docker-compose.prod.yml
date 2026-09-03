@@ -102,6 +102,23 @@ services:
       - prod_redis_data:/data
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit
+    container_name: drt-prod-mailpit
+    profiles:
+      - testing
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 0
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+      MP_WEBROOT: /mailpit
+      MP_MAX_MESSAGES: 5000
+      MP_MAX_AGE: 7d
+    env_file:
+      - ../.env.production
+    expose:
+      - "8025"
+    restart: unless-stopped
+
 volumes:
   prod_db_data:
   prod_redis_data:
