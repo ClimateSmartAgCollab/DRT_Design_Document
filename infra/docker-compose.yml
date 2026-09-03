@@ -1,8 +1,8 @@
 # Local stack:
-#   Docker: Postgres + Redis only
+#   Docker: Postgres + Redis + Mailpit
 #   Host:   Django (port 8000) + Next.js (npm run dev, port 3001)
 #
-# Host ports 5433/6380.
+# Host ports 5433/6380. Mailpit is localhost-only (1025 SMTP / 8025 UI).
 # Production apps, nginx, and TLS: infra/docker-compose.prod.yml
 name: drt
 
@@ -27,6 +27,14 @@ services:
       - "6380:6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: drt-mailpit
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
     restart: unless-stopped
 
 volumes:

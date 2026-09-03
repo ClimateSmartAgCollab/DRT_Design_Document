@@ -133,6 +133,5 @@ MAGIC_LINK_TTL_MINUTES = int(os.environ.get("MAGIC_LINK_TTL_MINUTES", str(60 * 2
 
 # Public sandbox/testing configuration (exposed via /drt/public-config/ when enabled)
 TESTING_MODE = os.environ.get("TESTING_MODE", "false").lower() == "true"
-ETHEREAL_USER = os.environ.get("ETHEREAL_USER", "")
-ETHEREAL_PASS = os.environ.get("ETHEREAL_PASS", "")
+TESTING_INBOX_URL = os.environ.get("TESTING_INBOX_URL", "")
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "")

@@ -288,7 +288,7 @@ export default function Header({
                   alt="Logo"
                   width={240}
                   height={240}
-                  className="rounded-full bg-[rgba(180,230,160,0.3)] object-contain"
+                  className="h-auto w-auto rounded-full bg-[rgba(180,230,160,0.3)] object-contain"
                 />
               </a>
             </div>

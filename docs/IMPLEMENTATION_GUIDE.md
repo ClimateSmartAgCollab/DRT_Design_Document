@@ -47,7 +47,7 @@ Before starting, ensure you have:
    - GitHub account and repository for your datastore
    - PostgreSQL database (local or cloud-hosted)
    - Redis instance (local or cloud-hosted)
-   - SMTP email service (for production) or Ethereal (for development/testing)
+   - SMTP email service (for production); Mailpit (bundled) for development/testing
    - Domain name (for production deployment)
 
 3. **Knowledge**:
@@ -367,21 +367,47 @@ After setting up the GitHub datastore, cache tables are warmed automatically on 
 
 ## Step 7: Email Configuration
 
-### 7.1 Development/Testing (Ethereal)
+### 7.1 Development/Testing (Mailpit)
 
-1. Sign up at https://ethereal.email/
-2. Create a new account
-3. Copy username and password to `.env`:
+Mailpit runs inside the local Docker Compose stack (`infra/docker-compose.yml`). No signup needed.
+
+1. Start the stack: `docker compose -f infra/docker-compose.yml up -d`
+2. SMTP is at `127.0.0.1:1025` (no authentication). The web inbox is at `http://127.0.0.1:8025`.
+3. `.env` defaults (already in `.env.example`):
    ```bash
-   ETHEREAL_USER=your-ethereal-user
-   ETHEREAL_PASS=your-ethereal-pass
+   EMAIL_HOST=127.0.0.1
+   EMAIL_PORT=1025
+   EMAIL_HOST_USER=
+   EMAIL_HOST_PASSWORD=
+   EMAIL_USE_TLS=False
+   DEFAULT_FROM_EMAIL=DRT System <no-reply@drt.local>
+   TESTING_INBOX_URL=http://127.0.0.1:8025
    ```
 
-### 7.2 Production (SMTP)
+### 7.2 Staging (Mailpit with authentication)
 
-Configure SMTP in `.env.production` (sandbox on `drt-test`, real provider on production). Do not reuse staging credentials on production.
+On `drt-test`, Mailpit runs behind the `testing` Compose profile with SMTP auth enabled:
+
 ```bash
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+docker compose -f infra/docker-compose.prod.yml --profile testing up -d
+```
+
+Set in `.env.production`:
+```bash
+EMAIL_HOST=mailpit
+EMAIL_PORT=1025
+EMAIL_HOST_USER=drt
+EMAIL_HOST_PASSWORD=<matches MP_SMTP_AUTH value>
+EMAIL_USE_TLS=False
+TESTING_INBOX_URL=/mailpit
+```
+
+The Mailpit web UI is proxied through nginx at `/mailpit` behind HTTP basic auth (see `infra/nginx/snippets/mailpit.conf`). Share the UI password **out of band** — it is not shown on the homepage.
+
+### 7.3 Production (real SMTP)
+
+Configure SMTP in `.env.production`. Use CCS campus SMTP (service sender) when issued; Mailgun or another provider only if CCS refuses. Do not reuse staging credentials on production.
+```bash
 EMAIL_HOST=smtp.example.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
@@ -390,7 +416,7 @@ EMAIL_HOST_PASSWORD=your-smtp-password
 DEFAULT_FROM_EMAIL=noreply@yourdomain.com
 ```
 
-### 7.3 Customize Email and License Templates
+### 7.4 Customize Email and License Templates
 
 **Email content** is built in Python, not HTML files. Edit the helpers in `backend/drt/utils/email_helpers.py`:
 - `get_email_base_html()` - Shared layout and styling for all emails
@@ -474,7 +500,7 @@ Fill every required value. Remote containers load `drt_core.settings.production`
 
 - `DJANGO_SECRET_KEY`
 - Database password
-- SMTP user/password (`EMAIL_*`; Ethereal/sandbox on staging, real provider on production)
+- SMTP user/password (`EMAIL_*`; Mailpit on staging, real provider on production)
 - ContextHub API key and GitHub token / webhook secret
 - Hostnames (`DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `FRONTEND_BASE_URL`)
 - `TESTING_MODE=true` and `ENVIRONMENT=staging` on `drt-test`; `TESTING_MODE=false` and `ENVIRONMENT=production` on a real prod host
@@ -670,7 +696,7 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 - **Solution**: Verify email configuration in `.env`
 - Test SMTP connection separately
 - Check Django logs for SMTP errors (`EMAIL_TIMEOUT` defaults to 10 seconds)
-- For Ethereal, verify credentials are correct
+- For Mailpit, verify the container is running (`docker ps | grep mailpit`) and check `http://127.0.0.1:8025`
 
 **6. GitHub Datastore Not Loading**
 - **Solution**: Verify `GITHUB_API_URL` format is correct

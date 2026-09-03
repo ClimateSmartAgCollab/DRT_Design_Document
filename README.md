@@ -81,7 +81,7 @@ App behavior follows `TESTING_MODE` and `ENVIRONMENT` inside the file, not the f
 | `USE_SQLITE` | `true` for SQLite-only local runs |
 | `REDIS_URL` | Cache (`127.0.0.1:6380` locally) |
 | `GITHUB_API_URL` / `GITHUB_TOKEN` | Datastore repo (`https://api.github.com/repos/OWNER/REPO/contents`) |
-| `EMAIL_*` / `ETHEREAL_*` | SMTP or Ethereal sandbox |
+| `EMAIL_*` / `TESTING_INBOX_URL` | SMTP config; Mailpit inbox URL for dev/staging |
 | `EMAIL_TIMEOUT` | SMTP hang bound in seconds (default `10`) |
 | `FRONTEND_BASE_URL` | Deep links in emails |
 | `TESTING_MODE` / `ENVIRONMENT` | Sandbox banner vs production; log label |
