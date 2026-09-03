@@ -4,7 +4,7 @@ This is the Data Hub implementation of DRT (Django + Next.js). Small, reviewable
 
 ## Setup
 
-Follow the **Quick start** in the [root README](README.md). You need Python 3.12 or 3.13, Node.js 20+, and Docker (Postgres + Redis).
+Follow the **Quick start** in the [root README](README.md). You need Python 3.12 or 3.13, Node.js 20+, and Docker (Postgres, Redis, and Mailpit).
 
 Do not commit `.env`, `.env.production`, or `frontend/.env.local`. Copy from `.env.example` / `frontend/env.local.example` and fill values for your machine only.
 

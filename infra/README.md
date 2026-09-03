@@ -1,22 +1,24 @@
 # Infrastructure
 
-Compose files, Dockerfiles, host cron, and the systemd unit for DRT. Local development still runs Django and Next.js **on the host**; Docker is only for data stores. How the pieces fit together: [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md). Full remote checklist: [Implementation Guide](../docs/IMPLEMENTATION_GUIDE.md) Step 9.
+Compose files, Dockerfiles, host cron, and the systemd unit for DRT. Local development still runs Django and Next.js **on the host**; Docker runs Postgres, Redis, and Mailpit. How the pieces fit together: [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md). Full remote checklist: [Implementation Guide](../docs/IMPLEMENTATION_GUIDE.md) Step 9.
 
 ## Compose files
 
 | File | Where | What runs |
 | --- | --- | --- |
-| `docker-compose.yml` | Laptop | Postgres 13 (host **5433**) and Redis 7 (host **6380**) |
-| `docker-compose.prod.yml` | `drt-test` and a future prod host | gunicorn backend, Next.js, nginx, Postgres, Redis |
+| `docker-compose.yml` | Laptop | Postgres 13 (host **5433**), Redis 7 (host **6380**), Mailpit (localhost **1025** / **8025**) |
+| `docker-compose.prod.yml` | `drt-test` and a future prod host | gunicorn backend, Next.js, nginx, Postgres, Redis. Mailpit only with `--profile testing`. |
 
 Ports 5433 / 6380 avoid colliding with ContextHub (5432 / 6379) on the same machine.
 
 ```bash
-# Local datastores
+# Local datastores + Mailpit
 docker compose -f infra/docker-compose.yml up -d
 
 # Remote app stack (from repo root; requires .env.production)
 docker compose -f infra/docker-compose.prod.yml up -d --build
+# drt-test sandbox inbox:
+docker compose -f infra/docker-compose.prod.yml --profile testing up -d --build
 ```
 
 Remote Compose always injects `../.env.production`. Staging vs production is values inside that file (`TESTING_MODE`, `ENVIRONMENT`, real vs sandbox SMTP) — not a different Compose file.
@@ -40,6 +42,7 @@ Optional Healthchecks.io URLs: `CRON_HEALTHCHECK_ABANDONMENT_URL` and `CRON_HEAL
 ## Nginx and systemd
 
 - `nginx/snippets/ssl-params.conf` — TLS settings used by the nginx service in `docker-compose.prod.yml`.
-- `systemd/drt-docker-compose.service` — oneshot unit that `up -d` / `stop` the prod stack. Edit `User=` and `WorkingDirectory=` for the deploy host. Use `up -d` on boot; run `--build` yourself when deploying code.
+- `nginx/snippets/mailpit.conf` — `/mailpit` reverse proxy + HTTP basic auth. Include it on `drt-test` only. Share the UI password out of band.
+- `systemd/drt-docker-compose.service` — oneshot unit that `up -d` / `stop` the prod stack. Edit `User=` and `WorkingDirectory=` for the deploy host. Use `up -d` on boot; run `--build` yourself when deploying code. On `drt-test` add `--profile testing` to `ExecStart`; omit it on a real production host.
 
 Global install, contributing, and license: [root README](../README.md).

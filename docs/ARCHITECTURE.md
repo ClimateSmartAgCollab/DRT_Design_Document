@@ -21,7 +21,7 @@ Staging is a small production, not a shared laptop. One deploy shape; a future p
 | | Local | Staging (`drt-test`) | Production (future host) |
 | --- | --- | --- | --- |
 | Purpose | Edit → refresh | Does the real stack work? | Users |
-| Compose | `infra/docker-compose.yml` (Postgres + Redis) | `infra/docker-compose.prod.yml` | Same file |
+| Compose | `infra/docker-compose.yml` (Postgres, Redis, Mailpit) | `infra/docker-compose.prod.yml` (`--profile testing` starts Mailpit) | Same file; omit `--profile testing` |
 | Apps | Django `runserver` + Next `npm run dev` on the host | gunicorn + `npm start` + nginx | Same as staging |
 | Env file | `.env` | `.env.production` | `.env.production` |
 | Settings | `drt_core.settings.local` | `drt_core.settings.production` | `drt_core.settings.production` |
@@ -106,7 +106,7 @@ graph LR;
 - **`backend/drt_core` and `backend/drt` (Django)** — API, negotiation models, in-request email/license helpers, management commands for abandonment and cache refresh.
 - **`backend/datastore`** — gateway for GitHub-hosted questionnaires and metadata; cache-aware fetch used by the API and `refresh_datastore_cache`.
 - **`frontend/app` (Next.js App Router)** — requestor and owner flows, dashboards, shared components. REST client: `frontend/app/api/apiHelper.ts`. Dynamic questionnaires: [`Form`](../frontend/app/components/Form/README.md) + [`parser`](../frontend/app/components/parser/README.md).
-- **`infra`** — local Compose (Postgres + Redis only); remote Compose (gunicorn, Next, nginx, Postgres, Redis); host cron wrapper. See [`infra/README.md`](../infra/README.md).
+- **`infra`** — local Compose (Postgres, Redis, Mailpit); remote Compose (gunicorn, Next, nginx, Postgres, Redis; Mailpit on the `testing` profile); host cron wrapper. See [`infra/README.md`](../infra/README.md).
 
 ---
 
