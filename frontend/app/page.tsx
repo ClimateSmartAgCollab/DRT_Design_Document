@@ -22,10 +22,6 @@ const fallbackPublicConfig: PublicConfig = {
 const content = {
   EN: {
     testingBanner: "TESTING ENVIRONMENT",
-    attention: "Attention Testers",
-    instructions: "Instructions:",
-    attentionBody:
-      "Currently every email redirects to the testing sandbox. Log into the sandbox email first to test as both a data owner and requestor.",
     copy: "Copy",
     copied: "Copied!",
     csdccTitle: "CS-DCC helps you share data with custom agreements",
@@ -57,8 +53,6 @@ const content = {
       title: "Attention Testers",
       intro: "All test emails are routed to the shared inbox:",
       inboxLabel: "Open Inbox",
-      afterLogin:
-        "View all test emails in the inbox above.",
       stepsTitle: "Testing Steps",
       steps: [
         {
@@ -165,10 +159,6 @@ const content = {
   },
   FR: {
     testingBanner: "ENVIRONNEMENT DE TEST",
-    attention: "Attention Testeurs",
-    instructions: "Instructions :",
-    attentionBody:
-      "Actuellement, chaque e-mail est redirigé vers la sandbox de test. Connectez-vous d'abord à l'e-mail sandbox pour tester en tant que propriétaire de données et demandeur.",
     copy: "Copier",
     copied: "Copié !",
     csdccTitle:
@@ -201,8 +191,6 @@ const content = {
       title: "Attention Testeurs",
       intro: "Tous les e-mails de test sont redirigés vers la boîte de réception partagée :",
       inboxLabel: "Ouvrir la boîte de réception",
-      afterLogin:
-        "Consultez tous les e-mails de test dans la boîte de réception ci-dessus.",
       stepsTitle: "Étapes de test",
       steps: [
         {
@@ -431,17 +419,18 @@ export default function HomePage() {
               <p className="text-black mb-2 font-medium text-sm sm:text-base">
                 {t.attentionCard.intro}
               </p>
-              <div className="bg-white border border-red-300 rounded p-3 sm:p-4 mt-2 mb-4 flex items-center gap-2">
-                <a
-                  href={config.inbox_url || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-[rgb(70,160,35)] font-medium text-sm sm:text-base"
-                >
-                  {t.attentionCard.inboxLabel}
-                </a>
-              </div>
-              <p className="text-black mb-4 text-sm sm:text-base">{t.attentionCard.afterLogin}</p>
+              {config.inbox_url ? (
+                <div className="bg-white border border-red-300 rounded p-3 sm:p-4 mt-2 mb-4 flex items-center gap-2">
+                  <a
+                    href={config.inbox_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-[rgb(70,160,35)] font-medium text-sm sm:text-base"
+                  >
+                    {t.attentionCard.inboxLabel}
+                  </a>
+                </div>
+              ) : null}
               <h3 className="text-base sm:text-lg font-bold text-black mt-4 sm:mt-6 mb-2">
                 {t.attentionCard.stepsTitle}
               </h3>
