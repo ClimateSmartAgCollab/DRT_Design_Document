@@ -12,6 +12,8 @@ WorkingDirectory=/home/azureuser/DRT_Design_Document/infra
 User=azureuser
 Group=azureuser
 # Use up -d only on boot; run --build manually when deploying code changes.
+# drt-test: add --profile testing to ExecStart so Mailpit starts.
+# Omit that profile on a production host or Mailpit will catch real mail.
 ExecStart=/usr/bin/docker-compose -f docker-compose.prod.yml --env-file ../.env.production up -d
 # Use `stop` (not `down`) so volumes/networks are not removed on service stop.
 ExecStop=/usr/bin/docker-compose -f docker-compose.prod.yml --env-file ../.env.production stop -t 60

@@ -25,7 +25,7 @@ This repository is the **Data Hub** implementation of DRT. The platform itself i
 
 ## Quick start
 
-Assume zero context. Docker runs **only Postgres and Redis**. Django and Next.js run on the host. Root npm scripts use `backend/.venv` through `scripts/venv-python.js` — you do not activate the virtualenv.
+Assume zero context. Docker runs **Postgres, Redis, and Mailpit**. Django and Next.js run on the host. Root npm scripts use `backend/.venv` through `scripts/venv-python.js` — you do not activate the virtualenv.
 
 **Prerequisites:** Python 3.12 or 3.13, Node.js 20+, Docker, Git.
 
@@ -53,6 +53,7 @@ npm run dev
 
 - Backend: <http://127.0.0.1:8000> — Django admin: <http://127.0.0.1:8000/django-admin/>
 - Frontend: <http://127.0.0.1:3001>
+- Mailpit inbox: <http://127.0.0.1:8025>
 - Stop apps: Ctrl+C in the `npm run dev` terminal
 - Stop databases: `docker compose -f infra/docker-compose.yml down`
 
@@ -60,10 +61,12 @@ If `npm run migrate` or `npm run dev` fails with `Backend virtualenv not found`,
 
 Email, license generation, and cache refresh run in-request. There is no Celery.
 
-The fully containerized stack (images, nginx, TLS) is remote only:
+The fully containerized stack (images, nginx, TLS) is remote only. On `drt-test` add `--profile testing` so Mailpit starts. Omit that profile on a real production host.
 
 ```bash
 docker compose -f infra/docker-compose.prod.yml up -d --build
+# drt-test:
+# docker compose -f infra/docker-compose.prod.yml --profile testing up -d --build
 ```
 
 See [`infra/README.md`](infra/README.md) and the [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md) Step 9.

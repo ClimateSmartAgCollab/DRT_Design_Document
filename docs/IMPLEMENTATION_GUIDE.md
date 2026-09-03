@@ -40,7 +40,7 @@ Before starting, ensure you have:
 1. **Development Environment**:
    - Python 3.12 or 3.13 (Django 5.1; `npm run setup:backend` prefers these)
    - Node.js 20+ and npm (for Next.js frontend)
-   - Docker and Docker Compose (recommended for local Postgres/Redis)
+   - Docker and Docker Compose (recommended for local Postgres, Redis, and Mailpit)
    - Git
 
 2. **Services & Accounts**:
@@ -392,21 +392,24 @@ On `drt-test`, Mailpit runs behind the `testing` Compose profile with SMTP auth 
 docker compose -f infra/docker-compose.prod.yml --profile testing up -d
 ```
 
+Omit `--profile testing` on a real production host so Mailpit does not swallow outbound mail.
+
 Set in `.env.production`:
 ```bash
 EMAIL_HOST=mailpit
 EMAIL_PORT=1025
 EMAIL_HOST_USER=drt
-EMAIL_HOST_PASSWORD=<matches MP_SMTP_AUTH value>
+EMAIL_HOST_PASSWORD=change-me
+MP_SMTP_AUTH=drt:change-me
 EMAIL_USE_TLS=False
 TESTING_INBOX_URL=/mailpit
 ```
 
-The Mailpit web UI is proxied through nginx at `/mailpit` behind HTTP basic auth (see `infra/nginx/snippets/mailpit.conf`). Share the UI password **out of band** — it is not shown on the homepage.
+`MP_SMTP_AUTH` is `user:password` and must match `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD`. The Mailpit web UI is proxied through nginx at `/mailpit` behind HTTP basic auth (see `infra/nginx/snippets/mailpit.conf`). Share the UI password **out of band** — it is not shown on the homepage.
 
 ### 7.3 Production (real SMTP)
 
-Configure SMTP in `.env.production`. Use CCS campus SMTP (service sender) when issued; Mailgun or another provider only if CCS refuses. Do not reuse staging credentials on production.
+Configure SMTP in `.env.production`. Use CCS campus SMTP (service sender) when issued; Mailgun or another SMTP provider only if CCS refuses. Do not reuse staging credentials on production. Do not put a ContextHub `MAILGUN_API_KEY` in DRT — this app sends through Django's SMTP backend only.
 ```bash
 EMAIL_HOST=smtp.example.com
 EMAIL_PORT=587
@@ -432,7 +435,7 @@ The only local template file is `backend/drt/templates/license_template_fallback
 
 ## Step 8: Local Development
 
-Follow the **Quick start** in the [root README](../README.md). That is the canonical local workflow: Docker for Postgres + Redis only, Django and Next.js on the host, venv via `npm run setup:backend` (do not activate it).
+Follow the **Quick start** in the [root README](../README.md). That is the canonical local workflow: Docker for Postgres, Redis, and Mailpit; Django and Next.js on the host; venv via `npm run setup:backend` (do not activate it).
 
 Once the stack is up:
 
@@ -521,6 +524,8 @@ Configure Nginx to:
 - Route `/api/*` to Django backend
 - Route all other traffic to Next.js frontend
 - Serve static files efficiently
+
+On `drt-test` only, include `infra/nginx/snippets/mailpit.conf` in the HTTPS `server` block and create `/usr/local/nginx/conf/.htpasswd-mailpit`. Do not include that snippet on a real production host.
 
 Example Nginx configuration:
 ```nginx
