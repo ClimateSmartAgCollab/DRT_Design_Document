@@ -14,7 +14,9 @@ export async function archiveNegotiation(id: string): Promise<void> {
 }
 
 export async function deleteNegotiation(id: string): Promise<void> {
-  const res = await fetchApi(`/drt/negotiations/delete/${id}/`);
+  const res = await fetchApi(`/drt/negotiations/delete/${id}/`, {
+    method: "DELETE",
+  });
   if (!res.ok) throw new Error(res.statusText);
 }
 
