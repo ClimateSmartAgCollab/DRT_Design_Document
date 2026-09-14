@@ -11,7 +11,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from ..services.negotiation import delete_old_negotiations, handle_negotiation_archive_and_summary, process_abandonment_policy, abandon_negotiation_by_requestor
 from django.shortcuts import get_object_or_404
-from .utils import owner_auth_required, requestor_auth_required
+from .utils import admin_auth_required, owner_auth_required, requestor_auth_required
 from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 import json
@@ -33,6 +33,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+@admin_auth_required
 def export_summary_to_drt_view(_request):
     """
     HTTP GET → run the per-dataset export_summary_to_drt and return JSON status.
@@ -288,9 +289,14 @@ def export_summary_to_drt(owner_id=None):
             logger.info(f"{tag_action} tag={t!r} summary for NLink pk={nlink.pk}")
 
 
+@admin_auth_required
 def delete_old_negotiations_view(request):
     """Manually trigger the deletion of old negotiations."""
-    return delete_old_negotiations()
+    result = delete_old_negotiations()
+    return JsonResponse({
+        'message': result['message'],
+        'deleted_count': result['deleted_count'],
+    })
 
 
 @owner_auth_required
@@ -1298,7 +1304,7 @@ def reopen_negotiation_view(request, negotiation_id):
         }, status=500)
 
 
-@csrf_exempt
+@admin_auth_required
 def process_abandonment_policy_view(request):
     """Manually trigger the abandonment policy processing."""
     try:
