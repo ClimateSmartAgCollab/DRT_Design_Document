@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404
 from .utils import admin_auth_required, owner_auth_required, requestor_auth_required
 from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 import json
 import logging
 import datetime
@@ -808,15 +809,48 @@ def handle_negotiation_archive_and_summary_async(negotiation, owner_id=None):
         logger.error(f"Error processing negotiation {negotiation.negotiation_id} asynchronously: {e}", exc_info=True)
 
 
+@require_http_methods(["DELETE"])
 def delete_negotiation_files(request, negotiation_id):
-    """Delete a negotiation's files and corresponding archive."""
+    """Delete a negotiation owned by the logged-in owner or requestor."""
+    owner_email = request.session.get("owner_email")
+    requestor_email = request.session.get("requestor_email")
+    if not owner_email and not requestor_email:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+    try:
+        nlink = negotiation.link
+    except ObjectDoesNotExist:
+        nlink = None
+    if nlink is None:
+        return JsonResponse(
+            {"error": "Unauthorized access to this negotiation"},
+            status=403,
+        )
+
+    allowed = False
+    if owner_email:
+        owner_table = cache.get("owner_table", {}) or {}
+        row_owner = owner_table.get(nlink.owner_id, {}).get("owner_email")
+        if row_owner and row_owner == owner_email:
+            allowed = True
+    if not allowed and requestor_email and nlink.requestor_email == requestor_email:
+        allowed = True
+
+    if not allowed:
+        return JsonResponse(
+            {"error": "Unauthorized access to this negotiation"},
+            status=403,
+        )
+
     with transaction.atomic():
         archive = Archive.objects.filter(negotiation=negotiation).first()
         if archive:
             archive.delete()
         negotiation.delete()
-    return JsonResponse({'message': _('Negotiation %(id)s deleted successfully') % {'id': negotiation_id}})
+    return JsonResponse(
+        {'message': _('Negotiation %(id)s deleted successfully') % {'id': negotiation_id}}
+    )
 
 
 @requestor_auth_required
