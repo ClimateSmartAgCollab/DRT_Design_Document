@@ -2,7 +2,7 @@ from django.urls import NoReverseMatch, reverse
 from django.http import HttpResponse, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils import timezone
-from django.db.models import F, Count, Q, Min, Max
+from django.db.models import Count, Q, Min, Max
 from django.utils.translation import gettext_lazy as _
 from django.utils.dateparse import parse_datetime, parse_date
 from ..models import NLink, Archive, SummaryStatistic, Negotiation
@@ -29,6 +29,7 @@ from datastore.cache_keys import (
 from drt.services.license import build_license_context, render_license
 from .questionnaire import create_archive_snapshot
 from django.conf import settings
+from ..utils.email_domain import count_requestor_domains
 
 
 logger = logging.getLogger(__name__)
@@ -104,16 +105,12 @@ def export_summary_to_drt(owner_id=None):
         logger.info(
             f"Using NLink pk={nlink.pk} for {owner_pk!r}/{ds_id!r}/{ds_label!r}/{record_label!r}")
 
-        domain_qs = (
-            NLink.objects
-            .filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label)
-            .values(domain=F('requestor_email'))
-            .annotate(request_count=Count('negotiation'))
+        group_links = NLink.objects.filter(
+            owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label
         )
-        requestor_domains = {
-            row['domain']: row['request_count']
-            for row in domain_qs
-        }
+        requestor_domains = count_requestor_domains(
+            group_links.values_list('requestor_email', flat=True)
+        )
 
         date_range = NLink.objects.filter(
             owner_id=owner_pk, 
@@ -232,7 +229,9 @@ def export_summary_to_drt(owner_id=None):
                 'owner_open':        tag_stats['owner_open'],
                 'abandoned_requests': tag_stats['abandoned_requests'],
                 'archived_requests': tag_stats['archived_requests'],
-                'requestor_domains': requestor_domains,
+                'requestor_domains': count_requestor_domains(
+                    NLink.objects.filter(tag_filter).values_list('requestor_email', flat=True)
+                ),
                 'generated_at':      timezone.now().isoformat(),
                 'negotiation_date_range': {
                     'min_date': tag_date_range['min_date'].isoformat() if tag_date_range['min_date'] else None,
