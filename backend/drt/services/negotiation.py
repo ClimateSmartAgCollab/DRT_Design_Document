@@ -5,7 +5,6 @@ from ..models import Negotiation
 import datetime
 import logging
 from django.core.cache import cache
-from ..views import stats
 from django.http import JsonResponse
 from ..tasks import send_abandonment_reminder_email_task, send_abandonment_notification_email_task
 from ..services.history import create_archive_snapshot
@@ -15,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 def handle_negotiation_archive_and_summary(negotiation):
     """Archives the negotiation and exports summary statistics."""
+    from ..views import stats
+
     try:
         # Extract owner_id from negotiation if available
         owner_id = None
@@ -45,7 +46,10 @@ def delete_old_negotiations():
         )
         count = negotiations.count()
         negotiations.delete()
-    return JsonResponse({'message': _('Old negotiations deleted successfully'), 'deleted_count': count})
+    return {
+        'message': _('Old negotiations deleted successfully'),
+        'deleted_count': count,
+    }
 
 
 def get_inactive_negotiations():

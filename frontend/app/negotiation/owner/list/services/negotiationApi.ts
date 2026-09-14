@@ -86,11 +86,6 @@ export async function deleteNegotiation(id: string): Promise<void> {
   if (!res.ok) throw new Error(res.statusText);
 }
 
-export async function deleteOldNegotiations(): Promise<void> {
-  const res = await fetchApi("/drt/negotiations/delete_old/");
-  if (!res.ok) throw new Error(res.statusText);
-}
-
 export async function regenerateLicense(negotiationId: string): Promise<Blob> {
   const res = await fetchApi(`/drt/negotiations/regenerate-license/${negotiationId}/`);
   if (!res.ok) throw new Error(res.statusText);
