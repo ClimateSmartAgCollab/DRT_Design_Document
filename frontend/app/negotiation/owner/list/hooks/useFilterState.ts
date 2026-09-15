@@ -6,6 +6,7 @@ import {
   parseStatusFilter, 
   parseArchivedFilter, 
   parseSortOption, 
+  parseCsvList,
   validateDate,
   buildQueryString 
 } from '../utils/urlParams';
@@ -17,6 +18,9 @@ interface FilterState {
   startDate: string;
   endDate: string;
   sortOption: SortOption;
+  tags: string[];
+  recordLabel: string[];
+  dataLabel: string[];
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -26,39 +30,42 @@ const DEFAULT_FILTERS: FilterState = {
   startDate: '',
   endDate: '',
   sortOption: 'created_desc',
+  tags: [],
+  recordLabel: [],
+  dataLabel: [],
 };
+
+function filtersFromSearchParams(searchParams: URLSearchParams): FilterState {
+  const startDate = validateDate(searchParams.get('startDate') || '')
+    ? searchParams.get('startDate') || ''
+    : '';
+  const endDate = validateDate(searchParams.get('endDate') || '')
+    ? searchParams.get('endDate') || ''
+    : '';
+
+  return {
+    searchTerm: searchParams.get('search') || '',
+    statusFilter: parseStatusFilter(searchParams.get('status')),
+    archivedFilter: parseArchivedFilter(searchParams.get('archived')),
+    startDate,
+    endDate,
+    sortOption: parseSortOption(searchParams.get('sort')),
+    tags: parseCsvList(searchParams.get('tags')),
+    recordLabel: parseCsvList(searchParams.get('record_label')),
+    dataLabel: parseCsvList(searchParams.get('data_label')),
+  };
+}
 
 export function useFilterState() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Initialize state from URL params
-  const [filters, setFilters] = useState<FilterState>(() => {
-    const searchTerm = searchParams.get('search') || '';
-    const statusFilter = parseStatusFilter(searchParams.get('status'));
-    const archivedFilter = parseArchivedFilter(searchParams.get('archived'));
-    const startDate = validateDate(searchParams.get('startDate') || '') 
-      ? searchParams.get('startDate') || '' 
-      : '';
-    const endDate = validateDate(searchParams.get('endDate') || '') 
-      ? searchParams.get('endDate') || '' 
-      : '';
-    const sortOption = parseSortOption(searchParams.get('sort'));
-    
-    return {
-      searchTerm,
-      statusFilter,
-      archivedFilter,
-      startDate,
-      endDate,
-      sortOption,
-    };
-  });
+  const [filters, setFilters] = useState<FilterState>(() =>
+    filtersFromSearchParams(searchParams)
+  );
 
-  // Debounce search term for URL updates
   const debouncedSearchTerm = useDebounce(filters.searchTerm, 300);
 
-  // Update URL when filters change
   const updateURL = useCallback((newFilters: FilterState) => {
     const params: Record<string, string | string[]> = {};
     
@@ -68,6 +75,9 @@ export function useFilterState() {
     if (newFilters.startDate) params.startDate = newFilters.startDate;
     if (newFilters.endDate) params.endDate = newFilters.endDate;
     if (newFilters.sortOption !== 'created_desc') params.sort = newFilters.sortOption;
+    if (newFilters.tags.length > 0) params.tags = newFilters.tags;
+    if (newFilters.recordLabel.length > 0) params.record_label = newFilters.recordLabel;
+    if (newFilters.dataLabel.length > 0) params.data_label = newFilters.dataLabel;
     
     const queryString = buildQueryString(params);
     const newURL = queryString ? `?${queryString}` : '';
@@ -75,24 +85,20 @@ export function useFilterState() {
     router.replace(`/negotiation/owner/list${newURL}`, { scroll: false });
   }, [router]);
 
-  // Update URL when debounced search term changes
   useEffect(() => {
     const newFilters = { ...filters, searchTerm: debouncedSearchTerm };
     updateURL(newFilters);
   }, [debouncedSearchTerm, updateURL, filters]);
 
-  // Update filters (without URL update for search term)
   const updateFilters = useCallback((updates: Partial<FilterState>) => {
     const newFilters = { ...filters, ...updates };
     setFilters(newFilters);
     
-    // Update URL immediately for non-search filters
     if (!updates.hasOwnProperty('searchTerm')) {
       updateURL(newFilters);
     }
   }, [filters, updateURL]);
 
-  // Individual filter handlers
   const setSearchTerm = useCallback((searchTerm: string) => {
     setFilters(prev => ({ ...prev, searchTerm }));
   }, []);
@@ -109,7 +115,6 @@ export function useFilterState() {
   }, [updateFilters]);
 
   const setDateRange = useCallback((field: 'start' | 'end', value: string) => {
-    // Validate date before updating
     if (value && !validateDate(value)) return;
     
     updateFilters({
@@ -122,32 +127,25 @@ export function useFilterState() {
     updateFilters({ sortOption });
   }, [updateFilters]);
 
+  const setTags = useCallback((tags: string[]) => {
+    updateFilters({ tags });
+  }, [updateFilters]);
+
+  const setRecordLabel = useCallback((recordLabel: string[]) => {
+    updateFilters({ recordLabel });
+  }, [updateFilters]);
+
+  const setDataLabel = useCallback((dataLabel: string[]) => {
+    updateFilters({ dataLabel });
+  }, [updateFilters]);
+
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
     router.replace('/negotiation/owner/list', { scroll: false });
   }, [router]);
 
-  // Sync with URL changes (e.g., browser back/forward)
   useEffect(() => {
-    const searchTerm = searchParams.get('search') || '';
-    const statusFilter = parseStatusFilter(searchParams.get('status'));
-    const archivedFilter = parseArchivedFilter(searchParams.get('archived'));
-    const startDate = validateDate(searchParams.get('startDate') || '') 
-      ? searchParams.get('startDate') || '' 
-      : '';
-    const endDate = validateDate(searchParams.get('endDate') || '') 
-      ? searchParams.get('endDate') || '' 
-      : '';
-    const sortOption = parseSortOption(searchParams.get('sort'));
-    
-    setFilters({
-      searchTerm,
-      statusFilter,
-      archivedFilter,
-      startDate,
-      endDate,
-      sortOption,
-    });
+    setFilters(filtersFromSearchParams(searchParams));
   }, [searchParams]);
 
   return {
@@ -157,6 +155,9 @@ export function useFilterState() {
     setArchivedFilter,
     setDateRange,
     setSortOption,
+    setTags,
+    setRecordLabel,
+    setDataLabel,
     resetFilters,
   };
-} 
+}

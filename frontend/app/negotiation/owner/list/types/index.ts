@@ -13,6 +13,7 @@ export interface Negotiation {
   rationale?: string | null;
   tags?: string[];
   record_label?: string;
+  data_label?: string;
   visible_label?: string;
   requestor_email?: string | null;
   questionnaire?: any;

@@ -19,6 +19,7 @@ export interface NegotiationFilters {
   endDate?: string;
   tags?: string[];
   recordLabel?: string[];
+  dataLabel?: string[];
   search?: string;
   sort?: string;
 }
@@ -35,6 +36,7 @@ export async function fetchNegotiations(
     endDate,
     tags,
     recordLabel,
+    dataLabel,
     search,
     sort,
   } = filters;
@@ -63,6 +65,9 @@ export async function fetchNegotiations(
   }
   if (recordLabel && recordLabel.length > 0) {
     recordLabel.forEach((r) => searchParams.append("record_label", r));
+  }
+  if (dataLabel && dataLabel.length > 0) {
+    dataLabel.forEach((label) => searchParams.append("data_label", label));
   }
   if (search) {
     searchParams.set("search", search);

@@ -7,28 +7,12 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 import { Providers } from "@/app/providers";
-import { Bar } from "react-chartjs-2";
 import Header from "@/app/components/Header";
-import "chart.js/auto";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
 import { SummarySidebar } from "./components/SummarySidebar";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import { KpiStrip } from "./components/KpiStrip";
+import { OutcomeMixChart } from "./components/OutcomeMixChart";
+import { SummaryResultsTable } from "./components/SummaryResultsTable";
+import { summaryRowLabel } from "./utils/outcomeMix";
 
 interface SummaryStat {
   dataset_ID?: string;
@@ -57,31 +41,6 @@ interface SummaryStat {
     difference?: number;
   };
 }
-
-const CHART_DATASETS = [
-  { label: "Accepted", key: "accepted_requests" as const },
-  { label: "Rejected", key: "rejected_requests" as const },
-  { label: "Req. Open", key: "requestor_open" as const },
-  { label: "Own. Open", key: "owner_open" as const },
-  { label: "Abandoned", key: "abandoned_requests" as const },
-  { label: "Archived", key: "archived_requests" as const },
-];
-
-const TABLE_HEADERS = [
-  "Record Label",
-  "Data Label",
-  "Visible Label",
-  "Dataset ID",
-  "Total",
-  "Accepted",
-  "Rejected",
-  "Req. Open",
-  "Own. Open",
-  "Abandoned",
-  "Archived",
-  "Canceled",
-  "Activity & Dates",
-];
 
 async function fetchSummaryStats(
   tags?: string[],
@@ -128,14 +87,6 @@ async function fetchSummaryStats(
   return json.summary_statistics as SummaryStat[];
 }
 
-function rowLabel(row: SummaryStat): string {
-  const visible = row.visible_label?.trim();
-  if (visible) {
-    return visible;
-  }
-  return `${row.data_label} - ${row.record_label || "All"}`;
-}
-
 function splitTags(tag: string | undefined): string[] {
   if (!tag || !tag.trim()) return [];
   return tag.split(",").map((t) => t.trim()).filter(Boolean);
@@ -152,75 +103,6 @@ function sortKey(item: SummaryStat): number {
     return new Date(item.negotiation_date_range.max_date).getTime();
   }
   return 0;
-}
-
-function ActivityDatesCell({
-  lastActivity,
-  lastUpdated,
-  dateRange,
-}: {
-  lastActivity?: string | null;
-  lastUpdated: string;
-  dateRange?: { min_date: string | null; max_date: string | null };
-}) {
-  const dateRangeDisplay =
-    dateRange && dateRange.min_date && dateRange.max_date
-      ? dateRange.min_date === dateRange.max_date
-        ? { single: true, date: new Date(dateRange.min_date).toLocaleDateString() }
-        : {
-            single: false,
-            first: new Date(dateRange.min_date).toLocaleDateString(),
-            last: new Date(dateRange.max_date).toLocaleDateString(),
-          }
-      : null;
-  const lastActivityText = lastActivity
-    ? new Date(lastActivity).toLocaleString()
-    : null;
-
-  return (
-    <div className="space-y-2">
-      {lastActivityText ? (
-        <>
-          <div className="space-y-1">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Last activity
-            </div>
-            <div className="text-sm text-gray-900">{lastActivityText}</div>
-          </div>
-          {dateRangeDisplay && (
-            <div className="pt-2 border-t border-gray-200">
-              {dateRangeDisplay.single ? (
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Request created
-                  </div>
-                  <div className="text-xs text-gray-700">{dateRangeDisplay.date}</div>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Request created
-                  </div>
-                  <div className="text-xs text-gray-700 space-y-0.5">
-                    <div>
-                      <span className="text-gray-500">First:</span> {dateRangeDisplay.first}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Last:</span> {dateRangeDisplay.last}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="text-sm text-gray-600">
-          {new Date(lastUpdated).toLocaleString()}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function OwnerSummaryPage() {
@@ -357,16 +239,14 @@ export default function OwnerSummaryPage() {
     [groupedData]
   );
 
-  const chartData = useMemo(
-    () => ({
-      labels: groupedData.map(rowLabel),
-      datasets: CHART_DATASETS.map((dataset) => ({
-        label: dataset.label,
-        data: groupedData.map((d) => d[dataset.key] || 0),
-      })),
-    }),
-    [groupedData]
-  );
+  const asOf =
+    summaryQuery.dataUpdatedAt > 0
+      ? new Date(summaryQuery.dataUpdatedAt)
+      : null;
+  const asOfLabel =
+    asOf && !Number.isNaN(asOf.getTime())
+      ? { label: asOf.toLocaleString(), iso: asOf.toISOString() }
+      : null;
 
   if (whoamiQuery.isLoading) {
     return (
@@ -448,21 +328,23 @@ export default function OwnerSummaryPage() {
                   <p className="mt-2 text-sm text-gray-600">
                     These figures are decisions on requests, not file access.
                   </p>
+                  {asOfLabel && (
+                    <p className="mt-1 text-xs text-gray-500" title={asOfLabel.iso}>
+                      As of {asOfLabel.label}
+                    </p>
+                  )}
                 </div>
 
-                <section className="bg-white p-4 rounded shadow">
-                  <Bar
-                    data={chartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: { position: "top" },
-                        title: { display: true, text: "Request outcomes" },
-                      },
-                    }}
-                  />
-                </section>
+                <KpiStrip
+                  rows={groupedData}
+                  tags={tag}
+                  dataLabels={dataLabel}
+                  recordLabels={recordLabel}
+                  startDate={startDate}
+                  endDate={endDate}
+                />
+
+                <OutcomeMixChart rows={groupedData} />
 
                 <div className="bg-[rgba(180,230,160,0.3)] border-l-4 border-[rgb(70,160,35)] p-4 rounded">
                   <div className="flex">
@@ -496,8 +378,8 @@ export default function OwnerSummaryPage() {
                     </p>
                     <ul className="mt-2 text-sm list-disc list-inside space-y-1">
                       {invalidRows.map((row, idx) => (
-                        <li key={`invalid-${rowLabel(row)}-${idx}`}>
-                          {rowLabel(row)}
+                        <li key={`invalid-${summaryRowLabel(row)}-${idx}`}>
+                          {summaryRowLabel(row)}
                           {row.validation_status?.message
                             ? `: ${row.validation_status.message}`
                             : ""}
@@ -510,80 +392,12 @@ export default function OwnerSummaryPage() {
                   </div>
                 )}
 
-                <section className="overflow-x-auto">
-                  <table className="min-w-full bg-white border">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        {TABLE_HEADERS.map((header) => (
-                          <th key={header} className="border px-4 py-2">
-                            {header}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {groupedData.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={TABLE_HEADERS.length}
-                            className="border px-4 py-8 text-center text-gray-500"
-                          >
-                            No data available
-                          </td>
-                        </tr>
-                      ) : (
-                        groupedData.map((d, idx) => {
-                          const tagsList = splitTags(d.tag);
-                          const invalid = Boolean(
-                            d.validation_status && !d.validation_status.is_valid
-                          );
-                          return (
-                            <tr
-                              key={`record-${d.dataset_ID}-${d.record_label}-${d.data_label}-${idx}`}
-                              className={invalid ? "bg-red-50" : undefined}
-                            >
-                              <td className="border px-4 py-2">
-                                <div>{d.record_label || "All"}</div>
-                                {tagsList.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {tagsList.map((t) => (
-                                      <span
-                                        key={t}
-                                        className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-medium px-2 py-1 rounded"
-                                      >
-                                        {t}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="border px-4 py-2">{d.data_label}</td>
-                              <td className="border px-4 py-2">{d.visible_label || "—"}</td>
-                              <td className="border px-4 py-2 font-mono text-xs">
-                                {d.dataset_ID || "—"}
-                              </td>
-                              <td className="border px-4 py-2">{d.total_requests}</td>
-                              <td className="border px-4 py-2">{d.accepted_requests}</td>
-                              <td className="border px-4 py-2">{d.rejected_requests}</td>
-                              <td className="border px-4 py-2">{d.requestor_open}</td>
-                              <td className="border px-4 py-2">{d.owner_open}</td>
-                              <td className="border px-4 py-2">{d.abandoned_requests || 0}</td>
-                              <td className="border px-4 py-2">{d.archived_requests || 0}</td>
-                              <td className="border px-4 py-2">{d.canceled_requests || 0}</td>
-                              <td className="border px-4 py-2">
-                                <ActivityDatesCell
-                                  lastActivity={d.last_activity}
-                                  lastUpdated={d.last_updated || d.generated_at}
-                                  dateRange={d.negotiation_date_range}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </section>
+                <SummaryResultsTable
+                  rows={groupedData}
+                  tags={tag}
+                  startDate={startDate}
+                  endDate={endDate}
+                />
               </div>
             </div>
           )}

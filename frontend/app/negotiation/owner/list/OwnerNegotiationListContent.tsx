@@ -20,10 +20,7 @@ export default function OwnerNegotiationListContent() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [selectedTag, setSelectedTag] = useState<string[]>([]);
-  const [selectedRecordLabel, setSelectedRecordLabel] = useState<string[]>([]);
 
-  // Use the new filter state hook
   const {
     filters,
     setSearchTerm,
@@ -31,6 +28,9 @@ export default function OwnerNegotiationListContent() {
     setArchivedFilter,
     setDateRange,
     setSortOption,
+    setTags,
+    setRecordLabel,
+    setDataLabel,
     resetFilters,
   } = useFilterState();
 
@@ -42,29 +42,37 @@ export default function OwnerNegotiationListContent() {
     archived: filters.archivedFilter !== "all" ? filters.archivedFilter : undefined,
     startDate: filters.startDate || undefined,
     endDate: filters.endDate || undefined,
-    tags: selectedTag.length > 0 ? selectedTag : undefined,
-    recordLabel: selectedRecordLabel.length > 0 ? selectedRecordLabel : undefined,
+    tags: filters.tags.length > 0 ? filters.tags : undefined,
+    recordLabel: filters.recordLabel.length > 0 ? filters.recordLabel : undefined,
+    dataLabel: filters.dataLabel.length > 0 ? filters.dataLabel : undefined,
     search: filters.searchTerm || undefined,
     sort: filters.sortOption !== "created_desc" ? filters.sortOption : undefined,
-  }), [currentPage, filters, selectedTag, selectedRecordLabel]);
+  }), [currentPage, filters]);
 
   const { data: negs, error, isLoading, reload, total, totalPages, page } = useNegotiations(apiFilters);
 
   const tagOptions = useMemo(() => {
-    const tags = new Set<string>();
+    const tags = new Set<string>(filters.tags);
     negs.forEach(n => {
       if (Array.isArray(n.tags)) n.tags.forEach(t => t && tags.add(t));
       else if (typeof n.tags === 'string' && n.tags) tags.add(n.tags);
     });
     return Array.from(tags);
-  }, [negs]);
+  }, [negs, filters.tags]);
   const recordLabelOptions = useMemo(() => {
-    const labels = new Set<string>();
+    const labels = new Set<string>(filters.recordLabel);
     negs.forEach(n => {
       if (n.record_label) labels.add(n.record_label);
     });
     return Array.from(labels);
-  }, [negs]);
+  }, [negs, filters.recordLabel]);
+  const dataLabelOptions = useMemo(() => {
+    const labels = new Set<string>(filters.dataLabel);
+    negs.forEach(n => {
+      if (n.data_label) labels.add(n.data_label);
+    });
+    return Array.from(labels);
+  }, [negs, filters.dataLabel]);
 
   const deleteOne = useMutation({
     mutationFn: (id: string) => deleteNegotiation(id),
@@ -158,7 +166,7 @@ export default function OwnerNegotiationListContent() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, filters.searchTerm, filters.sortOption, selectedTag, selectedRecordLabel]);
+  }, [filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, filters.searchTerm, filters.sortOption, filters.tags, filters.recordLabel, filters.dataLabel]);
 
   // Sync currentPage with API response page
   useEffect(() => {
@@ -202,11 +210,14 @@ export default function OwnerNegotiationListContent() {
               onSortChange={setSortOption}
               onReset={resetFilters}
               tagOptions={tagOptions}
-              selectedTag={selectedTag}
-              onTagChange={setSelectedTag}
+              selectedTag={filters.tags}
+              onTagChange={setTags}
               recordLabelOptions={recordLabelOptions}
-              selectedRecordLabel={selectedRecordLabel}
-              onRecordLabelChange={setSelectedRecordLabel}
+              selectedRecordLabel={filters.recordLabel}
+              onRecordLabelChange={setRecordLabel}
+              dataLabelOptions={dataLabelOptions}
+              selectedDataLabel={filters.dataLabel}
+              onDataLabelChange={setDataLabel}
             />
 
             <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">

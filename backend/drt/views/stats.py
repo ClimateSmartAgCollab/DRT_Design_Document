@@ -910,8 +910,9 @@ def negotiation_list_api(request):
     archived_filter = request.GET.get("archived", "all")
     start_date = request.GET.get("startDate")
     end_date = request.GET.get("endDate")
-    tags_filter = request.GET.getlist("tags")
-    record_label_filter = request.GET.getlist("record_label")
+    tags_filter = [tag.strip() for tag in request.GET.getlist("tags") if tag and tag.strip()]
+    record_label_filter = [lbl.strip() for lbl in request.GET.getlist("record_label") if lbl and lbl.strip()]
+    data_label_filter = [lbl.strip() for lbl in request.GET.getlist("data_label") if lbl and lbl.strip()]
     search_term = request.GET.get("search", "").strip()
 
     # Pagination parameters
@@ -987,14 +988,21 @@ def negotiation_list_api(request):
             pass
 
     if tags_filter:
-        # Filter negotiations where link.tags contains any of the specified tags
-        tag_q = Q()
+        # AND: each selected tag must be present, matching summary-statistics.
         for tag in tags_filter:
-            tag_q |= Q(link__tags__contains=[tag])
-        qs = qs.filter(tag_q)
+            tag_q = (
+                Q(link__tags__contains=[tag])
+                | Q(link__tags__contains=[f" {tag}"])
+                | Q(link__tags__contains=[f"{tag} "])
+                | Q(link__tags__contains=[f" {tag} "])
+            )
+            qs = qs.filter(tag_q)
 
     if record_label_filter:
         qs = qs.filter(link__record_label__in=record_label_filter)
+
+    if data_label_filter:
+        qs = qs.filter(link__data_label__in=data_label_filter)
 
     if search_term:
         qs = qs.filter(
@@ -1052,6 +1060,7 @@ def negotiation_list_api(request):
             'rationale':          n.rationale,
             'tags': link.tags if link else [],
             'record_label': link.record_label if link else "",
+            'data_label': link.data_label if link else "",
             'visible_label': (link.visible_label or link.record_label or link.data_label or "") if link else "",
             'requestor_email': link.requestor_email if link else None,
         }

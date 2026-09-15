@@ -33,6 +33,12 @@ export function parseSortOption(sortParam: string | null): SortOption {
     : 'created_desc';
 }
 
+export function parseCsvList(param: string | null): string[] {
+  if (!param) return [];
+  const values = param.split(',').map((item) => item.trim()).filter(Boolean);
+  return Array.from(new Set(values));
+}
+
 export function validateDate(dateString: string): boolean {
   if (!dateString) return true;
   const date = new Date(dateString);
@@ -53,4 +59,4 @@ export function buildQueryString(params: Record<string, string | string[]>): str
   });
   
   return searchParams.toString();
-} 
+}
