@@ -31,8 +31,10 @@ ChartJS.register(
 );
 
 interface SummaryStat {
+  dataset_ID?: string;
+  visible_label?: string;
   data_label: string;
-  tag: string; 
+  tag: string;
   record_label?: string;
   total_requests: number;
   accepted_requests: number;
@@ -41,9 +43,10 @@ interface SummaryStat {
   owner_open: number;
   abandoned_requests: number;
   archived_requests: number;
-  generated_at: string; 
-  last_updated?: string; 
-  last_activity?: string | null; 
+  canceled_requests?: number;
+  generated_at: string;
+  last_updated?: string;
+  last_activity?: string | null;
   negotiation_date_range?: {
     min_date: string | null;
     max_date: string | null;
@@ -55,42 +58,68 @@ interface SummaryStat {
   };
 }
 
+const CHART_DATASETS = [
+  { label: "Accepted", key: "accepted_requests" as const },
+  { label: "Rejected", key: "rejected_requests" as const },
+  { label: "Req. Open", key: "requestor_open" as const },
+  { label: "Own. Open", key: "owner_open" as const },
+  { label: "Abandoned", key: "abandoned_requests" as const },
+  { label: "Archived", key: "archived_requests" as const },
+];
+
+const TABLE_HEADERS = [
+  "Record Label",
+  "Data Label",
+  "Visible Label",
+  "Dataset ID",
+  "Total",
+  "Accepted",
+  "Rejected",
+  "Req. Open",
+  "Own. Open",
+  "Abandoned",
+  "Archived",
+  "Canceled",
+  "Activity & Dates",
+];
+
 async function fetchSummaryStats(
-  tags?: string[], 
-  dataLabel?: string, 
-  recordLabels?: string[], 
+  tags?: string[],
+  dataLabels?: string[],
+  recordLabels?: string[],
   includeAllTags?: boolean,
   startDate?: string,
   endDate?: string,
   groupBy?: boolean
 ): Promise<SummaryStat[]> {
-
   const params = new URLSearchParams();
   if (tags && tags.length > 0) {
-    tags.forEach(tag => params.append('tags', tag));
+    tags.forEach((tag) => params.append("tags", tag));
   }
-  if (dataLabel) {
-    params.set('data_label', dataLabel);
+  if (dataLabels && dataLabels.length > 0) {
+    dataLabels.forEach((lbl) => params.append("data_label", lbl));
   }
   if (recordLabels && recordLabels.length > 0) {
-    recordLabels.forEach(rl => params.append('record_label', rl));
+    recordLabels.forEach((rl) => params.append("record_label", rl));
   }
   if (includeAllTags) {
-    params.set('include_all_tags', 'true');
+    params.set("include_all_tags", "true");
   }
   if (startDate) {
-    params.set('startDate', startDate);
+    params.set("startDate", startDate);
   }
   if (endDate) {
-    params.set('endDate', endDate);
+    params.set("endDate", endDate);
   }
   if (groupBy) {
-    params.set('group_by', 'true');
+    params.set("group_by", "true");
   }
-  
+
   const queryString = params.toString();
-  const url = queryString ? `/drt/summary-statistics/?${queryString}` : "/drt/summary-statistics/";
-  
+  const url = queryString
+    ? `/drt/summary-statistics/?${queryString}`
+    : "/drt/summary-statistics/";
+
   const res = await fetchApi(url);
   const json = await res.json();
   if (!res.ok) {
@@ -99,7 +128,32 @@ async function fetchSummaryStats(
   return json.summary_statistics as SummaryStat[];
 }
 
-// Helper component to display activity and date information
+function rowLabel(row: SummaryStat): string {
+  const visible = row.visible_label?.trim();
+  if (visible) {
+    return visible;
+  }
+  return `${row.data_label} - ${row.record_label || "All"}`;
+}
+
+function splitTags(tag: string | undefined): string[] {
+  if (!tag || !tag.trim()) return [];
+  return tag.split(",").map((t) => t.trim()).filter(Boolean);
+}
+
+function sortKey(item: SummaryStat): number {
+  if (item.last_activity) {
+    return new Date(item.last_activity).getTime();
+  }
+  if (item.last_updated) {
+    return new Date(item.last_updated).getTime();
+  }
+  if (item.negotiation_date_range?.max_date) {
+    return new Date(item.negotiation_date_range.max_date).getTime();
+  }
+  return 0;
+}
+
 function ActivityDatesCell({
   lastActivity,
   lastUpdated,
@@ -109,16 +163,17 @@ function ActivityDatesCell({
   lastUpdated: string;
   dateRange?: { min_date: string | null; max_date: string | null };
 }) {
-  const dateRangeDisplay = dateRange && dateRange.min_date && dateRange.max_date
-    ? (dateRange.min_date === dateRange.max_date
+  const dateRangeDisplay =
+    dateRange && dateRange.min_date && dateRange.max_date
+      ? dateRange.min_date === dateRange.max_date
         ? { single: true, date: new Date(dateRange.min_date).toLocaleDateString() }
-        : { 
-            single: false, 
+        : {
+            single: false,
             first: new Date(dateRange.min_date).toLocaleDateString(),
-            last: new Date(dateRange.max_date).toLocaleDateString()
-          })
-    : null;
-  const lastActivityText = lastActivity 
+            last: new Date(dateRange.max_date).toLocaleDateString(),
+          }
+      : null;
+  const lastActivityText = lastActivity
     ? new Date(lastActivity).toLocaleString()
     : null;
 
@@ -128,27 +183,23 @@ function ActivityDatesCell({
         <>
           <div className="space-y-1">
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Last Modified
+              Last activity
             </div>
-            <div className="text-sm text-gray-900">
-              {lastActivityText}
-            </div>
+            <div className="text-sm text-gray-900">{lastActivityText}</div>
           </div>
           {dateRangeDisplay && (
             <div className="pt-2 border-t border-gray-200">
               {dateRangeDisplay.single ? (
                 <div className="space-y-1">
                   <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Created
+                    Request created
                   </div>
-                  <div className="text-xs text-gray-700">
-                    {dateRangeDisplay.date}
-                  </div>
+                  <div className="text-xs text-gray-700">{dateRangeDisplay.date}</div>
                 </div>
               ) : (
                 <div className="space-y-1">
                   <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Created
+                    Request created
                   </div>
                   <div className="text-xs text-gray-700 space-y-0.5">
                     <div>
@@ -177,7 +228,6 @@ export default function OwnerSummaryPage() {
   const queryClient = useQueryClient();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Add authentication check (like owner list page)
   const whoamiQuery = useQuery({
     queryKey: ["owner", "whoami"],
     queryFn: async () => {
@@ -195,23 +245,22 @@ export default function OwnerSummaryPage() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetchApi('/drt/owner/logout/', {
-        method: 'POST',
+      const response = await fetchApi("/drt/owner/logout/", {
+        method: "POST",
       });
       if (!response.ok) {
-        throw new Error('Logout failed');
+        throw new Error("Logout failed");
       }
       return response.json();
     },
     onSuccess: () => {
       queryClient.clear();
-      router.push('/negotiation/owner/email-entry');
+      router.push("/negotiation/owner/email-entry");
     },
     onError: (error) => {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       setIsLoggingOut(false);
-      // Still redirect even if logout fails
-      router.push('/negotiation/owner/email-entry');
+      router.push("/negotiation/owner/email-entry");
     },
   });
 
@@ -220,210 +269,103 @@ export default function OwnerSummaryPage() {
     logoutMutation.mutate();
   };
 
-  // ——— filter state ———
-  const [dataLabel, setDataLabel] = useState<string>("");
+  const [dataLabel, setDataLabel] = useState<string[]>([]);
   const [tag, setTag] = useState<string[]>([]);
   const [recordLabel, setRecordLabel] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
-  // ——— React Query: load summary stats with filters ———
   const summaryQuery = useQuery<SummaryStat[], Error>({
     queryKey: ["owner", "summary-statistics", tag, dataLabel, recordLabel, startDate, endDate],
-    queryFn: () => fetchSummaryStats(
-      tag, 
-      dataLabel || undefined, 
-      recordLabel.length > 0 ? recordLabel : undefined, 
-      false,
-      startDate || undefined, 
-      endDate || undefined,
-      true  // Request grouped data from backend
-    ),
-    staleTime: 1000 * 60 * 5, // 5m
+    queryFn: () =>
+      fetchSummaryStats(
+        tag,
+        dataLabel.length > 0 ? dataLabel : undefined,
+        recordLabel.length > 0 ? recordLabel : undefined,
+        false,
+        startDate || undefined,
+        endDate || undefined,
+        true
+      ),
+    staleTime: 1000 * 60 * 5,
     retry: 1,
-    enabled: !!whoamiQuery.data, // Only fetch if authenticated
+    enabled: !!whoamiQuery.data,
   });
 
-  // ——— React Query: load all summary stats (unfiltered) for filter options ———
   const allStatsQuery = useQuery<SummaryStat[], Error>({
     queryKey: ["owner", "summary-statistics", "all", "options"],
-    queryFn: () => fetchSummaryStats(undefined, undefined, undefined, true), 
-    staleTime: 1000 * 60 * 5, 
+    queryFn: () => fetchSummaryStats(undefined, undefined, undefined, true),
+    staleTime: 1000 * 60 * 5,
     retry: 1,
-    enabled: !!whoamiQuery.data, 
+    enabled: !!whoamiQuery.data,
   });
 
-  const hasNoDataError = summaryQuery.isError && 
-    summaryQuery.error?.message?.toLowerCase().includes('no summary statistics found');
-  
+  const hasNoDataError =
+    summaryQuery.isError &&
+    summaryQuery.error?.message?.toLowerCase().includes("no summary statistics found");
+
   const allData = useMemo(() => {
     if (hasNoDataError) return [];
     return summaryQuery.data ?? [];
   }, [summaryQuery.data, hasNoDataError]);
-  const allStatsForOptions = useMemo(() => allStatsQuery.data ?? [], [allStatsQuery.data]);
+  const allStatsForOptions = useMemo(
+    () => allStatsQuery.data ?? [],
+    [allStatsQuery.data]
+  );
 
-  // ——— Derive filter options from unfiltered data ———
   const dataLabelOptions = useMemo(
-    () => Array.from(new Set(allStatsForOptions.map((d) => d.data_label).filter((dl): dl is string => Boolean(dl)))),
+    () =>
+      Array.from(
+        new Set(
+          allStatsForOptions
+            .map((d) => d.data_label)
+            .filter((dl): dl is string => Boolean(dl))
+        )
+      ),
     [allStatsForOptions]
   );
-  const tagOptions = useMemo(
-    () => {
-      // Extract individual tags from tag field
-      const allTags = new Set<string>();
-      allStatsForOptions.forEach(d => {
-        if (d.tag && d.tag.trim()) {
-          // Handle comma-separated tags from backend
-          const tags = d.tag.split(',').map(t => t.trim()).filter(t => t);
-          tags.forEach(t => allTags.add(t));
-        }
-      });
-      return Array.from(allTags).sort();
-    },
-    [allStatsForOptions]
-  );
-  const recordLabelOptions = useMemo(
-    () => Array.from(new Set(allStatsForOptions.map((d) => typeof d.record_label === 'string' && d.record_label ? d.record_label : undefined).filter((l): l is string => typeof l === 'string' && Boolean(l)))),
-    [allStatsForOptions]
-  );
-
-  const filteredData = useMemo(() => {
-    return allData; // Backend handles date filtering via API
-  }, [allData]);
-
-
-  const groupedData = useMemo(() => {
-    const isTagView = tag.length > 0;
-    
-    let data;
-    if (!isTagView) {
-      data = filteredData;
-    } else {
-      if (filteredData.length === 0) return [];
-      
-      const tagData = filteredData[0]; // Backend returns single combined row
-      const tagsList = tagData.tag ? tagData.tag.split(',').map(t => t.trim()) : tag;
-      
-      data = [{
-        tags: tagsList,
-        total_requests: tagData.total_requests,
-        accepted_requests: tagData.accepted_requests,
-        rejected_requests: tagData.rejected_requests,
-        requestor_open: tagData.requestor_open,
-        owner_open: tagData.owner_open,
-        abandoned_requests: tagData.abandoned_requests || 0,
-        archived_requests: tagData.archived_requests || 0,
-        last_updated: tagData.last_updated || tagData.generated_at,
-        last_activity: tagData.last_activity || null,
-        negotiation_date_range: tagData.negotiation_date_range,
-      }];
-    }
-
-    // Sort by date (most recent first)
-    return [...data].sort((a, b) => {
-      const getDateValue = (item: any): number => {
-        if (item.last_activity) {
-          return new Date(item.last_activity).getTime();
-        }
-        if (item.last_updated) {
-          return new Date(item.last_updated).getTime();
-        }
-        if (item.negotiation_date_range?.max_date) {
-          return new Date(item.negotiation_date_range.max_date).getTime();
-        }
-        return 0;
-      };
-
-      const dateA = getDateValue(a);
-      const dateB = getDateValue(b);
-      
-      // Sort descending (most recent first)
-      return dateB - dateA;
+  const tagOptions = useMemo(() => {
+    const allTags = new Set<string>();
+    allStatsForOptions.forEach((d) => {
+      splitTags(d.tag).forEach((t) => allTags.add(t));
     });
-  }, [filteredData, tag]);
+    return Array.from(allTags).sort();
+  }, [allStatsForOptions]);
+  const recordLabelOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          allStatsForOptions
+            .map((d) =>
+              typeof d.record_label === "string" && d.record_label
+                ? d.record_label
+                : undefined
+            )
+            .filter((l): l is string => typeof l === "string" && Boolean(l))
+        )
+      ),
+    [allStatsForOptions]
+  );
 
-  // Chart data
+  const groupedData = useMemo(
+    () => [...allData].sort((a, b) => sortKey(b) - sortKey(a)),
+    [allData]
+  );
+
+  const invalidRows = useMemo(
+    () => groupedData.filter((row) => row.validation_status && !row.validation_status.is_valid),
+    [groupedData]
+  );
+
   const chartData = useMemo(
-    () => {
-      const isTagView = tag.length > 0;
-      // Handle empty data case
-      if (groupedData.length === 0) {
-        return {
-          labels: [],
-          datasets: [
-            {
-              label: "Total",
-              data: [],
-            },
-            {
-              label: "Accepted",
-              data: [],
-            },
-            {
-              label: "Rejected",
-              data: [],
-            },
-            {
-              label: "Req. Open",
-              data: [],
-            },
-            {
-              label: "Own. Open",
-              data: [],
-            },
-            {
-              label: "Abandoned",
-              data: [],
-            },
-            {
-              label: "Archived",
-              data: [],
-            },
-          ],
-        };
-      }
-      return {
-        labels: groupedData.map((d) => {
-          if (isTagView) {
-            // Show all selected tags as label
-            return (d as any).tags.join(", ");
-          } else {
-            return `${(d as any).data_label} - ${(d as any).record_label || "All"}`;
-          }
-        }),
-        datasets: [
-          {
-            label: "Total",
-            data: groupedData.map((d) => d.total_requests),
-          },
-          {
-            label: "Accepted",
-            data: groupedData.map((d) => d.accepted_requests),
-          },
-          {
-            label: "Rejected",
-            data: groupedData.map((d) => d.rejected_requests),
-          },
-          {
-            label: "Req. Open",
-            data: groupedData.map((d) => d.requestor_open),
-          },
-          {
-            label: "Own. Open",
-            data: groupedData.map((d) => d.owner_open),
-          },
-          {
-            label: "Abandoned",
-            data: groupedData.map((d) => d.abandoned_requests || 0),
-          },
-          {
-            label: "Archived",
-            data: groupedData.map((d) => d.archived_requests || 0),
-          },
-        ],
-      };
-    },
-    [groupedData, tag]
+    () => ({
+      labels: groupedData.map(rowLabel),
+      datasets: CHART_DATASETS.map((dataset) => ({
+        label: dataset.label,
+        data: groupedData.map((d) => d[dataset.key] || 0),
+      })),
+    }),
+    [groupedData]
   );
 
   if (whoamiQuery.isLoading) {
@@ -438,7 +380,6 @@ export default function OwnerSummaryPage() {
     return null;
   }
 
-  // Common Header component props
   const headerProps = {
     title: "Summary Statistics",
     homepageLink: {
@@ -457,7 +398,6 @@ export default function OwnerSummaryPage() {
   return (
     <Providers>
       <main className="min-h-dvh bg-white flex flex-col">
-        {/* Header Bar */}
         <Header {...headerProps} />
 
         <div className="w-full overflow-x-hidden">
@@ -483,17 +423,17 @@ export default function OwnerSummaryPage() {
                   onDataLabelChange={setDataLabel}
                   tagOptions={tagOptions}
                   selectedTag={tag}
-                  onTagChange={(v: string[]) => setTag(v)}
+                  onTagChange={setTag}
                   recordLabelOptions={recordLabelOptions}
                   selectedRecordLabel={recordLabel}
-                  onRecordLabelChange={(v: string[]) => setRecordLabel(v)}
+                  onRecordLabelChange={setRecordLabel}
                   startDate={startDate}
                   endDate={endDate}
                   onDateChange={(field, v) =>
                     field === "start" ? setStartDate(v) : setEndDate(v)
                   }
                   onReset={() => {
-                    setDataLabel("");
+                    setDataLabel([]);
                     setTag([]);
                     setRecordLabel([]);
                     setStartDate("");
@@ -503,7 +443,12 @@ export default function OwnerSummaryPage() {
               </aside>
 
               <div className="flex-1 space-y-8 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
-                <h1 className="text-2xl sm:text-3xl font-bold">Summary Statistics</h1>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold">Summary Statistics</h1>
+                  <p className="mt-2 text-sm text-gray-600">
+                    These figures are decisions on requests, not file access.
+                  </p>
+                </div>
 
                 <section className="bg-white p-4 rounded shadow">
                   <Bar
@@ -513,13 +458,13 @@ export default function OwnerSummaryPage() {
                       maintainAspectRatio: false,
                       plugins: {
                         legend: { position: "top" },
-                        title: { display: true, text: "Requests Overview" },
+                        title: { display: true, text: "Request outcomes" },
                       },
                     }}
                   />
                 </section>
 
-                <div className="bg-[rgba(180,230,160,0.3)] border-l-4 border-[rgb(70,160,35)] p-4 mb-4 rounded">
+                <div className="bg-[rgba(180,230,160,0.3)] border-l-4 border-[rgb(70,160,35)] p-4 rounded">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <span className="text-[rgb(70,160,35)] text-lg">ℹ️</span>
@@ -528,67 +473,59 @@ export default function OwnerSummaryPage() {
                       <p className="text-sm text-[rgb(55,125,28)]">
                         {tag.length > 0 ? (
                           <>
-                            <strong>Tag-Filtered View:</strong> All selected tags are combined into a single row. 
-                            Statistics from all selected tags are <strong>summed together</strong> across all data labels 
-                            and record labels to show the total combined statistics.
+                            <strong>Tag filter (AND):</strong> Showing cases that have{" "}
+                            <strong>all</strong> of the selected tags. Each row is still one
+                            dataset (record label + data label), not a summed total.
                           </>
                         ) : (
                           <>
-                            <strong>Record Label View:</strong> Statistics are grouped by record label and data label, 
-                            showing all records (no tag filtering applied).
+                            <strong>Record label view:</strong> Statistics are grouped by
+                            dataset id, record label, and data label. No tag filtering applied.
                           </>
                         )}
                       </p>
                     </div>
                   </div>
                 </div>
+
+                {invalidRows.length > 0 && (
+                  <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded text-red-800">
+                    <p className="text-sm font-medium">
+                      Some rows failed the state-count identity check (counts do not sum to
+                      Total).
+                    </p>
+                    <ul className="mt-2 text-sm list-disc list-inside space-y-1">
+                      {invalidRows.map((row, idx) => (
+                        <li key={`invalid-${rowLabel(row)}-${idx}`}>
+                          {rowLabel(row)}
+                          {row.validation_status?.message
+                            ? `: ${row.validation_status.message}`
+                            : ""}
+                          {typeof row.validation_status?.difference === "number"
+                            ? ` (difference ${row.validation_status.difference})`
+                            : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <section className="overflow-x-auto">
                   <table className="min-w-full bg-white border">
                     <thead>
                       <tr className="bg-gray-100">
-                        {tag.length > 0 ? (
-                          // Tag view headers (grouped by tag only, no data_label)
-                          [
-                            "Tag",
-                            "Total",
-                            "Accepted",
-                            "Rejected",
-                            "Req. Open",
-                            "Own. Open",
-                            "Abandoned",
-                            "Archived",
-                            "Activity & Dates",
-                          ].map((header) => (
-                            <th key={header} className="border px-4 py-2">
-                              {header}
-                            </th>
-                          ))
-                        ) : (
-                          // Record label view headers
-                          [
-                            "Record Label",
-                            "Data Label",
-                            "Total",
-                            "Accepted",
-                            "Rejected",
-                            "Req. Open",
-                            "Own. Open",
-                            "Abandoned",
-                            "Archived",
-                            "Activity & Dates",
-                          ].map((header) => (
-                            <th key={header} className="border px-4 py-2">
-                              {header}
-                            </th>
-                          ))
-                        )}
+                        {TABLE_HEADERS.map((header) => (
+                          <th key={header} className="border px-4 py-2">
+                            {header}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
                       {groupedData.length === 0 ? (
                         <tr>
-                          <td 
-                            colSpan={tag.length > 0 ? 9 : 10} 
+                          <td
+                            colSpan={TABLE_HEADERS.length}
                             className="border px-4 py-8 text-center text-gray-500"
                           >
                             No data available
@@ -596,64 +533,53 @@ export default function OwnerSummaryPage() {
                         </tr>
                       ) : (
                         groupedData.map((d, idx) => {
-                        if (tag.length > 0) {
-                          // Tag view rows
-                          const tagData = d as { tags: string[]; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; abandoned_requests?: number; archived_requests?: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
+                          const tagsList = splitTags(d.tag);
+                          const invalid = Boolean(
+                            d.validation_status && !d.validation_status.is_valid
+                          );
                           return (
-                            <tr key={`tags-${tagData.tags.join("-")}-${idx}`}>
+                            <tr
+                              key={`record-${d.dataset_ID}-${d.record_label}-${d.data_label}-${idx}`}
+                              className={invalid ? "bg-red-50" : undefined}
+                            >
                               <td className="border px-4 py-2">
-                                <div className="flex flex-wrap gap-1">
-                                  {tagData.tags.map((t, tagIdx) => (
-                                    <span
-                                      key={tagIdx}
-                                      className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-medium px-2 py-1 rounded"
-                                    >
-                                      {t}
-                                    </span>
-                                  ))}
-                                </div>
+                                <div>{d.record_label || "All"}</div>
+                                {tagsList.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {tagsList.map((t) => (
+                                      <span
+                                        key={t}
+                                        className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-medium px-2 py-1 rounded"
+                                      >
+                                        {t}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </td>
-                              <td className="border px-4 py-2">{tagData.total_requests}</td>
-                              <td className="border px-4 py-2">{tagData.accepted_requests}</td>
-                              <td className="border px-4 py-2">{tagData.rejected_requests}</td>
-                              <td className="border px-4 py-2">{tagData.requestor_open}</td>
-                              <td className="border px-4 py-2">{tagData.owner_open}</td>
-                              <td className="border px-4 py-2">{tagData.abandoned_requests || 0}</td>
-                              <td className="border px-4 py-2">{tagData.archived_requests || 0}</td>
+                              <td className="border px-4 py-2">{d.data_label}</td>
+                              <td className="border px-4 py-2">{d.visible_label || "—"}</td>
+                              <td className="border px-4 py-2 font-mono text-xs">
+                                {d.dataset_ID || "—"}
+                              </td>
+                              <td className="border px-4 py-2">{d.total_requests}</td>
+                              <td className="border px-4 py-2">{d.accepted_requests}</td>
+                              <td className="border px-4 py-2">{d.rejected_requests}</td>
+                              <td className="border px-4 py-2">{d.requestor_open}</td>
+                              <td className="border px-4 py-2">{d.owner_open}</td>
+                              <td className="border px-4 py-2">{d.abandoned_requests || 0}</td>
+                              <td className="border px-4 py-2">{d.archived_requests || 0}</td>
+                              <td className="border px-4 py-2">{d.canceled_requests || 0}</td>
                               <td className="border px-4 py-2">
                                 <ActivityDatesCell
-                                  lastActivity={tagData.last_activity}
-                                  lastUpdated={tagData.last_updated}
-                                  dateRange={tagData.negotiation_date_range}
+                                  lastActivity={d.last_activity}
+                                  lastUpdated={d.last_updated || d.generated_at}
+                                  dateRange={d.negotiation_date_range}
                                 />
                               </td>
                             </tr>
                           );
-                        } else {
-                          // Record label view rows
-                          const recordData = d as { record_label: string; data_label: string; total_requests: number; accepted_requests: number; rejected_requests: number; requestor_open: number; owner_open: number; abandoned_requests?: number; archived_requests?: number; last_updated: string; last_activity?: string | null; negotiation_date_range?: { min_date: string | null; max_date: string | null }; };
-                          return (
-                            <tr key={`record-${recordData.record_label}-${recordData.data_label}-${idx}`}>
-                              <td className="border px-4 py-2">{recordData.record_label || "All"}</td>
-                              <td className="border px-4 py-2">{recordData.data_label}</td>
-                              <td className="border px-4 py-2">{recordData.total_requests}</td>
-                              <td className="border px-4 py-2">{recordData.accepted_requests}</td>
-                              <td className="border px-4 py-2">{recordData.rejected_requests}</td>
-                              <td className="border px-4 py-2">{recordData.requestor_open}</td>
-                              <td className="border px-4 py-2">{recordData.owner_open}</td>
-                              <td className="border px-4 py-2">{recordData.abandoned_requests || 0}</td>
-                              <td className="border px-4 py-2">{recordData.archived_requests || 0}</td>
-                              <td className="border px-4 py-2">
-                                <ActivityDatesCell
-                                  lastActivity={recordData.last_activity}
-                                  lastUpdated={recordData.last_updated}
-                                  dateRange={recordData.negotiation_date_range}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        }
-                      })
+                        })
                       )}
                     </tbody>
                   </table>

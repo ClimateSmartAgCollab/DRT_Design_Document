@@ -80,6 +80,8 @@ def export_summary_to_drt(owner_id=None):
                 negotiation__state='abandoned')),
             archived_requests=Count('negotiation', filter=Q(
                 negotiation__state='archived')),
+            canceled_requests=Count('negotiation', filter=Q(
+                negotiation__state='canceled')),
         )
     )
     stats_count = per_group_stats.count()
@@ -131,6 +133,7 @@ def export_summary_to_drt(owner_id=None):
             'owner_open':        grp['owner_open'],
             'abandoned_requests': grp['abandoned_requests'],
             'archived_requests': grp['archived_requests'],
+            'canceled_requests': grp['canceled_requests'],
             'requestor_domains': requestor_domains,
             'generated_at':      timezone.now().isoformat(),
             'negotiation_date_range': {
@@ -212,6 +215,8 @@ def export_summary_to_drt(owner_id=None):
                     negotiation__state='abandoned')),
                 archived_requests=Count('negotiation', filter=Q(
                     negotiation__state='archived')),
+                canceled_requests=Count('negotiation', filter=Q(
+                    negotiation__state='canceled')),
             )
             
             # Calculate date range and latest activity for this tag
@@ -229,6 +234,7 @@ def export_summary_to_drt(owner_id=None):
                 'owner_open':        tag_stats['owner_open'],
                 'abandoned_requests': tag_stats['abandoned_requests'],
                 'archived_requests': tag_stats['archived_requests'],
+                'canceled_requests': tag_stats['canceled_requests'],
                 'requestor_domains': count_requestor_domains(
                     NLink.objects.filter(tag_filter).values_list('requestor_email', flat=True)
                 ),
@@ -346,6 +352,30 @@ def owner_links_api(request):
     return JsonResponse({"links": entries})
 
 
+def _dt_iso(value):
+    if value is None:
+        return None
+    if hasattr(value, 'isoformat'):
+        return value.isoformat()
+    return value
+
+
+def _summary_state_annotations():
+    return dict(
+        total_requests=Count('negotiation'),
+        accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
+        rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
+        requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
+        owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
+        abandoned_requests=Count('negotiation', filter=Q(negotiation__state='abandoned')),
+        archived_requests=Count('negotiation', filter=Q(negotiation__state='archived')),
+        canceled_requests=Count('negotiation', filter=Q(negotiation__state='canceled')),
+        min_date=Min('negotiation__timestamps'),
+        max_date=Max('negotiation__timestamps'),
+        last_activity=Max('last_activity'),
+    )
+
+
 def _validate_summary_stats(stat):
     """
     Validate that all state counts sum exactly to total_requests.
@@ -357,53 +387,106 @@ def _validate_summary_stats(stat):
     owner_open = stat.get('owner_open', 0)
     abandoned = stat.get('abandoned_requests', 0)
     archived = stat.get('archived_requests', 0)
-    
+    canceled = stat.get('canceled_requests', 0)
+
     sum_of_all_states = (
-        accepted + rejected + requestor_open + owner_open + abandoned + archived
+        accepted + rejected + requestor_open + owner_open + abandoned + archived + canceled
     )
-    
+
     if sum_of_all_states != total:
         difference = abs(total - sum_of_all_states)
         return {
             'is_valid': False,
-            'message': f'Data inconsistency: State counts ({sum_of_all_states}) do not match total requests ({total}). Difference: {difference}',
+            'message': (
+                f'Data inconsistency: State counts ({sum_of_all_states}) do not match '
+                f'total requests ({total}). Difference: {difference}'
+            ),
             'difference': difference
         }
-    else:
-        return {
-            'is_valid': True,
-            'message': None,
-            'difference': 0
+    return {
+        'is_valid': True,
+        'message': None,
+        'difference': 0
+    }
+
+
+def _attach_validation(entry):
+    validation = _validate_summary_stats(entry)
+    if not validation['is_valid']:
+        logger.warning(
+            f"Invalid stats for {entry.get('record_label', '')}/{entry.get('data_label', '')}: "
+            f"{validation['message']}"
+        )
+    entry['validation_status'] = validation
+    return entry
+
+
+def _summary_group_key(row):
+    return (
+        f"{row.get('dataset_ID') or ''}|"
+        f"{row.get('record_label') or ''}|"
+        f"{row.get('data_label') or ''}|"
+        f"{row.get('visible_label') or ''}"
+    )
+
+
+def _summary_row_from_group(grp, *, tag=''):
+    now_iso = timezone.now().isoformat()
+    date_range = grp.get('negotiation_date_range')
+    if isinstance(date_range, dict):
+        date_range = {
+            'min_date': _dt_iso(date_range.get('min_date')),
+            'max_date': _dt_iso(date_range.get('max_date')),
         }
+    else:
+        date_range = {
+            'min_date': _dt_iso(grp.get('min_date')),
+            'max_date': _dt_iso(grp.get('max_date')),
+        }
+
+    return _attach_validation({
+        'dataset_ID': grp.get('dataset_ID') or '',
+        'visible_label': grp.get('visible_label') or '',
+        'data_label': grp.get('data_label') or '',
+        'tag': tag,
+        'record_label': grp.get('record_label') or '',
+        'total_requests': grp.get('total_requests', 0) or 0,
+        'accepted_requests': grp.get('accepted_requests', 0) or 0,
+        'rejected_requests': grp.get('rejected_requests', 0) or 0,
+        'requestor_open': grp.get('requestor_open', 0) or 0,
+        'owner_open': grp.get('owner_open', 0) or 0,
+        'abandoned_requests': grp.get('abandoned_requests', 0) or 0,
+        'archived_requests': grp.get('archived_requests', 0) or 0,
+        'canceled_requests': grp.get('canceled_requests', 0) or 0,
+        'generated_at': grp.get('generated_at') or now_iso,
+        'last_updated': grp.get('last_updated') or grp.get('generated_at') or now_iso,
+        'last_activity': _dt_iso(grp.get('last_activity')),
+        'negotiation_date_range': date_range,
+    })
 
 
 def _group_summary_statistics(statistics_data):
     """
-    Group summary statistics by (record_label, data_label) 
+    Group summary statistics by (dataset_ID, record_label, data_label, visible_label).
     """
-    no_tag_records = [d for d in statistics_data if not d.get('tag') or d.get('tag') == '']
-    tagged_records = [d for d in statistics_data if d.get('tag') and d.get('tag') != '']
-    
-    groups_with_tags = set()
-    for d in tagged_records:
-        key = f"{d.get('record_label', '')}|{d.get('data_label', '')}"
-        groups_with_tags.add(key)
-    
+    tagged_records = [d for d in statistics_data if d.get('tag')]
+    groups_with_tags = {_summary_group_key(d) for d in tagged_records}
+
     grouped_map = {}
-    
+
     for d in statistics_data:
-        key = f"{d.get('record_label', '')}|{d.get('data_label', '')}"
-        is_no_tag_record = not d.get('tag') or d.get('tag') == ''
-        has_tagged_records = key in groups_with_tags
-        
-        
-        if is_no_tag_record and has_tagged_records:
+        key = _summary_group_key(d)
+        is_no_tag_record = not d.get('tag')
+        if is_no_tag_record and key in groups_with_tags:
             continue
-        
+
         if key not in grouped_map:
             grouped_map[key] = {
+                'dataset_ID': d.get('dataset_ID') or '',
+                'visible_label': d.get('visible_label') or '',
                 'record_label': d.get('record_label', ''),
                 'data_label': d.get('data_label', ''),
+                'tag': d.get('tag') or '',
                 'total_requests': d.get('total_requests', 0),
                 'accepted_requests': d.get('accepted_requests', 0),
                 'rejected_requests': d.get('rejected_requests', 0),
@@ -411,51 +494,44 @@ def _group_summary_statistics(statistics_data):
                 'owner_open': d.get('owner_open', 0),
                 'abandoned_requests': d.get('abandoned_requests', 0),
                 'archived_requests': d.get('archived_requests', 0),
+                'canceled_requests': d.get('canceled_requests', 0),
                 'last_updated': d.get('last_updated') or d.get('generated_at', ''),
                 'last_activity': d.get('last_activity'),
-                'negotiation_date_range': d.get('negotiation_date_range', {}),
+                'negotiation_date_range': dict(d.get('negotiation_date_range') or {}),
             }
-        else:
-            entry = grouped_map[key]
-            entry['total_requests'] += d.get('total_requests', 0)
-            entry['accepted_requests'] += d.get('accepted_requests', 0)
-            entry['rejected_requests'] += d.get('rejected_requests', 0)
-            entry['requestor_open'] += d.get('requestor_open', 0)
-            entry['owner_open'] += d.get('owner_open', 0)
-            entry['abandoned_requests'] += d.get('abandoned_requests', 0)
-            entry['archived_requests'] += d.get('archived_requests', 0)
-            
-            current_updated = d.get('last_updated') or d.get('generated_at', '')
-            if current_updated and current_updated > entry['last_updated']:
-                entry['last_updated'] = current_updated
-            
-            current_activity = d.get('last_activity')
-            if current_activity and (not entry['last_activity'] or current_activity > entry['last_activity']):
-                entry['last_activity'] = current_activity
-            
-            incoming_range = d.get('negotiation_date_range', {})
-            if incoming_range:
-                if not entry['negotiation_date_range']:
-                    entry['negotiation_date_range'] = incoming_range
-                else:
-                    existing = entry['negotiation_date_range']
-                    if incoming_range.get('min_date') and (not existing.get('min_date') or incoming_range['min_date'] < existing['min_date']):
-                        existing['min_date'] = incoming_range['min_date']
-                    if incoming_range.get('max_date') and (not existing.get('max_date') or incoming_range['max_date'] > existing['max_date']):
-                        existing['max_date'] = incoming_range['max_date']
-    
-    # Validate each grouped entry and add validation status
-    result = []
-    for entry in grouped_map.values():
-        validation = _validate_summary_stats(entry)
-        if not validation['is_valid']:
-            logger.warning(
-                f"Invalid stats for {entry.get('record_label', '')}/{entry.get('data_label', '')}: {validation['message']}"
-            )
-        entry['validation_status'] = validation
-        result.append(entry)
-    
-    return result
+            continue
+
+        entry = grouped_map[key]
+        entry['total_requests'] += d.get('total_requests', 0)
+        entry['accepted_requests'] += d.get('accepted_requests', 0)
+        entry['rejected_requests'] += d.get('rejected_requests', 0)
+        entry['requestor_open'] += d.get('requestor_open', 0)
+        entry['owner_open'] += d.get('owner_open', 0)
+        entry['abandoned_requests'] += d.get('abandoned_requests', 0)
+        entry['archived_requests'] += d.get('archived_requests', 0)
+        entry['canceled_requests'] += d.get('canceled_requests', 0)
+
+        current_updated = d.get('last_updated') or d.get('generated_at', '')
+        if current_updated and current_updated > entry['last_updated']:
+            entry['last_updated'] = current_updated
+
+        current_activity = d.get('last_activity')
+        if current_activity and (not entry['last_activity'] or current_activity > entry['last_activity']):
+            entry['last_activity'] = current_activity
+
+        incoming_range = d.get('negotiation_date_range') or {}
+        if incoming_range:
+            existing = entry['negotiation_date_range']
+            if incoming_range.get('min_date') and (
+                not existing.get('min_date') or incoming_range['min_date'] < existing['min_date']
+            ):
+                existing['min_date'] = incoming_range['min_date']
+            if incoming_range.get('max_date') and (
+                not existing.get('max_date') or incoming_range['max_date'] > existing['max_date']
+            ):
+                existing['max_date'] = incoming_range['max_date']
+
+    return [_attach_validation(entry) for entry in grouped_map.values()]
 
 
 @owner_auth_required
@@ -482,9 +558,9 @@ def summary_statistics_view(request):
         return JsonResponse({'summary_statistics': []})
 
     # Get filter parameters
-    tags_filter = request.GET.getlist("tags")  # Multiple tags = AND logic
-    data_label_filter = request.GET.get("data_label")
-    record_label_filter = request.GET.getlist("record_label")
+    tags_filter = [tag.strip() for tag in request.GET.getlist("tags") if tag and tag.strip()]
+    data_label_filter = [lbl.strip() for lbl in request.GET.getlist("data_label") if lbl and lbl.strip()]
+    record_label_filter = [lbl.strip() for lbl in request.GET.getlist("record_label") if lbl and lbl.strip()]
     include_all_tags = request.GET.get("include_all_tags", "false").lower() == "true"
     group_by = request.GET.get("group_by", "false").lower() == "true"
     
@@ -510,46 +586,16 @@ def summary_statistics_view(request):
 
             grouped_data = (
                 nlink_qs
-                .values('data_label', 'record_label', 'tags')
-                .annotate(
-                    total_requests=Count('negotiation'),
-                    accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
-                    rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
-                    requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
-                    owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
-                    abandoned_requests=Count('negotiation', filter=Q(negotiation__state='abandoned')),
-                    archived_requests=Count('negotiation', filter=Q(negotiation__state='archived')),
-                    min_date=Min('negotiation__timestamps'),
-                    max_date=Max('negotiation__timestamps'),
-                    last_activity=Max('last_activity'),
-                )
+                .values('dataset_ID', 'data_label', 'record_label', 'visible_label', 'tags')
+                .annotate(**_summary_state_annotations())
             )
-            
+
             statistics_data = []
             for grp in grouped_data:
                 tags_list = grp.get('tags') or []
                 tags_cleaned = [t for t in tags_list if t and str(t).strip()]
                 tag_str = ', '.join(sorted(tags_cleaned)) if tags_cleaned else ''
-                
-                statistics_data.append({
-                    'data_label': grp.get('data_label') or '',
-                    'tag': tag_str,
-                    'record_label': grp.get('record_label') or '',
-                    'total_requests': grp['total_requests'],
-                    'accepted_requests': grp['accepted_requests'],
-                    'rejected_requests': grp['rejected_requests'],
-                    'requestor_open': grp['requestor_open'],
-                    'owner_open': grp['owner_open'],
-                    'abandoned_requests': grp['abandoned_requests'],
-                    'archived_requests': grp['archived_requests'],
-                    'generated_at': timezone.now().isoformat(),
-                    'last_updated': timezone.now().isoformat(),
-                    'last_activity': grp['last_activity'].isoformat() if grp['last_activity'] else None,
-                    'negotiation_date_range': {
-                        'min_date': grp['min_date'].isoformat() if grp['min_date'] else None,
-                        'max_date': grp['max_date'].isoformat() if grp['max_date'] else None,
-                    }
-                })
+                statistics_data.append(_summary_row_from_group(grp, tag=tag_str))
 
             return JsonResponse({'summary_statistics': statistics_data})
         
@@ -557,14 +603,18 @@ def summary_statistics_view(request):
             nlink_filter = Q(owner_id__in=owner_ids)
             
             if tags_filter:
-                tags_filter_cleaned = [tag.strip() for tag in tags_filter]
-                for tag in tags_filter_cleaned:
-                    tag_q = Q(tags__contains=[tag]) | Q(tags__contains=[f' {tag}']) | Q(tags__contains=[f'{tag} ']) | Q(tags__contains=[f' {tag} '])
+                for tag in tags_filter:
+                    tag_q = (
+                        Q(tags__contains=[tag])
+                        | Q(tags__contains=[f' {tag}'])
+                        | Q(tags__contains=[f'{tag} '])
+                        | Q(tags__contains=[f' {tag} '])
+                    )
                     nlink_filter = nlink_filter & tag_q
-            
+
             if data_label_filter:
-                nlink_filter &= Q(data_label=data_label_filter)
-            
+                nlink_filter &= Q(data_label__in=data_label_filter)
+
             if record_label_filter:
                 nlink_filter &= Q(record_label__in=record_label_filter)
             
@@ -597,94 +647,29 @@ def summary_statistics_view(request):
                 except (ValueError, TypeError):
                     pass
             
-            if data_label_filter and record_label_filter and len(record_label_filter) == 1:
-                stats = NLink.objects.filter(nlink_filter).aggregate(
-                    total_requests=Count('negotiation'),
-                    accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
-                    rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
-                    requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
-                    owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
-                    abandoned_requests=Count('negotiation', filter=Q(negotiation__state='abandoned')),
-                    archived_requests=Count('negotiation', filter=Q(negotiation__state='archived')),
-                )
-                
-                # Calculate actual date range and latest activity of filtered negotiations
-                date_range = NLink.objects.filter(nlink_filter).aggregate(
-                    min_date=Min('negotiation__timestamps'),
-                    max_date=Max('negotiation__timestamps'),
-                    last_activity=Max('last_activity')
-                )
-                
-                statistics_data = [{
-                    'data_label': data_label_filter,
-                    'tag': ', '.join(sorted(tags_filter_cleaned)) if tags_filter else '',
-                    'record_label': record_label_filter[0],
-                    'total_requests': stats['total_requests'],
-                    'accepted_requests': stats['accepted_requests'],
-                    'rejected_requests': stats['rejected_requests'],
-                    'requestor_open': stats['requestor_open'],
-                    'owner_open': stats['owner_open'],
-                    'abandoned_requests': stats['abandoned_requests'],
-                    'archived_requests': stats['archived_requests'],
-                    'generated_at': timezone.now().isoformat(),
-                    'last_updated': timezone.now().isoformat(),
-                    'last_activity': date_range['last_activity'].isoformat() if date_range['last_activity'] else None,
-                    'negotiation_date_range': {
-                        'min_date': date_range['min_date'].isoformat() if date_range['min_date'] else None,
-                        'max_date': date_range['max_date'].isoformat() if date_range['max_date'] else None,
-                    }
-                }]
-            else:
-                grouped_stats = (
-                    NLink.objects
-                    .filter(nlink_filter)
-                    .values('data_label', 'record_label')
-                    .annotate(
-                        total_requests=Count('negotiation'),
-                        accepted_requests=Count('negotiation', filter=Q(negotiation__state='accepted')),
-                        rejected_requests=Count('negotiation', filter=Q(negotiation__state='rejected')),
-                        requestor_open=Count('negotiation', filter=Q(negotiation__state='requestor_open')),
-                        owner_open=Count('negotiation', filter=Q(negotiation__state='owner_open')),
-                        abandoned_requests=Count('negotiation', filter=Q(negotiation__state='abandoned')),
-                        archived_requests=Count('negotiation', filter=Q(negotiation__state='archived')),
-                        min_date=Min('negotiation__timestamps'),
-                        max_date=Max('negotiation__timestamps'),
-                        last_activity=Max('last_activity'),
-                    )
-                )
-                
-                statistics_data = []
-                for grp in grouped_stats:
-                    statistics_data.append({
-                        'data_label': grp['data_label'] or '',
-                        'tag': ', '.join(sorted(tags_filter_cleaned)) if tags_filter else '',
-                        'record_label': grp['record_label'] or '',
-                        'total_requests': grp['total_requests'],
-                        'accepted_requests': grp['accepted_requests'],
-                        'rejected_requests': grp['rejected_requests'],
-                        'requestor_open': grp['requestor_open'],
-                        'owner_open': grp['owner_open'],
-                        'abandoned_requests': grp['abandoned_requests'],
-                        'archived_requests': grp['archived_requests'],
-                        'generated_at': timezone.now().isoformat(),
-                        'last_updated': timezone.now().isoformat(),
-                        'last_activity': grp['last_activity'].isoformat() if grp['last_activity'] else None,
-                        'negotiation_date_range': {
-                            'min_date': grp['min_date'].isoformat() if grp['min_date'] else None,
-                            'max_date': grp['max_date'].isoformat() if grp['max_date'] else None,
-                        }
-                    })
+            grouped_stats = (
+                NLink.objects
+                .filter(nlink_filter)
+                .values('dataset_ID', 'data_label', 'record_label', 'visible_label')
+                .annotate(**_summary_state_annotations())
+            )
+
+            filter_tag = ', '.join(sorted(tags_filter)) if tags_filter else ''
+            statistics_data = [
+                _summary_row_from_group(grp, tag=filter_tag)
+                for grp in grouped_stats
+            ]
         else:
-            # use pre-aggregated SummaryStatistic records 
+            # use pre-aggregated SummaryStatistic records
             stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id__in=owner_ids)
-            
+
             if data_label_filter:
-                stats_qs = stats_qs.filter(data_label=data_label_filter)
+                stats_qs = stats_qs.filter(data_label__in=data_label_filter)
             if record_label_filter:
                 stats_qs = stats_qs.filter(record_label__in=record_label_filter)
-            
+
             stats_qs = stats_qs.filter(tag='')
-            
+
             if not stats_qs.exists():
                 logger.warning(
                     f"No SummaryStatistic found for owner_ids={owner_ids}, email={email}")
@@ -693,25 +678,28 @@ def summary_statistics_view(request):
             statistics_data = []
             for stat in stats_qs:
                 stats_block = stat.overall_stat or {}
-                date_range = stats_block.get('negotiation_date_range', {})
-                last_activity = stats_block.get('last_activity')
-                stat_entry = {
-                    'data_label': stat.data_label,
-                    'tag': stat.tag or '',
-                    'record_label': getattr(stat, 'record_label', ''),
-                    'total_requests': stats_block.get('total_requests', 0),
-                    'accepted_requests': stats_block.get('accepted_requests', 0),
-                    'rejected_requests': stats_block.get('rejected_requests', 0),
-                    'requestor_open': stats_block.get('requestor_open', 0),
-                    'owner_open': stats_block.get('owner_open', 0),
-                    'abandoned_requests': stats_block.get('abandoned_requests', 0),
-                    'archived_requests': stats_block.get('archived_requests', 0),
-                    'generated_at': stat.summary_date.isoformat(),
-                    'last_updated': stat.summary_date.isoformat(),
-                    'last_activity': last_activity,  
-                    'negotiation_date_range': date_range,
-                }
-                statistics_data.append(stat_entry)
+                nlink = stat.owner_id
+                statistics_data.append(_summary_row_from_group(
+                    {
+                        'dataset_ID': getattr(nlink, 'dataset_ID', '') or '',
+                        'visible_label': getattr(nlink, 'visible_label', '') or '',
+                        'data_label': stat.data_label,
+                        'record_label': getattr(stat, 'record_label', ''),
+                        'total_requests': stats_block.get('total_requests', 0),
+                        'accepted_requests': stats_block.get('accepted_requests', 0),
+                        'rejected_requests': stats_block.get('rejected_requests', 0),
+                        'requestor_open': stats_block.get('requestor_open', 0),
+                        'owner_open': stats_block.get('owner_open', 0),
+                        'abandoned_requests': stats_block.get('abandoned_requests', 0),
+                        'archived_requests': stats_block.get('archived_requests', 0),
+                        'canceled_requests': stats_block.get('canceled_requests', 0),
+                        'generated_at': stat.summary_date.isoformat(),
+                        'last_updated': stat.summary_date.isoformat(),
+                        'last_activity': stats_block.get('last_activity'),
+                        'negotiation_date_range': stats_block.get('negotiation_date_range', {}),
+                    },
+                    tag=stat.tag or '',
+                ))
         
         if group_by:
             statistics_data = _group_summary_statistics(statistics_data)
