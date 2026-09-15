@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_view, request_access,
                     fill_questionnaire, preview_questionnaire, verify_req_magic_link, negotiation_list_api_req,
                     owner_email_entry, verify_owner_magic_link, owner_review, archive_view,
-                    export_summary_to_drt_view, negotiation_list_api, delete_negotiation_files,
+                    negotiation_list_api, delete_negotiation_files,
                     delete_old_negotiations_view, summary_statistics_view, submission_view,
                     req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint, public_config,
                     csrf_token, regenerate_license_view, negotiation_history_view,
@@ -177,9 +177,6 @@ urlpatterns = [
     path('summary-statistics/',
          summary_statistics_view,
          name='summary_statistics'),
-    path('export_summary_to_drt/',
-         export_summary_to_drt_view,
-         name='export_summary_to_drt_view'),
 
     path("owner/links/", owner_links_api, name="owner_links_api"),
 

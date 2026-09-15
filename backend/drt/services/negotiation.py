@@ -13,18 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 def handle_negotiation_archive_and_summary(negotiation):
-    """Archives the negotiation and exports summary statistics."""
+    """Archives the negotiation."""
     from ..views import stats
 
     try:
-        # Extract owner_id from negotiation if available
-        owner_id = None
-        if hasattr(negotiation, 'link') and negotiation.link:
-            owner_id = negotiation.link.owner_id
-        
         with transaction.atomic():
-            # Only regenerate stats for the affected owner
-            stats.export_summary_to_drt(owner_id=owner_id)
             if not negotiation.archived:
                 stats.archive_negotiation(negotiation)
     except Exception as e:

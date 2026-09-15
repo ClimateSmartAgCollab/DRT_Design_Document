@@ -1,11 +1,11 @@
 from django.urls import NoReverseMatch, reverse
 from django.http import HttpResponse, JsonResponse
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db.models import Count, Q, Min, Max
 from django.utils.translation import gettext_lazy as _
 from django.utils.dateparse import parse_datetime, parse_date
-from ..models import NLink, Archive, SummaryStatistic, Negotiation
+from ..models import NLink, Archive, Negotiation
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -29,270 +29,9 @@ from datastore.cache_keys import (
 from drt.services.license import build_license_context, render_license
 from .questionnaire import create_archive_snapshot
 from django.conf import settings
-from ..utils.email_domain import count_requestor_domains
 
 
 logger = logging.getLogger(__name__)
-
-
-@admin_auth_required
-def export_summary_to_drt_view(_request):
-    """
-    HTTP GET → run the per-dataset export_summary_to_drt and return JSON status.
-    """
-    try:
-        export_summary_to_drt()
-        return JsonResponse({'message': 'Summary statistics exported successfully.'})
-    except Exception as e:
-        logger.error(
-            f"Failed to export summary stats via HTTP: {e}", exc_info=True)
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-def export_summary_to_drt(owner_id=None):
-    """
-    Aggregate and store anonymized summary statistics per (owner, dataset_ID, data_label),
-    and then break out per tag with correct, per-tag counts.
-    """
-    # Filter by owner_id if provided, otherwise process all owners
-    if owner_id:
-        nlink_filter = Q(owner_id=owner_id)
-        logger.info(f"Generating summary statistics for owner_id={owner_id}")
-    else:
-        nlink_filter = Q()
-        logger.info("Generating summary statistics for all owners")
-
-    per_group_stats = (
-        NLink.objects
-        .filter(nlink_filter)
-        .values('owner_id', 'dataset_ID', 'data_label', 'record_label')
-        .annotate(
-            total_requests=Count('negotiation'),
-            accepted_requests=Count('negotiation', filter=Q(
-                negotiation__state='accepted')),
-            rejected_requests=Count('negotiation',  filter=Q(
-                negotiation__state='rejected')),
-            requestor_open=Count('negotiation',    filter=Q(
-                negotiation__state='requestor_open')),
-            owner_open=Count('negotiation',        filter=Q(
-                negotiation__state='owner_open')),
-            abandoned_requests=Count('negotiation', filter=Q(
-                negotiation__state='abandoned')),
-            archived_requests=Count('negotiation', filter=Q(
-                negotiation__state='archived')),
-            canceled_requests=Count('negotiation', filter=Q(
-                negotiation__state='canceled')),
-        )
-    )
-    stats_count = per_group_stats.count()
-    logger.info(f"Found {stats_count} owner/dataset/record_label groups")
-
-    for grp in per_group_stats:
-        owner_pk = grp['owner_id']
-        ds_id = grp['dataset_ID']
-        ds_label = grp['data_label']
-        record_label = grp['record_label']
-
-        nlink = NLink.objects.filter(
-            owner_id=owner_pk,
-            dataset_ID=ds_id,
-            data_label=ds_label,
-            record_label=record_label,
-        ).first()
-        if not nlink:
-            logger.warning(
-                f"No NLink found for owner={owner_pk!r}, dataset_ID={ds_id!r}, data_label={ds_label!r}, record_label={record_label!r}; skipping."
-            )
-            continue
-        logger.info(
-            f"Using NLink pk={nlink.pk} for {owner_pk!r}/{ds_id!r}/{ds_label!r}/{record_label!r}")
-
-        group_links = NLink.objects.filter(
-            owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label
-        )
-        requestor_domains = count_requestor_domains(
-            group_links.values_list('requestor_email', flat=True)
-        )
-
-        date_range = NLink.objects.filter(
-            owner_id=owner_pk, 
-            dataset_ID=ds_id, 
-            data_label=ds_label, 
-            record_label=record_label
-        ).aggregate(
-            min_date=Min('negotiation__timestamps'),
-            max_date=Max('negotiation__timestamps'),
-            last_activity=Max('last_activity')
-        )
-
-        overall_stat = {
-            'total_requests':    grp['total_requests'],
-            'accepted_requests': grp['accepted_requests'],
-            'rejected_requests': grp['rejected_requests'],
-            'requestor_open':    grp['requestor_open'],
-            'owner_open':        grp['owner_open'],
-            'abandoned_requests': grp['abandoned_requests'],
-            'archived_requests': grp['archived_requests'],
-            'canceled_requests': grp['canceled_requests'],
-            'requestor_domains': requestor_domains,
-            'generated_at':      timezone.now().isoformat(),
-            'negotiation_date_range': {
-                'min_date': date_range['min_date'].isoformat() if date_range['min_date'] else None,
-                'max_date': date_range['max_date'].isoformat() if date_range['max_date'] else None,
-            },
-            'last_activity': date_range['last_activity'].isoformat() if date_range['last_activity'] else None,
-        }
-        datasets_list = [ds_id]
-
-        # Handle potential duplicates by getting the most recent one first
-        try:
-            stat_obj, created = SummaryStatistic.objects.update_or_create(
-                owner_id=nlink,
-                datasets_requested=datasets_list,
-                data_label=ds_label,
-                tag='',  
-                record_label=record_label,
-                defaults={'overall_stat': overall_stat, 'record_label': record_label},
-            )
-            action = "Created" if created else "Updated"
-        except MultipleObjectsReturned:
-            # Handle duplicate records - get the most recent one and delete others
-            existing_stats = SummaryStatistic.objects.filter(
-                owner_id=nlink,
-                datasets_requested=datasets_list,
-                data_label=ds_label,
-                tag='',
-                record_label=record_label
-            ).order_by('-summary_date')
-            
-            # Keep the most recent one
-            stat_obj = existing_stats.first()
-            if stat_obj is None:
-                stat_obj = SummaryStatistic.objects.create(
-                    owner_id=nlink,
-                    datasets_requested=datasets_list,
-                    data_label=ds_label,
-                    tag='',
-                    record_label=record_label,
-                    overall_stat=overall_stat
-                )
-                created = True
-                action = "Created (after cleanup error)"
-            else:
-                all_stat_ids = list(existing_stats.values_list('id', flat=True))
-                duplicate_ids = all_stat_ids[1:]  
-                
-                if duplicate_ids:
-                    SummaryStatistic.objects.filter(id__in=duplicate_ids).delete()
-                
-                stat_obj.overall_stat = overall_stat
-                stat_obj.record_label = record_label
-                stat_obj.save()
-                created = False
-                action = "Updated (after cleanup)"
-        
-        logger.info(f"{action} no‐tag summary for NLink pk={nlink.pk}")
-
-        tags = set()
-        for link in NLink.objects.filter(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label):
-            tags.update(link.tags)
-        tags = sorted(tags)
-
-        for t in tags:
-            tag_filter = Q(owner_id=owner_pk, dataset_ID=ds_id, data_label=ds_label, record_label=record_label, tags__contains=[t])
-            
-            tag_stats = NLink.objects.filter(tag_filter).aggregate(
-                total_requests=Count('negotiation'),
-                accepted_requests=Count('negotiation', filter=Q(
-                    negotiation__state='accepted')),
-                rejected_requests=Count('negotiation',  filter=Q(
-                    negotiation__state='rejected')),
-                requestor_open=Count('negotiation',    filter=Q(
-                    negotiation__state='requestor_open')),
-                owner_open=Count('negotiation',        filter=Q(
-                    negotiation__state='owner_open')),
-                abandoned_requests=Count('negotiation', filter=Q(
-                    negotiation__state='abandoned')),
-                archived_requests=Count('negotiation', filter=Q(
-                    negotiation__state='archived')),
-                canceled_requests=Count('negotiation', filter=Q(
-                    negotiation__state='canceled')),
-            )
-            
-            # Calculate date range and latest activity for this tag
-            tag_date_range = NLink.objects.filter(tag_filter).aggregate(
-                min_date=Min('negotiation__timestamps'),
-                max_date=Max('negotiation__timestamps'),
-                last_activity=Max('last_activity')
-            )
-
-            tag_stat_payload = {
-                'total_requests':    tag_stats['total_requests'],
-                'accepted_requests': tag_stats['accepted_requests'],
-                'rejected_requests': tag_stats['rejected_requests'],
-                'requestor_open':    tag_stats['requestor_open'],
-                'owner_open':        tag_stats['owner_open'],
-                'abandoned_requests': tag_stats['abandoned_requests'],
-                'archived_requests': tag_stats['archived_requests'],
-                'canceled_requests': tag_stats['canceled_requests'],
-                'requestor_domains': count_requestor_domains(
-                    NLink.objects.filter(tag_filter).values_list('requestor_email', flat=True)
-                ),
-                'generated_at':      timezone.now().isoformat(),
-                'negotiation_date_range': {
-                    'min_date': tag_date_range['min_date'].isoformat() if tag_date_range['min_date'] else None,
-                    'max_date': tag_date_range['max_date'].isoformat() if tag_date_range['max_date'] else None,
-                },
-                'last_activity': tag_date_range['last_activity'].isoformat() if tag_date_range['last_activity'] else None,
-            }
-
-            try:
-                tag_stat_obj, tag_created = SummaryStatistic.objects.update_or_create(
-                    owner_id=nlink,
-                    datasets_requested=datasets_list,
-                    data_label=ds_label,
-                    tag=t,
-                    record_label=record_label,
-                    defaults={'overall_stat': tag_stat_payload, 'record_label': record_label},
-                )
-                tag_action = "Created" if tag_created else "Updated"
-            except MultipleObjectsReturned:
-                # Handle duplicate records - get the most recent one and delete others
-                existing_tag_stats = SummaryStatistic.objects.filter(
-                    owner_id=nlink,
-                    datasets_requested=datasets_list,
-                    data_label=ds_label,
-                    tag=t,
-                    record_label=record_label
-                ).order_by('-summary_date')
-                
-                # Keep the most recent one
-                tag_stat_obj = existing_tag_stats.first()
-                if tag_stat_obj is None:
-                    tag_stat_obj = SummaryStatistic.objects.create(
-                        owner_id=nlink,
-                        datasets_requested=datasets_list,
-                        data_label=ds_label,
-                        tag=t,
-                        record_label=record_label,
-                        overall_stat=tag_stat_payload
-                    )
-                    tag_created = True
-                    tag_action = "Created (after cleanup error)"
-                else:
-                    all_tag_stat_ids = list(existing_tag_stats.values_list('id', flat=True))
-                    tag_duplicate_ids = all_tag_stat_ids[1:]  
-                    
-                    if tag_duplicate_ids:
-                        SummaryStatistic.objects.filter(id__in=tag_duplicate_ids).delete()
-                    
-                    tag_stat_obj.overall_stat = tag_stat_payload
-                    tag_stat_obj.record_label = record_label
-                    tag_stat_obj.save()
-                    tag_created = False
-                    tag_action = "Updated (after cleanup)"
-            
-            logger.info(f"{tag_action} tag={t!r} summary for NLink pk={nlink.pk}")
 
 
 @admin_auth_required
@@ -563,15 +302,8 @@ def summary_statistics_view(request):
     record_label_filter = [lbl.strip() for lbl in request.GET.getlist("record_label") if lbl and lbl.strip()]
     include_all_tags = request.GET.get("include_all_tags", "false").lower() == "true"
     group_by = request.GET.get("group_by", "false").lower() == "true"
-    
-    # Get date filter parameters (for negotiation dates)
     start_date = request.GET.get("startDate")
     end_date = request.GET.get("endDate")
-    
-    has_date_filter = bool(start_date or end_date)
-    has_tag_filter = bool(tags_filter)
-    
-    use_direct_query = has_date_filter or has_tag_filter or group_by
 
     try:
         if include_all_tags:
@@ -598,109 +330,67 @@ def summary_statistics_view(request):
                 statistics_data.append(_summary_row_from_group(grp, tag=tag_str))
 
             return JsonResponse({'summary_statistics': statistics_data})
-        
-        if use_direct_query:
-            nlink_filter = Q(owner_id__in=owner_ids)
-            
-            if tags_filter:
-                for tag in tags_filter:
-                    tag_q = (
-                        Q(tags__contains=[tag])
-                        | Q(tags__contains=[f' {tag}'])
-                        | Q(tags__contains=[f'{tag} '])
-                        | Q(tags__contains=[f' {tag} '])
-                    )
-                    nlink_filter = nlink_filter & tag_q
 
-            if data_label_filter:
-                nlink_filter &= Q(data_label__in=data_label_filter)
+        nlink_filter = Q(owner_id__in=owner_ids)
 
-            if record_label_filter:
-                nlink_filter &= Q(record_label__in=record_label_filter)
-            
-            # Apply date filters on negotiation timestamps 
-            if start_date:
-                try:
-                    start_dt = parse_datetime(start_date)
-                    if not start_dt:
-                        start_date_obj = parse_date(start_date)
-                        if start_date_obj:
-                            start_dt = timezone.make_aware(
-                                datetime.datetime.combine(start_date_obj, datetime.time.min)
-                            )
-                    if start_dt:
-                        nlink_filter &= Q(negotiation__timestamps__gte=start_dt)
-                except (ValueError, TypeError):
-                    pass
+        if tags_filter:
+            for tag in tags_filter:
+                tag_q = (
+                    Q(tags__contains=[tag])
+                    | Q(tags__contains=[f' {tag}'])
+                    | Q(tags__contains=[f'{tag} '])
+                    | Q(tags__contains=[f' {tag} '])
+                )
+                nlink_filter = nlink_filter & tag_q
 
-            if end_date:
-                try:
-                    end_dt = parse_datetime(end_date)
-                    if not end_dt:
-                        end_date_obj = parse_date(end_date)
-                        if end_date_obj:
-                            end_dt = timezone.make_aware(
-                                datetime.datetime.combine(end_date_obj, datetime.time.max)
-                            )
-                    if end_dt:
-                        nlink_filter &= Q(negotiation__timestamps__lte=end_dt)
-                except (ValueError, TypeError):
-                    pass
-            
-            grouped_stats = (
-                NLink.objects
-                .filter(nlink_filter)
-                .values('dataset_ID', 'data_label', 'record_label', 'visible_label')
-                .annotate(**_summary_state_annotations())
-            )
+        if data_label_filter:
+            nlink_filter &= Q(data_label__in=data_label_filter)
 
-            filter_tag = ', '.join(sorted(tags_filter)) if tags_filter else ''
-            statistics_data = [
-                _summary_row_from_group(grp, tag=filter_tag)
-                for grp in grouped_stats
-            ]
-        else:
-            # use pre-aggregated SummaryStatistic records
-            stats_qs = SummaryStatistic.objects.filter(owner_id__owner_id__in=owner_ids)
+        if record_label_filter:
+            nlink_filter &= Q(record_label__in=record_label_filter)
 
-            if data_label_filter:
-                stats_qs = stats_qs.filter(data_label__in=data_label_filter)
-            if record_label_filter:
-                stats_qs = stats_qs.filter(record_label__in=record_label_filter)
+        # Apply date filters on negotiation timestamps
+        if start_date:
+            try:
+                start_dt = parse_datetime(start_date)
+                if not start_dt:
+                    start_date_obj = parse_date(start_date)
+                    if start_date_obj:
+                        start_dt = timezone.make_aware(
+                            datetime.datetime.combine(start_date_obj, datetime.time.min)
+                        )
+                if start_dt:
+                    nlink_filter &= Q(negotiation__timestamps__gte=start_dt)
+            except (ValueError, TypeError):
+                pass
 
-            stats_qs = stats_qs.filter(tag='')
+        if end_date:
+            try:
+                end_dt = parse_datetime(end_date)
+                if not end_dt:
+                    end_date_obj = parse_date(end_date)
+                    if end_date_obj:
+                        end_dt = timezone.make_aware(
+                            datetime.datetime.combine(end_date_obj, datetime.time.max)
+                        )
+                if end_dt:
+                    nlink_filter &= Q(negotiation__timestamps__lte=end_dt)
+            except (ValueError, TypeError):
+                pass
 
-            if not stats_qs.exists():
-                logger.warning(
-                    f"No SummaryStatistic found for owner_ids={owner_ids}, email={email}")
-                return JsonResponse({'summary_statistics': []})
+        grouped_stats = (
+            NLink.objects
+            .filter(nlink_filter)
+            .values('dataset_ID', 'data_label', 'record_label', 'visible_label')
+            .annotate(**_summary_state_annotations())
+        )
 
-            statistics_data = []
-            for stat in stats_qs:
-                stats_block = stat.overall_stat or {}
-                nlink = stat.owner_id
-                statistics_data.append(_summary_row_from_group(
-                    {
-                        'dataset_ID': getattr(nlink, 'dataset_ID', '') or '',
-                        'visible_label': getattr(nlink, 'visible_label', '') or '',
-                        'data_label': stat.data_label,
-                        'record_label': getattr(stat, 'record_label', ''),
-                        'total_requests': stats_block.get('total_requests', 0),
-                        'accepted_requests': stats_block.get('accepted_requests', 0),
-                        'rejected_requests': stats_block.get('rejected_requests', 0),
-                        'requestor_open': stats_block.get('requestor_open', 0),
-                        'owner_open': stats_block.get('owner_open', 0),
-                        'abandoned_requests': stats_block.get('abandoned_requests', 0),
-                        'archived_requests': stats_block.get('archived_requests', 0),
-                        'canceled_requests': stats_block.get('canceled_requests', 0),
-                        'generated_at': stat.summary_date.isoformat(),
-                        'last_updated': stat.summary_date.isoformat(),
-                        'last_activity': stats_block.get('last_activity'),
-                        'negotiation_date_range': stats_block.get('negotiation_date_range', {}),
-                    },
-                    tag=stat.tag or '',
-                ))
-        
+        filter_tag = ', '.join(sorted(tags_filter)) if tags_filter else ''
+        statistics_data = [
+            _summary_row_from_group(grp, tag=filter_tag)
+            for grp in grouped_stats
+        ]
+
         if group_by:
             statistics_data = _group_summary_statistics(statistics_data)
 
@@ -758,40 +448,20 @@ def archive_view(request, negotiation_id):
 
 @receiver(post_save, sender=Negotiation)
 def generate_summary_statistics(sender, instance, **kwargs):
-    """Auto-archive and export statistics when a negotiation is accepted, canceled, rejected, or abandoned."""
+    """Auto-archive when a negotiation is accepted, canceled, rejected, or abandoned."""
     if instance.state in ['accepted', 'canceled', 'rejected', 'abandoned'] and not instance.archived:
         handle_negotiation_archive_and_summary_task(instance.negotiation_id)
 
 
 def handle_negotiation_archive_and_summary_async(negotiation, owner_id=None):
-    """
-    Archives the negotiation and exports summary statistics asynchronously.
-    """
+    """Archives the negotiation when a terminal state is reached."""
     negotiation.refresh_from_db()
-    
+
     try:
-        if owner_id is None and hasattr(negotiation, 'link') and negotiation.link:
-            owner_id = negotiation.link.owner_id
-            logger.info(f"Extracted owner_id={owner_id} from negotiation {negotiation.negotiation_id}")
-        elif owner_id is None:
-            logger.warning(f"Could not extract owner_id from negotiation {negotiation.negotiation_id}, processing all owners")
-        
-        try:
-            with transaction.atomic():
-                export_summary_to_drt(owner_id=owner_id)
-        except Exception as stats_error:
-            logger.error(f"Error calculating summary stats for negotiation {negotiation.negotiation_id}: {stats_error}")
-            raise  
-        
-        # Archive negotiation in a separate transaction
         if not negotiation.archived:
-            try:
-                with transaction.atomic():
-                    archive_negotiation(negotiation)
-            except Exception as archive_error:
-                logger.error(f"Error archiving negotiation {negotiation.negotiation_id}: {archive_error}")
-        
-        logger.info(f"Successfully processed negotiation {negotiation.negotiation_id} asynchronously for owner_id={owner_id}")
+            with transaction.atomic():
+                archive_negotiation(negotiation)
+        logger.info(f"Successfully archived negotiation {negotiation.negotiation_id}")
     except Exception as e:
         logger.error(f"Error processing negotiation {negotiation.negotiation_id} asynchronously: {e}", exc_info=True)
 
@@ -1299,19 +969,7 @@ def reopen_negotiation_view(request, negotiation_id):
         if negotiation.archived:
             negotiation.archived = False
         negotiation.save()
-        
-        # Recalculate summary statistics when reopening from final states
-        if previous_state in ['accepted', 'rejected', 'canceled', 'abandoned']:
-            try:
-                owner_id = None
-                if hasattr(negotiation, 'link') and negotiation.link:
-                    owner_id = negotiation.link.owner_id
-                
-                with transaction.atomic():
-                    export_summary_to_drt(owner_id=owner_id)
-            except Exception as stats_error:
-                logger.error(f"Error recalculating stats for reopened negotiation {negotiation_id}: {stats_error}", exc_info=True)
-        
+
         # Send email notification to requestor
         if hasattr(negotiation, 'link') and negotiation.link:
             requestor_email = negotiation.link.requestor_email

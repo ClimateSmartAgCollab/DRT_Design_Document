@@ -227,3 +227,98 @@ class SummaryStatisticsViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         rows = response.json()["summary_statistics"]
         self.assertEqual([row["data_label"] for row in rows], ["new_label"])
+
+    def test_unfiltered_request_live_aggregates_without_snapshot(self):
+        self._make_case(
+            data_label="basic_data_request",
+            record_label="basic_a",
+            dataset_id="ds-a",
+            visible_label="Basic A",
+            tags=["2026"],
+            state="accepted",
+        )
+        self._make_case(
+            data_label="basic_data_request",
+            record_label="basic_a",
+            dataset_id="ds-a",
+            visible_label="Basic A",
+            tags=["2026"],
+            state="rejected",
+        )
+
+        response = self._get()
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["summary_statistics"]
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["data_label"], "basic_data_request")
+        self.assertEqual(row["record_label"], "basic_a")
+        self.assertEqual(row["total_requests"], 2)
+        self.assertEqual(row["accepted_requests"], 1)
+        self.assertEqual(row["rejected_requests"], 1)
+        self.assertTrue(row["validation_status"]["is_valid"])
+
+
+class TerminalNegotiationArchiveTests(TestCase):
+    def setUp(self):
+        self.cache_patcher = patch(
+            "drt.views.stats.cache.get",
+            side_effect=lambda key, default=None: OWNER_TABLE if key == "owner_table" else default,
+        )
+        self.cache_patcher.start()
+        session = self.client.session
+        session["owner_email"] = OWNER_EMAIL
+        session.save()
+        self.client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
+
+    def tearDown(self):
+        self.cache_patcher.stop()
+
+    def _make_open_case(self):
+        negotiation = Negotiation.objects.create(
+            questionnaire_SAID="test-said",
+            state="requestor_open",
+        )
+        NLink.objects.create(
+            negotiation=negotiation,
+            owner_id=OWNER_ID,
+            dataset_ID="ds-a",
+            data_label="basic_data_request",
+            record_label="basic_a",
+            visible_label="Basic A",
+            tags=["2026"],
+        )
+        return negotiation
+
+    def _save_terminal_state(self, state):
+        negotiation = self._make_open_case()
+        negotiation.state = state
+        negotiation.save()
+        negotiation.refresh_from_db()
+        self.assertTrue(negotiation.archived)
+
+    def test_accept_archives_without_export(self):
+        self._save_terminal_state("accepted")
+
+    def test_reject_archives_without_export(self):
+        self._save_terminal_state("rejected")
+
+    def test_reopen_does_not_export(self):
+        negotiation = self._make_open_case()
+        Negotiation.objects.filter(pk=negotiation.pk).update(
+            state="accepted",
+            archived=True,
+        )
+
+        with patch("drt.views.stats.send_reopen_notification_email_task"):
+            response = self.client.get(
+                reverse(
+                    "reopen_negotiation",
+                    kwargs={"negotiation_id": negotiation.negotiation_id},
+                )
+            )
+
+        self.assertEqual(response.status_code, 200)
+        negotiation.refresh_from_db()
+        self.assertEqual(negotiation.state, "owner_open")
+        self.assertFalse(negotiation.archived)
