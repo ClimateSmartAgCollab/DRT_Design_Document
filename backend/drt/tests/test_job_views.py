@@ -3,11 +3,10 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.test import SimpleTestCase
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 
 
 JOB_URL_NAMES = (
-    "export_summary_to_drt_view",
     "delete_old_negotiations",
     "process_abandonment_policy",
 )
@@ -51,15 +50,9 @@ class JobViewAuthTests(SimpleTestCase):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 403)
 
-    @patch.dict(os.environ, {"ADMIN_EMAILS": LISTED_ADMIN})
-    def test_listed_admin_export_returns_200(self):
-        self._set_session(admin_email=LISTED_ADMIN)
-
-        with patch("drt.views.stats.export_summary_to_drt") as mock_export:
-            response = self.client.get(reverse("export_summary_to_drt_view"))
-
-        self.assertEqual(response.status_code, 200)
-        mock_export.assert_called_once_with()
+    def test_export_summary_route_is_gone(self):
+        with self.assertRaises(NoReverseMatch):
+            reverse("export_summary_to_drt_view")
 
     @patch.dict(os.environ, {"ADMIN_EMAILS": LISTED_ADMIN})
     def test_listed_admin_delete_old_returns_200(self):

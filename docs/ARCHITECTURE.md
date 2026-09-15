@@ -99,7 +99,7 @@ graph LR;
    - The owner **Summary Statistics** page live-aggregates `NLink` / `Negotiation` state counts for the signed-in owner (`GET /drt/summary-statistics/?group_by=true`). It reports request decisions, not file access, and it is not a historical time series.
    - Filters are tag **AND**, `data_label`, `record_label`, and a **request created** window on `Negotiation.timestamps`.
    - The page shows queue / decided / abandoned KPIs (acceptance rate = accepted / (accepted + rejected)), a stacked outcome mix (accepted / rejected / abandoned / still open), and a table. KPI cards and status counts click through to the owner list with matching `status`, `tags`, `record_label`, `data_label`, and dates.
-   - `SummaryStatistic` is a derived snapshot still written on some state changes. The grouped owner page does not read it.
+   - There is no stored aggregate table. Counts are always computed from live `NLink` / `Negotiation` rows.
 
 ---
 
@@ -122,7 +122,6 @@ Core entities live in `backend/drt/models.py`.
 | **`Requestor`** | Email identity, OTP, and verification for inbound requests. |
 | **`Negotiation`** | Request/response JSON, comments, reminders, state machine, submission version. States: `requestor_open`, `owner_open`, `accepted`, `archived`, `canceled`, `rejected`, `abandoned`. |
 | **`Archive`** | Append-only snapshots of a negotiation, with `changed_by` and `change_description`. |
-| **`SummaryStatistic`** | Derived aggregate snapshot. Not the source of truth for the owner Summary Statistics page. |
 
 ---
 
