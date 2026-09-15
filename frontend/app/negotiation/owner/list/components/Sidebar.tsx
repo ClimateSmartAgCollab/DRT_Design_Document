@@ -21,6 +21,9 @@ interface SidebarProps {
   recordLabelOptions: string[];
   selectedRecordLabel: string[];
   onRecordLabelChange: (labels: string[]) => void;
+  dataLabelOptions: string[];
+  selectedDataLabel: string[];
+  onDataLabelChange: (labels: string[]) => void;
 }
 
 export function Sidebar({
@@ -42,14 +45,15 @@ export function Sidebar({
   recordLabelOptions,
   selectedRecordLabel,
   onRecordLabelChange,
+  dataLabelOptions,
+  selectedDataLabel,
+  onDataLabelChange,
 }: SidebarProps) {
-  // Helper for All option
-  const handleAllChange = (type: 'tag' | 'recordLabel', checked: boolean) => {
-    if (type === 'tag') {
-      if (checked) onTagChange([]);
-    } else if (type === 'recordLabel') {
-      if (checked) onRecordLabelChange([]);
-    }
+  const handleAllChange = (type: 'tag' | 'recordLabel' | 'dataLabel', checked: boolean) => {
+    if (!checked) return;
+    if (type === 'tag') onTagChange([]);
+    else if (type === 'recordLabel') onRecordLabelChange([]);
+    else onDataLabelChange([]);
   };
 
   return (
@@ -108,9 +112,9 @@ export function Sidebar({
         ))}
       </div>
 
-      {/* Date Range */}
+      {/* Request created */}
       <div className="mb-6">
-        <h3 className="mb-2 text-sm font-medium text-gray-700">Date Range</h3>
+        <h3 className="mb-2 text-sm font-medium text-gray-700">Request created</h3>
         <label className="mb-2 block text-sm text-gray-700">
           From
           <input
@@ -153,6 +157,40 @@ export function Sidebar({
             Status Z→A
           </option>
         </select>
+      </div>
+
+      {/* Data Label Filter */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-1">Data Label</label>
+        <div className="w-full border rounded px-3 py-2 text-sm bg-white max-h-40 overflow-y-auto">
+          <label className="flex items-center mb-1 truncate">
+            <input
+              type="checkbox"
+              checked={selectedDataLabel.length === 0}
+              onChange={e => handleAllChange('dataLabel', e.target.checked)}
+              className="mr-2"
+            />
+            <span className="truncate">All</span>
+          </label>
+          {dataLabelOptions.map(l => (
+            <label key={l} className="flex items-center mb-1 truncate">
+              <input
+                type="checkbox"
+                checked={selectedDataLabel.includes(l)}
+                onChange={e => {
+                  if (e.target.checked) {
+                    onDataLabelChange([...selectedDataLabel, l]);
+                  } else {
+                    onDataLabelChange(selectedDataLabel.filter(label => label !== l));
+                  }
+                }}
+                className="mr-2"
+              />
+              <span className="truncate" title={l}>{l}</span>
+            </label>
+          ))}
+          {dataLabelOptions.length === 0 && <span className="text-gray-400">No data labels</span>}
+        </div>
       </div>
 
       {/* Tag Filter */}

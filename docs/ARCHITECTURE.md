@@ -96,8 +96,10 @@ graph LR;
    - Automatic archival of generated licenses to GitHub is **not** implemented; artifacts are email-only today.
 5. **Archival and analytics**
    - Significant changes are recorded in `Archive`.
-   - `SummaryStatistic` aggregates outcomes for reporting.
-   - Dashboards show open negotiations, pending actions, historical trends, and outcomes by dataset / owner / tags.
+   - The owner **Summary Statistics** page live-aggregates `NLink` / `Negotiation` state counts for the signed-in owner (`GET /drt/summary-statistics/?group_by=true`). It reports request decisions, not file access, and it is not a historical time series.
+   - Filters are tag **AND**, `data_label`, `record_label`, and a **request created** window on `Negotiation.timestamps`.
+   - The page shows queue / decided / abandoned KPIs (acceptance rate = accepted / (accepted + rejected)), a stacked outcome mix (accepted / rejected / abandoned / still open), and a table. KPI cards and status counts click through to the owner list with matching `status`, `tags`, `record_label`, `data_label`, and dates.
+   - `SummaryStatistic` is a derived snapshot still written on some state changes. The grouped owner page does not read it.
 
 ---
 
@@ -116,11 +118,11 @@ Core entities live in `backend/drt/models.py`.
 
 | Entity | Role |
 | --- | --- |
-| **`NLink`** | Ties dataset metadata (labels, tags) to a negotiation. Stores requestor/owner email links and expiration. |
+| **`NLink`** | Ties a negotiation to questionnaire-package labels (`data_label`, `record_label`, `visible_label`, `tags`) and optional `dataset_ID`. Stores requestor/owner email links and expiration. |
 | **`Requestor`** | Email identity, OTP, and verification for inbound requests. |
 | **`Negotiation`** | Request/response JSON, comments, reminders, state machine, submission version. States: `requestor_open`, `owner_open`, `accepted`, `archived`, `canceled`, `rejected`, `abandoned`. |
 | **`Archive`** | Append-only snapshots of a negotiation, with `changed_by` and `change_description`. |
-| **`SummaryStatistic`** | Aggregated outcomes for analytics. |
+| **`SummaryStatistic`** | Derived aggregate snapshot. Not the source of truth for the owner Summary Statistics page. |
 
 ---
 
