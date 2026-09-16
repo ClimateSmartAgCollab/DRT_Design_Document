@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.conf import settings
@@ -8,12 +8,28 @@ from django.urls import reverse
 from django.utils import timezone
 
 from drt.models import NLink, Negotiation
-from drt.views.stats import _validate_summary_stats, generate_summary_statistics
+from drt.views.stats import _validate_summary_stats, _window_bound, generate_summary_statistics
 
 
 OWNER_EMAIL = "owner@example.com"
 OWNER_ID = "owner-test-1"
 OWNER_TABLE = {OWNER_ID: {"owner_email": OWNER_EMAIL, "username": "owner"}}
+
+
+class WindowBoundTests(SimpleTestCase):
+    def test_date_only_end_is_aware_end_of_day(self):
+        dt = _window_bound("2025-06-30", end=True)
+        self.assertIsNotNone(dt)
+        self.assertTrue(timezone.is_aware(dt))
+        self.assertEqual(dt.hour, 23)
+        self.assertEqual(dt.minute, 59)
+
+    def test_date_only_start_is_aware_midnight(self):
+        dt = _window_bound("2025-06-30", end=False)
+        self.assertIsNotNone(dt)
+        self.assertTrue(timezone.is_aware(dt))
+        self.assertEqual(dt.hour, 0)
+        self.assertEqual(dt.minute, 0)
 
 
 class ValidateSummaryStatsTests(SimpleTestCase):
@@ -82,15 +98,27 @@ class SummaryStatisticsViewTests(TestCase):
         tags,
         state="accepted",
         created_at=None,
+        submitted_at=None,
+        first_owner_open_at=None,
+        decided_at=None,
     ):
         negotiation = Negotiation.objects.create(
             questionnaire_SAID="test-said",
             state="requestor_open",
         )
+        updates = {}
         if state != "requestor_open":
-            Negotiation.objects.filter(pk=negotiation.pk).update(state=state)
+            updates["state"] = state
         if created_at is not None:
-            Negotiation.objects.filter(pk=negotiation.pk).update(timestamps=created_at)
+            updates["timestamps"] = created_at
+        if submitted_at is not None:
+            updates["submitted_at"] = submitted_at
+        if first_owner_open_at is not None:
+            updates["first_owner_open_at"] = first_owner_open_at
+        if decided_at is not None:
+            updates["decided_at"] = decided_at
+        if updates:
+            Negotiation.objects.filter(pk=negotiation.pk).update(**updates)
         negotiation.refresh_from_db()
         return NLink.objects.create(
             negotiation=negotiation,
@@ -227,6 +255,137 @@ class SummaryStatisticsViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         rows = response.json()["summary_statistics"]
         self.assertEqual([row["data_label"] for row in rows], ["new_label"])
+        clocks = response.json()["clocks"]
+        self.assertEqual(clocks["date_field"], "created")
+
+    def test_decided_window_excludes_created_in_window_decided_outside(self):
+        created = timezone.make_aware(datetime(2025, 6, 1, 12, 0, 0))
+        decided_inside = timezone.make_aware(datetime(2025, 6, 15, 12, 0, 0))
+        decided_outside = timezone.make_aware(datetime(2024, 1, 15, 12, 0, 0))
+        inside = self._make_case(
+            data_label="in_window",
+            record_label="r1",
+            dataset_id="ds-in",
+            visible_label="In",
+            tags=["2026"],
+            created_at=created,
+            decided_at=decided_inside,
+        )
+        self._make_case(
+            data_label="out_window",
+            record_label="r2",
+            dataset_id="ds-out",
+            visible_label="Out",
+            tags=["2026"],
+            created_at=created,
+            decided_at=decided_outside,
+        )
+        self._make_case(
+            data_label="open_case",
+            record_label="r3",
+            dataset_id="ds-open",
+            visible_label="Open",
+            tags=["2026"],
+            state="owner_open",
+            created_at=created,
+        )
+
+        response = self._get(
+            group_by="true",
+            dateField="decided",
+            startDate="2025-06-01",
+            endDate="2025-06-30",
+        )
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["summary_statistics"]
+        self.assertEqual([row["data_label"] for row in rows], ["in_window"])
+        self.assertEqual(response.json()["clocks"]["date_field"], "decided")
+        self.assertEqual(inside.data_label, "in_window")
+
+    def test_date_window_end_date_includes_same_day_afternoon(self):
+        afternoon = timezone.make_aware(datetime(2025, 6, 30, 15, 0, 0))
+        self._make_case(
+            data_label="same_day",
+            record_label="r1",
+            dataset_id="ds-same",
+            visible_label="Same",
+            tags=["2026"],
+            created_at=afternoon,
+            decided_at=afternoon,
+        )
+        response = self._get(
+            group_by="true",
+            startDate="2025-06-30",
+            endDate="2025-06-30",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [row["data_label"] for row in response.json()["summary_statistics"]],
+            ["same_day"],
+        )
+
+    def test_reopened_null_decided_at_excluded_from_decided_mode(self):
+        created = timezone.make_aware(datetime(2025, 6, 1, 12, 0, 0))
+        self._make_case(
+            data_label="reopened",
+            record_label="r1",
+            dataset_id="ds-reopen",
+            visible_label="Reopen",
+            tags=["2026"],
+            state="owner_open",
+            created_at=created,
+            decided_at=None,
+        )
+        response = self._get(group_by="true", dateField="decided")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["summary_statistics"], [])
+
+    def test_medians_use_clocked_durations(self):
+        t0 = timezone.make_aware(datetime(2025, 1, 1, 0, 0, 0))
+        self._make_case(
+            data_label="a",
+            record_label="r",
+            dataset_id="ds",
+            visible_label="A",
+            tags=["2026"],
+            submitted_at=t0,
+            first_owner_open_at=t0 + timedelta(days=1),
+            decided_at=t0 + timedelta(days=1),
+        )
+        self._make_case(
+            data_label="b",
+            record_label="r",
+            dataset_id="ds",
+            visible_label="B",
+            tags=["2026"],
+            submitted_at=t0,
+            first_owner_open_at=t0 + timedelta(days=3),
+            decided_at=t0 + timedelta(days=3),
+        )
+        response = self._get(group_by="true")
+        self.assertEqual(response.status_code, 200)
+        clocks = response.json()["clocks"]
+        self.assertEqual(clocks["first_look_sample_size"], 2)
+        self.assertEqual(clocks["decision_sample_size"], 2)
+        self.assertEqual(clocks["median_time_to_first_look_seconds"], 2 * 86400)
+        self.assertEqual(clocks["median_time_to_decision_seconds"], 2 * 86400)
+
+    def test_empty_clocks_sample_is_null(self):
+        self._make_case(
+            data_label="open",
+            record_label="r",
+            dataset_id="ds",
+            visible_label="Open",
+            tags=["2026"],
+            state="owner_open",
+        )
+        response = self._get(group_by="true")
+        self.assertEqual(response.status_code, 200)
+        clocks = response.json()["clocks"]
+        self.assertEqual(clocks["first_look_sample_size"], 0)
+        self.assertEqual(clocks["decision_sample_size"], 0)
+        self.assertIsNone(clocks["median_time_to_first_look_seconds"])
+        self.assertIsNone(clocks["median_time_to_decision_seconds"])
 
     def test_unfiltered_request_live_aggregates_without_snapshot(self):
         self._make_case(

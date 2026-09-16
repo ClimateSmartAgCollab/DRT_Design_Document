@@ -18,6 +18,8 @@ interface SummarySidebarProps {
   startDate: string;
   endDate: string;
   onDateChange: (field: "start" | "end", value: string) => void;
+  dateField: "created" | "decided";
+  onDateFieldChange: (value: "created" | "decided") => void;
 
   onReset: () => void;
 }
@@ -43,6 +45,8 @@ export function SummarySidebar({
   startDate,
   endDate,
   onDateChange,
+  dateField,
+  onDateFieldChange,
   onReset,
 }: SummarySidebarProps) {
   return (
@@ -137,7 +141,29 @@ export function SummarySidebar({
       </div>
 
       <div className="mb-6">
-        <p className="block text-sm font-medium mb-2">Request created</p>
+        <p className="block text-sm font-medium mb-2">Date window</p>
+        <div className="flex gap-4 mb-3 text-sm">
+          <label className="flex items-center">
+            <input
+              type="radio"
+              name="summary-date-field"
+              checked={dateField === "created"}
+              onChange={() => onDateFieldChange("created")}
+              className="mr-2"
+            />
+            Created
+          </label>
+          <label className="flex items-center">
+            <input
+              type="radio"
+              name="summary-date-field"
+              checked={dateField === "decided"}
+              onChange={() => onDateFieldChange("decided")}
+              className="mr-2"
+            />
+            Decided
+          </label>
+        </div>
         <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
         <input
           type="date"

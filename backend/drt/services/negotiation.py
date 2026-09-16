@@ -8,6 +8,11 @@ from django.core.cache import cache
 from django.http import JsonResponse
 from ..tasks import send_abandonment_reminder_email_task, send_abandonment_notification_email_task
 from ..services.history import create_archive_snapshot
+from ..services.clocks import (
+    DESC_ABANDONED_INACTIVITY,
+    DESC_ABANDONED_REQUESTOR,
+    mark_abandoned,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -133,12 +138,13 @@ def mark_negotiation_abandoned(negotiation):
             create_archive_snapshot(
                 negotiation,
                 changed_by="system",
-                change_description="Negotiation marked as abandoned due to inactivity (30+ days)"
+                change_description=DESC_ABANDONED_INACTIVITY
             )
             
             negotiation.state = 'abandoned'
             negotiation.archived = True
             negotiation.save()
+            mark_abandoned(negotiation)
             
             nlink = negotiation.link
             if nlink and nlink.requestor_email:
@@ -195,12 +201,13 @@ def abandon_negotiation_by_requestor(negotiation):
             create_archive_snapshot(
                 negotiation,
                 changed_by="requestor",
-                change_description="Negotiation abandoned by requestor"
+                change_description=DESC_ABANDONED_REQUESTOR
             )
             
             negotiation.state = 'abandoned'
             negotiation.archived = True
             negotiation.save()
+            mark_abandoned(negotiation)
             
             if hasattr(negotiation, 'link') and negotiation.link:
                 negotiation.link.save(update_fields=['last_activity'])

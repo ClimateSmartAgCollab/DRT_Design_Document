@@ -31,6 +31,7 @@ export default function OwnerNegotiationListContent() {
     setTags,
     setRecordLabel,
     setDataLabel,
+    setDateField,
     resetFilters,
   } = useFilterState();
 
@@ -47,6 +48,7 @@ export default function OwnerNegotiationListContent() {
     dataLabel: filters.dataLabel.length > 0 ? filters.dataLabel : undefined,
     search: filters.searchTerm || undefined,
     sort: filters.sortOption !== "created_desc" ? filters.sortOption : undefined,
+    dateField: filters.dateField !== "created" ? filters.dateField : undefined,
   }), [currentPage, filters]);
 
   const { data: negs, error, isLoading, reload, total, totalPages, page } = useNegotiations(apiFilters);
@@ -206,6 +208,8 @@ export default function OwnerNegotiationListContent() {
               startDate={filters.startDate}
               endDate={filters.endDate}
               onDateChange={setDateRange}
+              dateField={filters.dateField}
+              onDateFieldChange={setDateField}
               sortOption={filters.sortOption}
               onSortChange={setSortOption}
               onReset={resetFilters}

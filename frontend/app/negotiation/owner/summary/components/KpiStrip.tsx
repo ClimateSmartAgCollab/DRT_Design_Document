@@ -6,7 +6,10 @@ import {
   KPI_LIST_STATUS,
   decidedWindowLabel,
   formatAcceptanceRate,
+  formatDurationSeconds,
   summarizeKpis,
+  type DateField,
+  type SummaryClocks,
   type SummaryKpiSource,
 } from "../utils/summaryKpis";
 import { buildOwnerListHref } from "../utils/buildOwnerListHref";
@@ -20,6 +23,8 @@ interface KpiStripProps {
   recordLabels?: string[];
   startDate?: string;
   endDate?: string;
+  dateField?: DateField;
+  clocks?: SummaryClocks | null;
 }
 
 const TONE_CLASS: Record<KpiTone, string> = {
@@ -46,15 +51,18 @@ export function KpiStrip({
   recordLabels,
   startDate,
   endDate,
+  dateField = "created",
+  clocks,
 }: KpiStripProps) {
   const kpis = summarizeKpis(rows);
-  const windowLabel = decidedWindowLabel(startDate, endDate);
+  const windowLabel = decidedWindowLabel(startDate, endDate, dateField);
   const filterState = {
     tags,
     dataLabel: dataLabels,
     recordLabel: recordLabels,
     startDate,
     endDate,
+    dateField,
   };
 
   const hrefFor = (id: ClickableKpiId) =>
@@ -108,9 +116,7 @@ export function KpiStrip({
   return (
     <section
       aria-label="Summary totals"
-      className={`grid grid-cols-2 gap-4 ${
-        kpis.acceptanceRate !== null ? "xl:grid-cols-5" : "xl:grid-cols-4"
-      }`}
+      className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4"
     >
       {clickableCards.map((card) => (
         <Link
@@ -139,6 +145,46 @@ export function KpiStrip({
           </span>
         </div>
       )}
+      <div
+        className={cardClass("neutral", false)}
+        aria-label={`Median time to first look: ${formatDurationSeconds(
+          clocks?.median_time_to_first_look_seconds,
+          clocks?.first_look_sample_size ?? 0
+        )}. Sample size ${clocks?.first_look_sample_size ?? 0}.`}
+      >
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          Median time to first look
+        </span>
+        <span className="text-2xl sm:text-3xl font-bold">
+          {formatDurationSeconds(
+            clocks?.median_time_to_first_look_seconds,
+            clocks?.first_look_sample_size ?? 0
+          )}
+        </span>
+        <span className="text-xs text-gray-500">
+          n={clocks?.first_look_sample_size ?? 0} with clocks
+        </span>
+      </div>
+      <div
+        className={cardClass("neutral", false)}
+        aria-label={`Median time to decision: ${formatDurationSeconds(
+          clocks?.median_time_to_decision_seconds,
+          clocks?.decision_sample_size ?? 0
+        )}. Sample size ${clocks?.decision_sample_size ?? 0}.`}
+      >
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          Median time to decision
+        </span>
+        <span className="text-2xl sm:text-3xl font-bold">
+          {formatDurationSeconds(
+            clocks?.median_time_to_decision_seconds,
+            clocks?.decision_sample_size ?? 0
+          )}
+        </span>
+        <span className="text-xs text-gray-500">
+          n={clocks?.decision_sample_size ?? 0} with clocks
+        </span>
+      </div>
     </section>
   );
 }

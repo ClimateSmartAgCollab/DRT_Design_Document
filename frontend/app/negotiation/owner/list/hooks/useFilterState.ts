@@ -7,6 +7,7 @@ import {
   parseArchivedFilter, 
   parseSortOption, 
   parseCsvList,
+  parseDateField,
   validateDate,
   buildQueryString 
 } from '../utils/urlParams';
@@ -21,6 +22,7 @@ interface FilterState {
   tags: string[];
   recordLabel: string[];
   dataLabel: string[];
+  dateField: 'created' | 'decided';
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -33,6 +35,7 @@ const DEFAULT_FILTERS: FilterState = {
   tags: [],
   recordLabel: [],
   dataLabel: [],
+  dateField: 'created',
 };
 
 function filtersFromSearchParams(searchParams: URLSearchParams): FilterState {
@@ -53,6 +56,7 @@ function filtersFromSearchParams(searchParams: URLSearchParams): FilterState {
     tags: parseCsvList(searchParams.get('tags')),
     recordLabel: parseCsvList(searchParams.get('record_label')),
     dataLabel: parseCsvList(searchParams.get('data_label')),
+    dateField: parseDateField(searchParams.get('dateField')),
   };
 }
 
@@ -78,6 +82,9 @@ export function useFilterState() {
     if (newFilters.tags.length > 0) params.tags = newFilters.tags;
     if (newFilters.recordLabel.length > 0) params.record_label = newFilters.recordLabel;
     if (newFilters.dataLabel.length > 0) params.data_label = newFilters.dataLabel;
+    if (newFilters.dateField && newFilters.dateField !== 'created') {
+      params.dateField = newFilters.dateField;
+    }
     
     const queryString = buildQueryString(params);
     const newURL = queryString ? `?${queryString}` : '';
@@ -139,6 +146,10 @@ export function useFilterState() {
     updateFilters({ dataLabel });
   }, [updateFilters]);
 
+  const setDateField = useCallback((dateField: FilterState['dateField']) => {
+    updateFilters({ dateField });
+  }, [updateFilters]);
+
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
     router.replace('/negotiation/owner/list', { scroll: false });
@@ -158,6 +169,7 @@ export function useFilterState() {
     setTags,
     setRecordLabel,
     setDataLabel,
+    setDateField,
     resetFilters,
   };
 }

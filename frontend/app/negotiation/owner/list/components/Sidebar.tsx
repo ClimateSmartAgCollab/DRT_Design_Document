@@ -12,6 +12,8 @@ interface SidebarProps {
   startDate: string;
   endDate: string;
   onDateChange: (field: "start" | "end", value: string) => void;
+  dateField: "created" | "decided";
+  onDateFieldChange: (value: "created" | "decided") => void;
   sortOption: SortOption;
   onSortChange: (opt: SortOption) => void;
   onReset: () => void;
@@ -36,6 +38,8 @@ export function Sidebar({
   startDate,
   endDate,
   onDateChange,
+  dateField,
+  onDateFieldChange,
   sortOption,
   onSortChange,
   onReset,
@@ -112,9 +116,31 @@ export function Sidebar({
         ))}
       </div>
 
-      {/* Request created */}
+      {/* Date window */}
       <div className="mb-6">
-        <h3 className="mb-2 text-sm font-medium text-gray-700">Request created</h3>
+        <h3 className="mb-2 text-sm font-medium text-gray-700">Date window</h3>
+        <div className="mb-3 flex gap-4 text-sm">
+          <label className="flex items-center text-gray-700">
+            <input
+              type="radio"
+              name="list-date-field"
+              checked={dateField === "created"}
+              onChange={() => onDateFieldChange("created")}
+              className="mr-2 h-4 w-4 border-gray-300 text-[rgb(70,160,35)] focus:ring-[rgb(70,160,35)]"
+            />
+            Created
+          </label>
+          <label className="flex items-center text-gray-700">
+            <input
+              type="radio"
+              name="list-date-field"
+              checked={dateField === "decided"}
+              onChange={() => onDateFieldChange("decided")}
+              className="mr-2 h-4 w-4 border-gray-300 text-[rgb(70,160,35)] focus:ring-[rgb(70,160,35)]"
+            />
+            Decided
+          </label>
+        </div>
         <label className="mb-2 block text-sm text-gray-700">
           From
           <input

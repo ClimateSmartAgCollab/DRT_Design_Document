@@ -22,6 +22,7 @@ export interface NegotiationFilters {
   dataLabel?: string[];
   search?: string;
   sort?: string;
+  dateField?: "created" | "decided";
 }
 
 export async function fetchNegotiations(
@@ -39,6 +40,7 @@ export async function fetchNegotiations(
     dataLabel,
     search,
     sort,
+    dateField,
   } = filters;
 
   const searchParams = new URLSearchParams({
@@ -74,6 +76,9 @@ export async function fetchNegotiations(
   }
   if (sort) {
     searchParams.set("sort", sort);
+  }
+  if (dateField && dateField !== "created") {
+    searchParams.set("dateField", dateField);
   }
 
   const res = await fetchApi(`/drt/negotiations/?${searchParams.toString()}`);

@@ -155,6 +155,7 @@ interface SummaryResultsTableProps {
   tags: string[];
   startDate: string;
   endDate: string;
+  dateField?: "created" | "decided";
 }
 
 export function SummaryResultsTable({
@@ -162,6 +163,7 @@ export function SummaryResultsTable({
   tags,
   startDate,
   endDate,
+  dateField,
 }: SummaryResultsTableProps) {
   return (
     <section className="overflow-x-auto">
@@ -197,6 +199,7 @@ export function SummaryResultsTable({
                 tags,
                 startDate,
                 endDate,
+                dateField,
               });
               const rowHref = buildOwnerListHref(groupFilters);
               const rowName = summaryRowLabel(d);
