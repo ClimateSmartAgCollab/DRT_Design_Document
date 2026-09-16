@@ -5,6 +5,7 @@ export type OwnerListHrefFilters = {
   dataLabel?: string[];
   startDate?: string;
   endDate?: string;
+  dateField?: "created" | "decided";
 };
 
 export const TABLE_COUNT_STATUS = {
@@ -38,6 +39,9 @@ export function buildOwnerListHref(filters: OwnerListHrefFilters): string {
   if (filters.endDate) {
     params.set("endDate", filters.endDate);
   }
+  if (filters.dateField && filters.dateField !== "created") {
+    params.set("dateField", filters.dateField);
+  }
   const query = params.toString();
   return query ? `/negotiation/owner/list?${query}` : "/negotiation/owner/list";
 }
@@ -49,6 +53,7 @@ export function filtersForSummaryRow(args: {
   tags?: string[];
   startDate?: string;
   endDate?: string;
+  dateField?: "created" | "decided";
   status?: string[];
 }): OwnerListHrefFilters {
   return {
@@ -58,5 +63,6 @@ export function filtersForSummaryRow(args: {
     dataLabel: args.dataLabel?.trim() ? [args.dataLabel.trim()] : undefined,
     startDate: args.startDate,
     endDate: args.endDate,
+    dateField: args.dateField,
   };
 }

@@ -46,6 +46,7 @@ class NegotiationListApiFilterTests(TestCase):
         tags,
         state="accepted",
         created_at=None,
+        decided_at=None,
         dataset_id="ds-1",
         visible_label="Visible",
     ):
@@ -53,10 +54,15 @@ class NegotiationListApiFilterTests(TestCase):
             questionnaire_SAID="test-said",
             state="requestor_open",
         )
+        updates = {}
         if state != "requestor_open":
-            Negotiation.objects.filter(pk=negotiation.pk).update(state=state)
+            updates["state"] = state
         if created_at is not None:
-            Negotiation.objects.filter(pk=negotiation.pk).update(timestamps=created_at)
+            updates["timestamps"] = created_at
+        if decided_at is not None:
+            updates["decided_at"] = decided_at
+        if updates:
+            Negotiation.objects.filter(pk=negotiation.pk).update(**updates)
         negotiation.refresh_from_db()
         NLink.objects.create(
             negotiation=negotiation,
@@ -172,3 +178,61 @@ class NegotiationListApiFilterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self._ids(response), {str(match.negotiation_id)})
         self.assertEqual(response.json()["results"][0]["data_label"], "alpha")
+
+    def test_date_field_decided_filters_on_decided_at(self):
+        created = timezone.make_aware(datetime(2025, 6, 1, 12, 0, 0))
+        inside = self._make_case(
+            data_label="alpha",
+            record_label="door-a",
+            tags=["2026"],
+            state="accepted",
+            created_at=created,
+            decided_at=timezone.make_aware(datetime(2025, 6, 15, 12, 0, 0)),
+        )
+        self._make_case(
+            data_label="alpha",
+            record_label="door-a",
+            tags=["2026"],
+            state="accepted",
+            created_at=created,
+            decided_at=timezone.make_aware(datetime(2024, 1, 15, 12, 0, 0)),
+        )
+        self._make_case(
+            data_label="alpha",
+            record_label="door-a",
+            tags=["2026"],
+            state="owner_open",
+            created_at=created,
+        )
+
+        response = self.client.get(
+            self.url,
+            {
+                "dateField": "decided",
+                "startDate": "2025-06-01",
+                "endDate": "2025-06-30",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._ids(response), {str(inside.negotiation_id)})
+
+    def test_date_window_end_date_includes_same_day_afternoon(self):
+        afternoon = timezone.make_aware(datetime(2025, 6, 30, 15, 0, 0))
+        match = self._make_case(
+            data_label="alpha",
+            record_label="door-a",
+            tags=["2026"],
+            state="accepted",
+            created_at=afternoon,
+            decided_at=afternoon,
+        )
+        response = self.client.get(
+            self.url,
+            {
+                "dateField": "decided",
+                "startDate": "2025-06-30",
+                "endDate": "2025-06-30",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._ids(response), {str(match.negotiation_id)})

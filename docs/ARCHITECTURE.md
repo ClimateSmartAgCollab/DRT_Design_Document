@@ -97,9 +97,10 @@ graph LR;
 5. **Archival and analytics**
    - Significant changes are recorded in `Archive`.
    - The owner **Summary Statistics** page live-aggregates `NLink` / `Negotiation` state counts for the signed-in owner (`GET /drt/summary-statistics/?group_by=true`). It reports request decisions, not file access, and it is not a historical time series.
-   - Filters are tag **AND**, `data_label`, `record_label`, and a **request created** window on `Negotiation.timestamps`.
-   - The page shows queue / decided / abandoned KPIs (acceptance rate = accepted / (accepted + rejected)), a stacked outcome mix (accepted / rejected / abandoned / still open), and a table. KPI cards and status counts click through to the owner list with matching `status`, `tags`, `record_label`, `data_label`, and dates.
-   - There is no stored aggregate table. Counts are always computed from live `NLink` / `Negotiation` rows.
+   - Filters are tag **AND**, `data_label`, `record_label`, and a date window. The window defaults to **request created** (`Negotiation.timestamps`). Owners can switch it to **decided** (`Negotiation.decided_at`); rows with a null decision clock drop out of that mode.
+   - Median time-to-first-look and time-to-decision are filter-scoped scalars over rows that have both clock ends. Sparse or missing clocks show an em dash and a sample size, not a fake 0-day SLA. `decided_at` / `abandoned_at` are **current-cycle** clocks: reopen clears them on purpose so the live row is the cycle in progress. First-decision SLA after a reopen remains in `Archive` (`Owner accepted` / `Owner rejected` + `archived_timestamp`).
+   - The page shows queue / decided / abandoned KPIs (acceptance rate = accepted / (accepted + rejected)), median first-look / decision times, a stacked outcome mix (accepted / rejected / abandoned / still open), and a table. KPI cards and status counts click through to the owner list with matching `status`, `tags`, `record_label`, `data_label`, dates, and `dateField`.
+   - There is no stored aggregate table. Counts are always computed from live `NLink` / `Negotiation` rows. These figures are request decisions, not file access.
 
 ---
 

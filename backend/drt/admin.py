@@ -15,10 +15,20 @@ class NLinkAdmin(admin.ModelAdmin):
 
 @admin.register(Negotiation)
 class NegotiationAdmin(admin.ModelAdmin):
-    list_display = ('negotiation_id', 'state', 'timestamps', 'archived')
+    list_display = (
+        'negotiation_id', 'state', 'timestamps', 'submitted_at', 'decided_at', 'archived',
+    )
     search_fields = ('negotiation_id', 'state')
     list_filter = ('state', 'archived', 'timestamps')
-    readonly_fields = ('negotiation_id', 'conversation_id')  # Prevent editing UUIDs
+    readonly_fields = (
+        'negotiation_id',
+        'conversation_id',
+        'submitted_at',
+        'first_owner_open_at',
+        'decided_at',
+        'abandoned_at',
+        'reopen_count',
+    )
 
 @admin.register(Archive)
 class ArchiveAdmin(admin.ModelAdmin):

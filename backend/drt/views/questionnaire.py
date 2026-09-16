@@ -23,6 +23,16 @@ from ..tasks import (
     send_clarification_email_task
 )
 from drt.services.history import create_archive_snapshot
+from drt.services.clocks import (
+    DESC_OWNER_ACCEPTED,
+    DESC_OWNER_CLARIFICATION,
+    DESC_OWNER_REJECTED,
+    DESC_OWNER_SAVED,
+    DESC_SUBMITTED,
+    mark_decided,
+    mark_first_owner_open,
+    mark_submitted,
+)
 from datastore.cache_keys import (
     KEY_LINK_TABLE,
     KEY_QUESTIONNAIRE_TABLE,
@@ -275,13 +285,14 @@ def fill_questionnaire(request, link_id):
             negotiation.save()
             # Update last_activity on NLink when requestor submits
             nlink.save(update_fields=['last_activity'])
+            mark_submitted(negotiation)
             
             # Archive the requestor submission
             try:
                 create_archive_snapshot(
                     negotiation,
                     changed_by=nlink.requestor_email or "requestor",
-                    change_description='Requestor submitted questionnaire responses',
+                    change_description=DESC_SUBMITTED,
                     requestor_responses=data,
                     state='owner_open'
                 )
@@ -342,6 +353,8 @@ def owner_review(request, link_id):
         if negotiation.state == 'accepted' and not bypass_accepted:
             return Response({'error': 'The negotiation is accepted and cannot be edited.'}, status=403)
 
+        mark_first_owner_open(negotiation)
+
         questionnaire_json = None
         
         cached_json = cache.get(questionnaire_json_key(negotiation.questionnaire_SAID))
@@ -379,13 +392,14 @@ def owner_review(request, link_id):
             negotiation.save()
             # Update last_activity on NLink when owner saves
             nlink.save(update_fields=['last_activity'])
+            mark_first_owner_open(negotiation)
             
             # Create archive entry for save action
             try:
                 create_archive_snapshot(
                     negotiation,
                     changed_by="owner",
-                    change_description="Owner saved review",
+                    change_description=DESC_OWNER_SAVED,
                     owner_responses=negotiation.owner_responses,
                     comments=negotiation.comments,
                     state=negotiation.state,
@@ -416,11 +430,13 @@ def owner_review(request, link_id):
                 negotiation.save()
                 # Update last_activity on NLink when owner accepts
                 nlink.save(update_fields=['last_activity'])
+                mark_first_owner_open(negotiation)
+                mark_decided(negotiation)
                 try:
                     create_archive_snapshot(
                         negotiation,
                         changed_by=owner_email or "owner",
-                        change_description="Owner accepted",
+                        change_description=DESC_OWNER_ACCEPTED,
                         owner_responses=negotiation.owner_responses,
                         comments=negotiation.comments,
                         state='accepted',
@@ -442,11 +458,13 @@ def owner_review(request, link_id):
                 negotiation.save()
                 # Update last_activity on NLink when owner rejects
                 nlink.save(update_fields=['last_activity'])
+                mark_first_owner_open(negotiation)
+                mark_decided(negotiation)
                 try:
                     create_archive_snapshot(
                         negotiation,
                         changed_by=owner_email or "owner",
-                        change_description="Owner rejected",
+                        change_description=DESC_OWNER_REJECTED,
                         owner_responses=negotiation.owner_responses,
                         comments=negotiation.comments,
                         state='rejected',
@@ -467,11 +485,12 @@ def owner_review(request, link_id):
                 negotiation.save()
                 # Update last_activity on NLink when owner requests clarification
                 nlink.save(update_fields=['last_activity'])
+                mark_first_owner_open(negotiation)
                 try:
                     create_archive_snapshot(
                         negotiation,
                         changed_by=owner_email or "owner",
-                        change_description="Owner requested clarification",
+                        change_description=DESC_OWNER_CLARIFICATION,
                         owner_responses=negotiation.owner_responses,
                         comments=negotiation.comments,
                         state='requestor_open',

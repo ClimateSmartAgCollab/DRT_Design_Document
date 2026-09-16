@@ -20,6 +20,7 @@ import logging
 import datetime
 from ..tasks import handle_negotiation_archive_and_summary_task, send_reopen_notification_email_task
 from drt.services.history import get_archive_history, map_archives_to_versions
+from drt.services.clocks import mark_reopened, reopen_description
 from datastore.views import fetch_questionnaire_json, fetch_license_template
 from datastore.cache_keys import (
     KEY_OWNER_TABLE,
@@ -32,6 +33,111 @@ from django.conf import settings
 
 
 logger = logging.getLogger(__name__)
+
+DATE_FIELD_CREATED = "created"
+DATE_FIELD_DECIDED = "decided"
+
+
+def _parse_date_field(raw):
+    value = (raw or DATE_FIELD_CREATED).strip().lower()
+    if value in (DATE_FIELD_CREATED, DATE_FIELD_DECIDED):
+        return value
+    return DATE_FIELD_CREATED
+
+
+def _window_bound(value, *, end=False):
+    """Inclusive calendar-day bounds for YYYY-MM-DD sidebar inputs.
+
+    Date-only strings are parsed with `parse_date` first. `parse_datetime`
+    would otherwise treat `2025-06-30` as naive midnight and drop same-day
+    afternoon clocks when it is used as `endDate`.
+    """
+    if not value:
+        return None
+    try:
+        raw = str(value).strip()
+        date_obj = parse_date(raw) if len(raw) == 10 else None
+        if date_obj is not None:
+            clock = datetime.time.max if end else datetime.time.min
+            dt = datetime.datetime.combine(date_obj, clock)
+            return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+        dt = parse_datetime(raw)
+        if dt is None:
+            return None
+        return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+    except (ValueError, TypeError):
+        return None
+
+
+def date_window_q(start_date, end_date, date_field=DATE_FIELD_CREATED, *, nlink=True):
+    """Filter by request created (`timestamps`) or current-cycle `decided_at`.
+
+    `dateField=decided` drops rows with null `decided_at` even when no From/To
+    is set, so the population is cases that currently have a decision clock.
+    """
+    if date_field == DATE_FIELD_DECIDED:
+        field = "negotiation__decided_at" if nlink else "decided_at"
+    else:
+        field = "negotiation__timestamps" if nlink else "timestamps"
+
+    q = Q()
+    if date_field == DATE_FIELD_DECIDED:
+        q &= Q(**{f"{field}__isnull": False})
+
+    start_dt = _window_bound(start_date, end=False)
+    end_dt = _window_bound(end_date, end=True)
+    if start_dt:
+        q &= Q(**{f"{field}__gte": start_dt})
+    if end_dt:
+        q &= Q(**{f"{field}__lte": end_dt})
+    return q
+
+
+def _median(values):
+    if not values:
+        return None
+    ordered = sorted(values)
+    n = len(ordered)
+    mid = n // 2
+    if n % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2.0
+
+
+def summary_clocks_payload(nlink_filter, date_field):
+    first_look = []
+    decision = []
+    rows = (
+        NLink.objects.filter(nlink_filter)
+        .values_list(
+            "negotiation__submitted_at",
+            "negotiation__first_owner_open_at",
+            "negotiation__decided_at",
+        )
+    )
+    for submitted_at, first_owner_open_at, decided_at in rows:
+        if submitted_at and first_owner_open_at:
+            delta = (first_owner_open_at - submitted_at).total_seconds()
+            if delta >= 0:
+                first_look.append(delta)
+        if submitted_at and decided_at:
+            delta = (decided_at - submitted_at).total_seconds()
+            if delta >= 0:
+                decision.append(delta)
+
+    first_median = _median(first_look)
+    decision_median = _median(decision)
+    return {
+        "date_field": date_field,
+        "median_time_to_first_look_seconds": (
+            None if first_median is None else int(round(first_median))
+        ),
+        "median_time_to_decision_seconds": (
+            None if decision_median is None else int(round(decision_median))
+        ),
+        "first_look_sample_size": len(first_look),
+        "decision_sample_size": len(decision),
+    }
 
 
 @admin_auth_required
@@ -304,6 +410,7 @@ def summary_statistics_view(request):
     group_by = request.GET.get("group_by", "false").lower() == "true"
     start_date = request.GET.get("startDate")
     end_date = request.GET.get("endDate")
+    date_field = _parse_date_field(request.GET.get("dateField"))
 
     try:
         if include_all_tags:
@@ -349,34 +456,9 @@ def summary_statistics_view(request):
         if record_label_filter:
             nlink_filter &= Q(record_label__in=record_label_filter)
 
-        # Apply date filters on negotiation timestamps
-        if start_date:
-            try:
-                start_dt = parse_datetime(start_date)
-                if not start_dt:
-                    start_date_obj = parse_date(start_date)
-                    if start_date_obj:
-                        start_dt = timezone.make_aware(
-                            datetime.datetime.combine(start_date_obj, datetime.time.min)
-                        )
-                if start_dt:
-                    nlink_filter &= Q(negotiation__timestamps__gte=start_dt)
-            except (ValueError, TypeError):
-                pass
-
-        if end_date:
-            try:
-                end_dt = parse_datetime(end_date)
-                if not end_dt:
-                    end_date_obj = parse_date(end_date)
-                    if end_date_obj:
-                        end_dt = timezone.make_aware(
-                            datetime.datetime.combine(end_date_obj, datetime.time.max)
-                        )
-                if end_dt:
-                    nlink_filter &= Q(negotiation__timestamps__lte=end_dt)
-            except (ValueError, TypeError):
-                pass
+        nlink_filter &= date_window_q(
+            start_date, end_date, date_field, nlink=True
+        )
 
         grouped_stats = (
             NLink.objects
@@ -394,7 +476,10 @@ def summary_statistics_view(request):
         if group_by:
             statistics_data = _group_summary_statistics(statistics_data)
 
-        return JsonResponse({'summary_statistics': statistics_data})
+        return JsonResponse({
+            'summary_statistics': statistics_data,
+            'clocks': summary_clocks_payload(nlink_filter, date_field),
+        })
 
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'Owner statistics not found.'}, status=404)
@@ -580,6 +665,7 @@ def negotiation_list_api(request):
     archived_filter = request.GET.get("archived", "all")
     start_date = request.GET.get("startDate")
     end_date = request.GET.get("endDate")
+    date_field = _parse_date_field(request.GET.get("dateField"))
     tags_filter = [tag.strip() for tag in request.GET.getlist("tags") if tag and tag.strip()]
     record_label_filter = [lbl.strip() for lbl in request.GET.getlist("record_label") if lbl and lbl.strip()]
     data_label_filter = [lbl.strip() for lbl in request.GET.getlist("data_label") if lbl and lbl.strip()]
@@ -629,33 +715,7 @@ def negotiation_list_api(request):
     elif archived_filter == "active":
         qs = qs.filter(archived=False)
 
-    if start_date:
-        try:
-            start_dt = parse_datetime(start_date)
-            if not start_dt:
-                start_date_obj = parse_date(start_date)
-                if start_date_obj:
-                    start_dt = timezone.make_aware(
-                        datetime.datetime.combine(start_date_obj, datetime.time.min)
-                    )
-            if start_dt:
-                qs = qs.filter(timestamps__gte=start_dt)
-        except (ValueError, TypeError):
-            pass
-
-    if end_date:
-        try:
-            end_dt = parse_datetime(end_date)
-            if not end_dt:
-                end_date_obj = parse_date(end_date)
-                if end_date_obj:
-                    end_dt = timezone.make_aware(
-                        datetime.datetime.combine(end_date_obj, datetime.time.max)
-                    )
-            if end_dt:
-                qs = qs.filter(timestamps__lte=end_dt)
-        except (ValueError, TypeError):
-            pass
+    qs = qs.filter(date_window_q(start_date, end_date, date_field, nlink=False))
 
     if tags_filter:
         # AND: each selected tag must be present, matching summary-statistics.
@@ -961,7 +1021,7 @@ def reopen_negotiation_view(request, negotiation_id):
         create_archive_snapshot(
             negotiation,
             changed_by=request.owner_email or "owner",
-            change_description=f"Owner reopened negotiation from {previous_state} state"
+            change_description=reopen_description(previous_state)
         )
         
         negotiation.state = new_state
@@ -969,6 +1029,7 @@ def reopen_negotiation_view(request, negotiation_id):
         if negotiation.archived:
             negotiation.archived = False
         negotiation.save()
+        mark_reopened(negotiation)
 
         # Send email notification to requestor
         if hasattr(negotiation, 'link') and negotiation.link:

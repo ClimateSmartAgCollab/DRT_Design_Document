@@ -69,6 +69,11 @@ class Negotiation(models.Model):
     archived = models.BooleanField(default=False)
     rationale = models.TextField(blank=True, null=True)
     submission_version = models.IntegerField(default=0)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    first_owner_open_at = models.DateTimeField(null=True, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    abandoned_at = models.DateTimeField(null=True, blank=True)
+    reopen_count = models.IntegerField(default=0)
 
 
 class Archive(models.Model):

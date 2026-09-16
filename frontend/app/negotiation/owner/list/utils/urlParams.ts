@@ -39,6 +39,12 @@ export function parseCsvList(param: string | null): string[] {
   return Array.from(new Set(values));
 }
 
+export type DateField = 'created' | 'decided';
+
+export function parseDateField(param: string | null): DateField {
+  return param === 'decided' ? 'decided' : 'created';
+}
+
 export function validateDate(dateString: string): boolean {
   if (!dateString) return true;
   const date = new Date(dateString);

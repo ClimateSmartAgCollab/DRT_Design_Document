@@ -1,3 +1,5 @@
+export type DateField = "created" | "decided";
+
 export type SummaryKpiSource = {
   owner_open?: number;
   requestor_open?: number;
@@ -54,10 +56,48 @@ export function summarizeKpis(rows: SummaryKpiSource[]): SummaryKpis {
   };
 }
 
-export function decidedWindowLabel(startDate?: string, endDate?: string): string {
-  return startDate || endDate ? "Request created in window" : "Lifetime";
+export function decidedWindowLabel(
+  startDate?: string,
+  endDate?: string,
+  dateField: DateField = "created"
+): string {
+  if (!(startDate || endDate)) return "Lifetime";
+  return dateField === "decided"
+    ? "Decided in window"
+    : "Request created in window";
 }
 
 export function formatAcceptanceRate(rate: number): string {
   return `${Math.round(rate * 100)}%`;
 }
+
+export function formatDurationSeconds(
+  seconds: number | null | undefined,
+  sampleSize: number
+): string {
+  if (sampleSize <= 0 || seconds == null) return "—";
+  const total = Math.max(0, Math.round(seconds));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (days > 0) return hours ? `${days}d ${hours}h` : `${days}d`;
+  if (hours > 0) return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (minutes > 0) return `${minutes}m`;
+  return "<1m";
+}
+
+export type SummaryClocks = {
+  date_field: DateField;
+  median_time_to_first_look_seconds: number | null;
+  median_time_to_decision_seconds: number | null;
+  first_look_sample_size: number;
+  decision_sample_size: number;
+};
+
+export const EMPTY_CLOCKS: SummaryClocks = {
+  date_field: "created",
+  median_time_to_first_look_seconds: null,
+  median_time_to_decision_seconds: null,
+  first_look_sample_size: 0,
+  decision_sample_size: 0,
+};

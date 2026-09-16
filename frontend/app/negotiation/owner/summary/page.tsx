@@ -13,6 +13,11 @@ import { KpiStrip } from "./components/KpiStrip";
 import { OutcomeMixChart } from "./components/OutcomeMixChart";
 import { SummaryResultsTable } from "./components/SummaryResultsTable";
 import { summaryRowLabel } from "./utils/outcomeMix";
+import {
+  EMPTY_CLOCKS,
+  type DateField,
+  type SummaryClocks,
+} from "./utils/summaryKpis";
 
 interface SummaryStat {
   dataset_ID?: string;
@@ -49,8 +54,9 @@ async function fetchSummaryStats(
   includeAllTags?: boolean,
   startDate?: string,
   endDate?: string,
-  groupBy?: boolean
-): Promise<SummaryStat[]> {
+  groupBy?: boolean,
+  dateField?: DateField
+): Promise<{ rows: SummaryStat[]; clocks: SummaryClocks }> {
   const params = new URLSearchParams();
   if (tags && tags.length > 0) {
     tags.forEach((tag) => params.append("tags", tag));
@@ -70,6 +76,9 @@ async function fetchSummaryStats(
   if (endDate) {
     params.set("endDate", endDate);
   }
+  if (dateField && dateField !== "created") {
+    params.set("dateField", dateField);
+  }
   if (groupBy) {
     params.set("group_by", "true");
   }
@@ -84,7 +93,20 @@ async function fetchSummaryStats(
   if (!res.ok) {
     throw new Error(json.error || `Status ${res.status}`);
   }
-  return json.summary_statistics as SummaryStat[];
+  return {
+    rows: (json.summary_statistics || []) as SummaryStat[],
+    clocks: json.clocks
+      ? {
+          date_field: json.clocks.date_field === "decided" ? "decided" : "created",
+          median_time_to_first_look_seconds:
+            json.clocks.median_time_to_first_look_seconds ?? null,
+          median_time_to_decision_seconds:
+            json.clocks.median_time_to_decision_seconds ?? null,
+          first_look_sample_size: json.clocks.first_look_sample_size || 0,
+          decision_sample_size: json.clocks.decision_sample_size || 0,
+        }
+      : EMPTY_CLOCKS,
+  };
 }
 
 function splitTags(tag: string | undefined): string[] {
@@ -156,9 +178,19 @@ export default function OwnerSummaryPage() {
   const [recordLabel, setRecordLabel] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [dateField, setDateField] = useState<DateField>("created");
 
-  const summaryQuery = useQuery<SummaryStat[], Error>({
-    queryKey: ["owner", "summary-statistics", tag, dataLabel, recordLabel, startDate, endDate],
+  const summaryQuery = useQuery<{ rows: SummaryStat[]; clocks: SummaryClocks }, Error>({
+    queryKey: [
+      "owner",
+      "summary-statistics",
+      tag,
+      dataLabel,
+      recordLabel,
+      startDate,
+      endDate,
+      dateField,
+    ],
     queryFn: () =>
       fetchSummaryStats(
         tag,
@@ -167,14 +199,15 @@ export default function OwnerSummaryPage() {
         false,
         startDate || undefined,
         endDate || undefined,
-        true
+        true,
+        dateField
       ),
     staleTime: 1000 * 60 * 5,
     retry: 1,
     enabled: !!whoamiQuery.data,
   });
 
-  const allStatsQuery = useQuery<SummaryStat[], Error>({
+  const allStatsQuery = useQuery<{ rows: SummaryStat[]; clocks: SummaryClocks }, Error>({
     queryKey: ["owner", "summary-statistics", "all", "options"],
     queryFn: () => fetchSummaryStats(undefined, undefined, undefined, true),
     staleTime: 1000 * 60 * 5,
@@ -188,10 +221,11 @@ export default function OwnerSummaryPage() {
 
   const allData = useMemo(() => {
     if (hasNoDataError) return [];
-    return summaryQuery.data ?? [];
+    return summaryQuery.data?.rows ?? [];
   }, [summaryQuery.data, hasNoDataError]);
+  const clocks = summaryQuery.data?.clocks ?? EMPTY_CLOCKS;
   const allStatsForOptions = useMemo(
-    () => allStatsQuery.data ?? [],
+    () => allStatsQuery.data?.rows ?? [],
     [allStatsQuery.data]
   );
 
@@ -312,12 +346,15 @@ export default function OwnerSummaryPage() {
                   onDateChange={(field, v) =>
                     field === "start" ? setStartDate(v) : setEndDate(v)
                   }
+                  dateField={dateField}
+                  onDateFieldChange={setDateField}
                   onReset={() => {
                     setDataLabel([]);
                     setTag([]);
                     setRecordLabel([]);
                     setStartDate("");
                     setEndDate("");
+                    setDateField("created");
                   }}
                 />
               </aside>
@@ -342,6 +379,8 @@ export default function OwnerSummaryPage() {
                   recordLabels={recordLabel}
                   startDate={startDate}
                   endDate={endDate}
+                  dateField={dateField}
+                  clocks={clocks}
                 />
 
                 <OutcomeMixChart rows={groupedData} />
@@ -397,6 +436,7 @@ export default function OwnerSummaryPage() {
                   tags={tag}
                   startDate={startDate}
                   endDate={endDate}
+                  dateField={dateField}
                 />
               </div>
             </div>
