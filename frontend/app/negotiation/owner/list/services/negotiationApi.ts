@@ -23,6 +23,7 @@ export interface NegotiationFilters {
   search?: string;
   sort?: string;
   dateField?: "created" | "decided";
+  fulfillmentStatus?: string[];
 }
 
 export async function fetchNegotiations(
@@ -41,6 +42,7 @@ export async function fetchNegotiations(
     search,
     sort,
     dateField,
+    fulfillmentStatus,
   } = filters;
 
   const searchParams = new URLSearchParams({
@@ -80,6 +82,11 @@ export async function fetchNegotiations(
   if (dateField && dateField !== "created") {
     searchParams.set("dateField", dateField);
   }
+  if (fulfillmentStatus && fulfillmentStatus.length > 0) {
+    fulfillmentStatus.forEach((value) =>
+      searchParams.append("fulfillment_status", value)
+    );
+  }
 
   const res = await fetchApi(`/drt/negotiations/?${searchParams.toString()}`);
   if (!res.ok) throw new Error(res.statusText);
@@ -107,4 +114,62 @@ export async function regenerateLicense(negotiationId: string): Promise<Blob> {
 export async function reopenNegotiation(id: string): Promise<void> {
   const res = await fetchApi(`/drt/negotiations/reopen/${id}/`);
   if (!res.ok) throw new Error(res.statusText);
+}
+
+export type FulfillmentActionResponse = {
+  message: string;
+  fulfillment_status: string;
+  fulfillment_note: string | null;
+  fulfillment_at: string | null;
+};
+
+async function postFulfillmentAction(
+  path: string,
+  note?: string
+): Promise<FulfillmentActionResponse> {
+  const res = await fetchApi(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(note ? { note } : {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || res.statusText);
+  }
+  return data as FulfillmentActionResponse;
+}
+
+export async function markFulfillmentDelivered(
+  negotiationId: string,
+  note?: string
+): Promise<FulfillmentActionResponse> {
+  return postFulfillmentAction(
+    `/drt/negotiations/fulfillment/deliver/${negotiationId}/`,
+    note
+  );
+}
+
+export async function markFulfillmentWithdrawn(
+  negotiationId: string,
+  note?: string
+): Promise<FulfillmentActionResponse> {
+  return postFulfillmentAction(
+    `/drt/negotiations/fulfillment/withdraw/${negotiationId}/`,
+    note
+  );
+}
+
+export async function fetchNegotiationByOwnerLink(
+  ownerLink: string
+): Promise<Negotiation | null> {
+  const searchParams = new URLSearchParams({
+    owner_link: ownerLink,
+    lightweight: "true",
+    page_size: "1",
+  });
+  const res = await fetchApi(`/drt/negotiations/?${searchParams.toString()}`);
+  if (!res.ok) throw new Error(res.statusText);
+  const payload = await res.json();
+  const results = Array.isArray(payload?.results) ? payload.results : payload;
+  return results?.[0] ?? null;
 }

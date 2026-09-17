@@ -127,6 +127,9 @@ def mark_reopened(negotiation) -> bool:
         reminder_sent=False,
         reminder_sent_date=None,
         reopen_count=F("reopen_count") + 1,
+        fulfillment_status=Negotiation.FULFILLMENT_NOT_APPLICABLE,
+        fulfillment_note=None,
+        fulfillment_at=None,
     )
     if not updated:
         return False
@@ -134,6 +137,9 @@ def mark_reopened(negotiation) -> bool:
     negotiation.abandoned_at = None
     negotiation.reminder_sent = False
     negotiation.reminder_sent_date = None
+    negotiation.fulfillment_status = Negotiation.FULFILLMENT_NOT_APPLICABLE
+    negotiation.fulfillment_note = None
+    negotiation.fulfillment_at = None
     negotiation.reopen_count = (
         Negotiation.objects.filter(pk=negotiation.pk)
         .values_list("reopen_count", flat=True)

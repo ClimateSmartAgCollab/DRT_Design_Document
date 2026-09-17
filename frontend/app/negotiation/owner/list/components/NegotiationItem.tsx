@@ -9,6 +9,7 @@ import {
 } from "../services/negotiationApi";
 import Link from "next/link";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
+import { FulfillmentActions, FulfillmentBadge } from "./FulfillmentActions";
 
 interface NegotiationItemProps {
   negotiation: Negotiation;
@@ -159,6 +160,14 @@ export function NegotiationItem({
               </div>
             </div>
             <span className="text-gray-600">State: {STATUS_DISPLAY_NAMES[n.state as keyof typeof STATUS_DISPLAY_NAMES] || n.state}</span>
+            {n.state === "accepted" && (
+              <FulfillmentBadge status={n.fulfillment_status} />
+            )}
+            {n.state === "accepted" && n.fulfillment_note && (
+              <span className="text-xs text-gray-500">
+                Note: {n.fulfillment_note}
+              </span>
+            )}
             <span className="text-gray-600">
               Created: {new Date(n.timestamps).toLocaleDateString()}
             </span>
@@ -207,6 +216,12 @@ export function NegotiationItem({
               {isRegenerating ? "Generating..." : "Regenerate License"}
             </button>
           )}
+          <FulfillmentActions
+            negotiationId={n.negotiation_id}
+            state={n.state}
+            fulfillmentStatus={n.fulfillment_status}
+            onUpdated={onReload}
+          />
           {(n.state === "accepted" || n.state === "rejected" || n.state === "abandoned") && (
             <button
               onClick={handleReopen}

@@ -1,5 +1,42 @@
 // drt_frontend\app\negotiation\owner\list\types\index.ts
 
+export const ALL_FULFILLMENT_STATUSES = [
+  "not_applicable",
+  "pending",
+  "delivered",
+  "withdrawn",
+] as const;
+export type FulfillmentStatus = typeof ALL_FULFILLMENT_STATUSES[number];
+
+export const FULFILLMENT_DISPLAY_NAMES: Record<FulfillmentStatus, string> = {
+  not_applicable: "Not marked",
+  pending: "Pending delivery",
+  delivered: "Delivered",
+  withdrawn: "Withdrawn",
+};
+
+export function isFulfillmentStatus(value: string): value is FulfillmentStatus {
+  return (ALL_FULFILLMENT_STATUSES as readonly string[]).includes(value);
+}
+
+export function canMarkDelivered(
+  state: string,
+  status?: FulfillmentStatus | null
+): boolean {
+  return (
+    state === "accepted" &&
+    status !== "delivered" &&
+    status !== "withdrawn"
+  );
+}
+
+export function canWithdrawAccess(
+  state: string,
+  status?: FulfillmentStatus | null
+): boolean {
+  return state === "accepted" && status !== "withdrawn";
+}
+
 export interface Negotiation {
   negotiation_id: string;
   state: string;
@@ -17,6 +54,9 @@ export interface Negotiation {
   visible_label?: string;
   requestor_email?: string | null;
   questionnaire?: any;
+  fulfillment_status?: FulfillmentStatus | null;
+  fulfillment_note?: string | null;
+  fulfillment_at?: string | null;
 }
 
 export const ALL_STATUSES = [

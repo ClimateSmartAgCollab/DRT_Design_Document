@@ -101,6 +101,7 @@ class SummaryStatisticsViewTests(TestCase):
         submitted_at=None,
         first_owner_open_at=None,
         decided_at=None,
+        fulfillment_status=None,
     ):
         negotiation = Negotiation.objects.create(
             questionnaire_SAID="test-said",
@@ -117,6 +118,8 @@ class SummaryStatisticsViewTests(TestCase):
             updates["first_owner_open_at"] = first_owner_open_at
         if decided_at is not None:
             updates["decided_at"] = decided_at
+        if fulfillment_status is not None:
+            updates["fulfillment_status"] = fulfillment_status
         if updates:
             Negotiation.objects.filter(pk=negotiation.pk).update(**updates)
         negotiation.refresh_from_db()
@@ -416,6 +419,100 @@ class SummaryStatisticsViewTests(TestCase):
         self.assertEqual(row["accepted_requests"], 1)
         self.assertEqual(row["rejected_requests"], 1)
         self.assertTrue(row["validation_status"]["is_valid"])
+
+    def test_fulfillment_omits_not_applicable_and_non_accepted(self):
+        self._make_case(
+            data_label="hist",
+            record_label="r",
+            dataset_id="ds-hist",
+            visible_label="Hist",
+            tags=["2026"],
+            state="accepted",
+            fulfillment_status=Negotiation.FULFILLMENT_NOT_APPLICABLE,
+        )
+        self._make_case(
+            data_label="pend",
+            record_label="r",
+            dataset_id="ds-pend",
+            visible_label="Pend",
+            tags=["2026"],
+            state="accepted",
+            fulfillment_status=Negotiation.FULFILLMENT_PENDING,
+        )
+        self._make_case(
+            data_label="del",
+            record_label="r",
+            dataset_id="ds-del",
+            visible_label="Del",
+            tags=["2026"],
+            state="accepted",
+            fulfillment_status=Negotiation.FULFILLMENT_DELIVERED,
+        )
+        self._make_case(
+            data_label="with",
+            record_label="r",
+            dataset_id="ds-with",
+            visible_label="With",
+            tags=["2026"],
+            state="accepted",
+            fulfillment_status=Negotiation.FULFILLMENT_WITHDRAWN,
+        )
+        self._make_case(
+            data_label="rej",
+            record_label="r",
+            dataset_id="ds-rej",
+            visible_label="Rej",
+            tags=["2026"],
+            state="rejected",
+            fulfillment_status=Negotiation.FULFILLMENT_PENDING,
+        )
+        self._make_case(
+            data_label="open",
+            record_label="r",
+            dataset_id="ds-open",
+            visible_label="Open",
+            tags=["2026"],
+            state="owner_open",
+        )
+
+        response = self._get(group_by="true")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(
+            body["fulfillment"],
+            {"pending": 1, "delivered": 1, "withdrawn": 1},
+        )
+        accepted = sum(row["accepted_requests"] for row in body["summary_statistics"])
+        self.assertEqual(accepted, 4)
+
+    def test_fulfillment_is_filter_scoped_not_grouped(self):
+        self._make_case(
+            data_label="keep",
+            record_label="r1",
+            dataset_id="ds-keep",
+            visible_label="Keep",
+            tags=["keep"],
+            state="accepted",
+            fulfillment_status=Negotiation.FULFILLMENT_PENDING,
+        )
+        self._make_case(
+            data_label="drop",
+            record_label="r2",
+            dataset_id="ds-drop",
+            visible_label="Drop",
+            tags=["other"],
+            state="accepted",
+            fulfillment_status=Negotiation.FULFILLMENT_DELIVERED,
+        )
+        response = self._get(group_by="true", tags=["keep"])
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(len(body["summary_statistics"]), 1)
+        self.assertNotIn("fulfillment", body["summary_statistics"][0])
+        self.assertEqual(
+            body["fulfillment"],
+            {"pending": 1, "delivered": 0, "withdrawn": 0},
+        )
 
 
 class TerminalNegotiationArchiveTests(TestCase):

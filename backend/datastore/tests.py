@@ -111,6 +111,18 @@ class WarmGithubCacheTests(TestCase):
         mock_fetch.assert_called()
         self.assertTrue(cache.get(KEY_LICENSE_TABLE))
 
+    @patch("datastore.views.fetch_file_from_github",
+           side_effect=_fake_fetch_file_from_github)
+    def test_force_rewarm_fetches_when_already_warm(self, mock_fetch):
+        for key in HOT_CACHE_KEYS:
+            cache.set(key, {"present": True})
+
+        result = datastore_views.warm_github_cache(force=True)
+
+        self.assertEqual(result.get("status"), "loaded")
+        mock_fetch.assert_called()
+        self.assertNotEqual(cache.get(KEY_LINK_TABLE), {"present": True})
+
 
 @override_settings(CACHES={
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
@@ -258,7 +270,7 @@ class RefreshDataTaskTests(TestCase):
 
         refresh_data_task()
 
-        mock_warm.assert_called_once()
+        mock_warm.assert_called_once_with(force=True)
 
 
 LINK_PAYLOAD = {
@@ -299,6 +311,28 @@ class ContextHubMapperTests(TestCase):
         self.assertEqual(entry["owner_id"], "92md42wd")
         self.assertEqual(entry["visible_label"], "Basic Data Request")
         self.assertEqual(entry["tags"], ["2026", "basic_data_request"])
+        self.assertNotIn("status", entry)
+
+    def test_link_table_keeps_catalog_status(self):
+        payload = {
+            "links": [
+                {**LINK_PAYLOAD["links"][0], "status": "disabled"},
+            ]
+        }
+        table = contexthub_client.link_table_from_payload(payload)
+        entry = table["75cb9450-01af-40b2-9cd5-e7fb0d82b59d"]
+        self.assertEqual(entry["status"], "disabled")
+
+    def test_link_is_requestable_missing_status_is_active(self):
+        self.assertTrue(contexthub_client.link_is_requestable({}))
+        self.assertTrue(contexthub_client.link_is_requestable({"status": ""}))
+        self.assertTrue(contexthub_client.link_is_requestable({"status": "active"}))
+        self.assertTrue(contexthub_client.link_is_requestable({"status": "Active"}))
+        self.assertFalse(contexthub_client.link_is_requestable({"status": "disabled"}))
+        self.assertFalse(
+            contexthub_client.link_is_requestable({"status": "review-required"})
+        )
+        self.assertFalse(contexthub_client.link_is_requestable({"status": "paused"}))
 
     def test_owner_table_maps_owner_email(self):
         table = contexthub_client.owner_table_from_payload(OWNER_PAYLOAD)
@@ -347,6 +381,27 @@ class WarmContextHubCacheTests(TestCase):
             cache.get(license_template_key(LINK_PAYLOAD["links"][0]["licenseId"])),
             {"jinja": "Hello {{ name }}"},
         )
+
+    @patch("datastore.contexthub.fetch_license", return_value={"jinja": "Hello {{ name }}"})
+    @patch("datastore.contexthub.fetch_owner_table", return_value=OWNER_PAYLOAD)
+    @patch("datastore.contexthub.fetch_link_table")
+    def test_force_rewarm_overwrites_cached_active_with_disabled(
+        self, mock_links, _mock_owners, _mock_license
+    ):
+        uuid = LINK_PAYLOAD["links"][0]["linkUuid"]
+        for key in HOT_CACHE_KEYS:
+            cache.set(key, {"present": True})
+        cache.set(KEY_LINK_TABLE, {
+            uuid: {"status": "active", "link_uuid": uuid},
+        })
+        mock_links.return_value = {
+            "links": [{**LINK_PAYLOAD["links"][0], "status": "disabled"}],
+        }
+
+        result = datastore_views.warm_github_cache(force=True)
+
+        self.assertEqual(result.get("status"), "loaded")
+        self.assertEqual(cache.get(KEY_LINK_TABLE)[uuid]["status"], "disabled")
 
     @patch("datastore.views.fetch_file_from_github")
     @patch("datastore.contexthub.fetch_owner_table", return_value=OWNER_PAYLOAD)

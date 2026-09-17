@@ -1,6 +1,15 @@
 // drt_frontend\app\negotiation\owner\list\components\Sidebar.tsx
 import React from "react";
-import { ALL_STATUSES, Status, ArchivedFilter, SortOption, STATUS_DISPLAY_NAMES } from "../types";
+import {
+  ALL_STATUSES,
+  ALL_FULFILLMENT_STATUSES,
+  Status,
+  ArchivedFilter,
+  SortOption,
+  STATUS_DISPLAY_NAMES,
+  FULFILLMENT_DISPLAY_NAMES,
+  type FulfillmentStatus,
+} from "../types";
 
 interface SidebarProps {
   searchTerm: string;
@@ -26,6 +35,8 @@ interface SidebarProps {
   dataLabelOptions: string[];
   selectedDataLabel: string[];
   onDataLabelChange: (labels: string[]) => void;
+  fulfillmentStatusFilter: FulfillmentStatus[];
+  onToggleFulfillmentStatus: (status: FulfillmentStatus) => void;
 }
 
 export function Sidebar({
@@ -52,6 +63,8 @@ export function Sidebar({
   dataLabelOptions,
   selectedDataLabel,
   onDataLabelChange,
+  fulfillmentStatusFilter,
+  onToggleFulfillmentStatus,
 }: SidebarProps) {
   const handleAllChange = (type: 'tag' | 'recordLabel' | 'dataLabel', checked: boolean) => {
     if (!checked) return;
@@ -116,7 +129,23 @@ export function Sidebar({
         ))}
       </div>
 
-      {/* Date window */}
+      {/* Fulfillment */}
+      <div className="mb-6">
+        <h3 className="mb-2 text-sm font-medium text-gray-700">Fulfillment</h3>
+        {ALL_FULFILLMENT_STATUSES.map((status) => (
+          <label key={status} className="flex items-center mb-2 text-sm">
+            <input
+              type="checkbox"
+              checked={fulfillmentStatusFilter.includes(status)}
+              onChange={() => onToggleFulfillmentStatus(status)}
+              className="mr-2 h-4 w-4 rounded border-gray-300 text-[rgb(70,160,35)] focus:ring-[rgb(70,160,35)]"
+            />
+            <span className="text-gray-800">
+              {FULFILLMENT_DISPLAY_NAMES[status]}
+            </span>
+          </label>
+        ))}
+      </div>
       <div className="mb-6">
         <h3 className="mb-2 text-sm font-medium text-gray-700">Date window</h3>
         <div className="mb-3 flex gap-4 text-sm">

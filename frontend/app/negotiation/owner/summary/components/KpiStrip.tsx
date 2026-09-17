@@ -3,13 +3,16 @@
 import Link from "next/link";
 import {
   ClickableKpiId,
+  FULFILLMENT_LIST_STATUS,
   KPI_LIST_STATUS,
   decidedWindowLabel,
   formatAcceptanceRate,
   formatDurationSeconds,
   summarizeKpis,
   type DateField,
+  type FulfillmentKpiId,
   type SummaryClocks,
+  type SummaryFulfillment,
   type SummaryKpiSource,
 } from "../utils/summaryKpis";
 import { buildOwnerListHref } from "../utils/buildOwnerListHref";
@@ -25,6 +28,7 @@ interface KpiStripProps {
   endDate?: string;
   dateField?: DateField;
   clocks?: SummaryClocks | null;
+  fulfillment?: SummaryFulfillment | null;
 }
 
 const TONE_CLASS: Record<KpiTone, string> = {
@@ -53,6 +57,7 @@ export function KpiStrip({
   endDate,
   dateField = "created",
   clocks,
+  fulfillment,
 }: KpiStripProps) {
   const kpis = summarizeKpis(rows);
   const windowLabel = decidedWindowLabel(startDate, endDate, dateField);
@@ -113,11 +118,46 @@ export function KpiStrip({
     },
   ];
 
+  const fulfillmentCards: Array<{
+    id: FulfillmentKpiId;
+    label: string;
+    value: number;
+    subtitle: string;
+    tone: KpiTone;
+    ariaLabel: string;
+  }> = [
+    {
+      id: "pending",
+      label: "Pending delivery",
+      value: fulfillment?.pending ?? 0,
+      subtitle: "Accepted, not yet delivered",
+      tone: "urgent",
+      ariaLabel: `Pending delivery: ${fulfillment?.pending ?? 0}. Open owner list filtered to accepted pending delivery.`,
+    },
+    {
+      id: "delivered",
+      label: "Delivered",
+      value: fulfillment?.delivered ?? 0,
+      subtitle: "Access recorded as delivered",
+      tone: "neutral",
+      ariaLabel: `Delivered: ${fulfillment?.delivered ?? 0}. Open owner list filtered to accepted delivered.`,
+    },
+    {
+      id: "withdrawn",
+      label: "Withdrawn",
+      value: fulfillment?.withdrawn ?? 0,
+      subtitle: "Access withdrawn for this requestor",
+      tone: "negative",
+      ariaLabel: `Withdrawn: ${fulfillment?.withdrawn ?? 0}. Open owner list filtered to accepted withdrawn.`,
+    },
+  ];
+
   return (
-    <section
-      aria-label="Summary totals"
-      className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4"
-    >
+    <div className="space-y-6">
+      <section
+        aria-label="Summary totals"
+        className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4"
+      >
       {clickableCards.map((card) => (
         <Link
           key={card.id}
@@ -186,5 +226,36 @@ export function KpiStrip({
         </span>
       </div>
     </section>
+
+      <section aria-label="Delivery totals" className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800">Delivery</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            Recorded after accept. Historical accepted cases that were never
+            marked are omitted. This is not file access over time.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+          {fulfillmentCards.map((card) => (
+            <Link
+              key={card.id}
+              href={buildOwnerListHref({
+                ...filterState,
+                status: ["accepted"],
+                fulfillmentStatus: FULFILLMENT_LIST_STATUS[card.id],
+              })}
+              aria-label={card.ariaLabel}
+              className={cardClass(card.tone, true)}
+            >
+              <span className="text-xs font-medium uppercase tracking-wide opacity-80">
+                {card.label}
+              </span>
+              <span className="text-2xl sm:text-3xl font-bold">{card.value}</span>
+              <span className="text-xs opacity-80">{card.subtitle}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }

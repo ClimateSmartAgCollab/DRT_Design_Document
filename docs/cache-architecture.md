@@ -217,10 +217,12 @@ There are four paths that populate the GitHub-backed cache; all call `warm_githu
 
 1. **Container start (remote)** -- `backend/entrypoint.sh` waits for Redis, then runs `manage.py refresh_datastore_cache` once before gunicorn. This is the production path: gunicorn workers do not set `RUN_MAIN`.
 2. **App startup (backstop)** -- `DatastoreConfig.ready()` spawns a daemon thread for the `runserver` reloader child or a gunicorn worker. A Redis lock (`datastore_prewarm_lock`) ensures only one worker fetches.
-3. **Host cron** -- `infra/cron/run-job.sh cache` runs `manage.py refresh_datastore_cache` every 12 hours.
-4. **GitHub webhook** -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then calls `refresh_data_task` (which calls `warm_github_cache()`).
+3. **Host cron** -- `infra/cron/run-job.sh cache` runs `manage.py refresh_datastore_cache` every 12 hours (`refresh_data_task` → `warm_github_cache(force=True)`).
+4. **GitHub webhook** -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then calls `refresh_data_task` (which force-rewarms).
 
-`warm_github_cache()` short-circuits when all four `HOT_CACHE_KEYS` are present **and truthy** -- empty dicts from a previously failed warm do not count as "already warm."
+`warm_github_cache()` / `warm_datastore_cache()` short-circuits when all four `HOT_CACHE_KEYS` are present **and truthy** — empty dicts from a previously failed warm do not count as "already warm." That skip is for in-request cold paths (`generate_nlinks` when Redis is empty). **Cron and `manage.py refresh_datastore_cache` pass `force=True`**, so they overwrite `link_table` even when keys are warm. ContextHub has no DRT webhook; a catalog `status` flip (`active` → `disabled` / `review-required`) only reaches DRT after a force-rewarm. Operators who edit `drt/v1/link-table.json` must run that command. DRT does not write `status` back to ContextHub.
+
+Cached `link_table` rows may include `status`. Missing or blank status is treated as `active` (GitHub CSV and old cache shapes). Explicit non-`active` values refuse **new** cases at generate time; in-flight negotiations are not revoked.
 
 ## Async Questionnaire Loading
 

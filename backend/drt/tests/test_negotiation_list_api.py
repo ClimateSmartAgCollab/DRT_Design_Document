@@ -49,6 +49,7 @@ class NegotiationListApiFilterTests(TestCase):
         decided_at=None,
         dataset_id="ds-1",
         visible_label="Visible",
+        fulfillment_status=None,
     ):
         negotiation = Negotiation.objects.create(
             questionnaire_SAID="test-said",
@@ -61,6 +62,8 @@ class NegotiationListApiFilterTests(TestCase):
             updates["timestamps"] = created_at
         if decided_at is not None:
             updates["decided_at"] = decided_at
+        if fulfillment_status is not None:
+            updates["fulfillment_status"] = fulfillment_status
         if updates:
             Negotiation.objects.filter(pk=negotiation.pk).update(**updates)
         negotiation.refresh_from_db()
@@ -236,3 +239,37 @@ class NegotiationListApiFilterTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self._ids(response), {str(match.negotiation_id)})
+
+    def test_payload_includes_fulfillment_fields(self):
+        negotiation = self._make_case(
+            data_label="alpha",
+            record_label="door-a",
+            tags=["2026"],
+            fulfillment_status="pending",
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        row = response.json()["results"][0]
+        self.assertEqual(row["negotiation_id"], str(negotiation.negotiation_id))
+        self.assertEqual(row["fulfillment_status"], "pending")
+        self.assertIn("fulfillment_note", row)
+        self.assertIn("fulfillment_at", row)
+
+    def test_fulfillment_status_filter(self):
+        pending = self._make_case(
+            data_label="alpha",
+            record_label="door-a",
+            tags=["2026"],
+            fulfillment_status="pending",
+        )
+        self._make_case(
+            data_label="alpha",
+            record_label="door-b",
+            tags=["2026"],
+            fulfillment_status="delivered",
+        )
+        response = self.client.get(
+            self.url, {"fulfillment_status": "pending"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._ids(response), {str(pending.negotiation_id)})

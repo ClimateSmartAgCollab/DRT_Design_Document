@@ -4,10 +4,15 @@
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 import { Providers } from "@/app/providers";
 import { useRouter } from "next/navigation";
+import { fetchNegotiationByOwnerLink } from "../../../list/services/negotiationApi";
+import {
+  FulfillmentActions,
+  FulfillmentBadge,
+} from "../../../list/components/FulfillmentActions";
 
 export default function OutcomePage() {
   const router = useRouter();
@@ -57,7 +62,7 @@ export default function OutcomePage() {
       lines: [
         "Your acceptance has been recorded.",
         "License generation and email delivery are being processed in the background.",
-        "You will receive the license agreement files via email shortly.",
+        "The license email is not the same as delivering the data. Mark delivery below when the requestor has access.",
       ],
       color: "green",
       iconPath: "M5 13l4 4L19 7",
@@ -113,10 +118,26 @@ export default function OutcomePage() {
   });
   const isResending = resendMutation.status === "pending";
 
+  const linkId = Array.isArray(link_id) ? link_id[0] : link_id;
+  const {
+    data: acceptedNegotiation,
+    refetch: refetchAccepted,
+    isLoading: isLoadingAccepted,
+  } = useQuery({
+    queryKey: ["ownerNegotiationByLink", linkId],
+    queryFn: () => fetchNegotiationByOwnerLink(linkId),
+    enabled: action === "accept" && Boolean(linkId),
+  });
+
+  const handleFulfillmentUpdated = () => {
+    refetchAccepted();
+    qc.invalidateQueries({ queryKey: ["negotiations"] });
+  };
+
   return (
     <Providers>
       <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-        <section className="bg-white w-full max-w-sm p-8 rounded-xl shadow-lg text-center space-y-6">
+        <section className="bg-white w-full max-w-md p-8 rounded-xl shadow-lg text-center space-y-6">
           {action === "reject" && !submitted ? (
             <>
               <h2 className="text-xl font-semibold text-red-700">
@@ -185,6 +206,30 @@ export default function OutcomePage() {
                   <p key={idx}>{line}</p>
                 ))}
               </div>
+
+              {action === "accept" && (
+                <div className="space-y-3 text-left">
+                  {isLoadingAccepted && (
+                    <p className="text-sm text-gray-500">Loading delivery actions…</p>
+                  )}
+                  {acceptedNegotiation && (
+                    <>
+                      <div className="flex items-center justify-center gap-2">
+                        <FulfillmentBadge
+                          status={acceptedNegotiation.fulfillment_status}
+                        />
+                      </div>
+                      <FulfillmentActions
+                        negotiationId={acceptedNegotiation.negotiation_id}
+                        state={acceptedNegotiation.state}
+                        fulfillmentStatus={acceptedNegotiation.fulfillment_status}
+                        layout="stack"
+                        onUpdated={handleFulfillmentUpdated}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Resend button for “accept” */}
               {action === "accept" && (

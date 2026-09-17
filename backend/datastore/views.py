@@ -66,15 +66,16 @@ def fetch_file_from_github(file_path):
         return None
 
 
-def warm_github_cache():
+def warm_github_cache(force=False):
     """Load datastore tables into cache. Name kept for existing callers."""
-    return warm_datastore_cache()
+    return warm_datastore_cache(force=force)
 
 
-def warm_datastore_cache():
-    """Load ContextHub (or GitHub) tables into cache and return status metadata."""
+def warm_datastore_cache(force=False):
+    """Load ContextHub (or GitHub) tables into cache and return status metadata.
+    """
     try:
-        if all(cache.get(k) for k in HOT_CACHE_KEYS):
+        if not force and all(cache.get(k) for k in HOT_CACHE_KEYS):
             logger.info("warm_datastore_cache: cache already warm; skipping fetch")
             return {
                 "ok": True,
