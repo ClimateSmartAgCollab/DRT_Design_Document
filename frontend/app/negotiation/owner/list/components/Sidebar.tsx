@@ -157,7 +157,7 @@ export function Sidebar({
               onChange={() => onDateFieldChange("created")}
               className="mr-2 h-4 w-4 border-gray-300 text-[rgb(70,160,35)] focus:ring-[rgb(70,160,35)]"
             />
-            Created
+            Request created
           </label>
           <label className="flex items-center text-gray-700">
             <input
