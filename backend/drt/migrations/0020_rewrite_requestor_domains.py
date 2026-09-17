@@ -2,7 +2,7 @@ from django.db import migrations
 
 
 def email_to_domain(email):
-    """Duplicated from drt.utils.email_domain — migrations must not import app code."""
+    """Inline copy — migrations must not import app code."""
     if not email or not isinstance(email, str):
         return None
     if "@" not in email:

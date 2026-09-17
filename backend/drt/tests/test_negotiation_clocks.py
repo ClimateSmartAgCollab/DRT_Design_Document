@@ -23,6 +23,7 @@ from drt.services.clocks import (
     DESC_SUBMITTED,
     is_reopen_description,
     mark_first_owner_open,
+    mark_reopened,
     mark_submitted,
     reopen_description,
 )
@@ -92,6 +93,27 @@ class ClockHelperTests(TestCase):
 
         negotiation.refresh_from_db()
         self.assertEqual(negotiation.first_owner_open_at, first)
+
+    def test_mark_reopened_clears_fulfillment_via_helper(self):
+        negotiation = self._make_negotiation("accepted")
+        Negotiation.objects.filter(pk=negotiation.pk).update(
+            decided_at=timezone.now(),
+            fulfillment_status=Negotiation.FULFILLMENT_DELIVERED,
+            fulfillment_note="ticket-9",
+            fulfillment_at=timezone.now(),
+        )
+        negotiation.refresh_from_db()
+
+        self.assertTrue(mark_reopened(negotiation))
+        negotiation.refresh_from_db()
+        self.assertIsNone(negotiation.decided_at)
+        self.assertEqual(
+            negotiation.fulfillment_status,
+            Negotiation.FULFILLMENT_NOT_APPLICABLE,
+        )
+        self.assertIsNone(negotiation.fulfillment_note)
+        self.assertIsNone(negotiation.fulfillment_at)
+        self.assertEqual(negotiation.reopen_count, 1)
 
 
 class FirstLookConcurrencyTests(TransactionTestCase):
@@ -351,6 +373,8 @@ class NegotiationClockWriterTests(TestCase):
             reminder_sent=True,
             reminder_sent_date=reminder,
             reopen_count=0,
+            fulfillment_status=Negotiation.FULFILLMENT_PENDING,
+            fulfillment_note="pending delivery",
         )
 
         self._set_session(owner_email=OWNER_EMAIL)
@@ -372,6 +396,11 @@ class NegotiationClockWriterTests(TestCase):
         self.assertFalse(negotiation.reminder_sent)
         self.assertIsNone(negotiation.reminder_sent_date)
         self.assertEqual(negotiation.reopen_count, 1)
+        self.assertEqual(
+            negotiation.fulfillment_status,
+            Negotiation.FULFILLMENT_NOT_APPLICABLE,
+        )
+        self.assertIsNone(negotiation.fulfillment_note)
         self.assertTrue(
             is_reopen_description(negotiation.archives.last().change_description)
         )

@@ -12,6 +12,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from ..models import Archive, Negotiation
+from .fulfillment import clear_on_reopen
 
 DESC_SUBMITTED = "Requestor submitted questionnaire responses"
 DESC_OWNER_SAVED = "Owner saved review"
@@ -127,9 +128,6 @@ def mark_reopened(negotiation) -> bool:
         reminder_sent=False,
         reminder_sent_date=None,
         reopen_count=F("reopen_count") + 1,
-        fulfillment_status=Negotiation.FULFILLMENT_NOT_APPLICABLE,
-        fulfillment_note=None,
-        fulfillment_at=None,
     )
     if not updated:
         return False
@@ -137,14 +135,12 @@ def mark_reopened(negotiation) -> bool:
     negotiation.abandoned_at = None
     negotiation.reminder_sent = False
     negotiation.reminder_sent_date = None
-    negotiation.fulfillment_status = Negotiation.FULFILLMENT_NOT_APPLICABLE
-    negotiation.fulfillment_note = None
-    negotiation.fulfillment_at = None
     negotiation.reopen_count = (
         Negotiation.objects.filter(pk=negotiation.pk)
         .values_list("reopen_count", flat=True)
         .get()
     )
+    clear_on_reopen(negotiation)
     return True
 
 

@@ -151,7 +151,7 @@ export function SummarySidebar({
               onChange={() => onDateFieldChange("created")}
               className="mr-2"
             />
-            Created
+            Request created
           </label>
           <label className="flex items-center">
             <input
