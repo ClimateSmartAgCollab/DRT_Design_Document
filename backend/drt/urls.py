@@ -7,7 +7,8 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint, public_config,
                     csrf_token, regenerate_license_view, negotiation_history_view,
                     negotiation_history_view_req, requestor_logout, owner_logout,
-                    reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view
+                    reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view,
+                    mark_fulfillment_delivered_view, mark_fulfillment_withdrawn_view
                     )
 from .views.admin import (
     admin_email_entry, verify_admin_magic_link, admin_whoami, admin_logout,
@@ -145,6 +146,14 @@ urlpatterns = [
     path('negotiations/reopen/<uuid:negotiation_id>/',
          reopen_negotiation_view,
          name='reopen_negotiation'),  # Reopen a negotiation
+
+    path('negotiations/fulfillment/deliver/<uuid:negotiation_id>/',
+         mark_fulfillment_delivered_view,
+         name='mark_fulfillment_delivered'),
+
+    path('negotiations/fulfillment/withdraw/<uuid:negotiation_id>/',
+         mark_fulfillment_withdrawn_view,
+         name='mark_fulfillment_withdrawn'),
 
     path('negotiations/abandon/<uuid:negotiation_id>/',
          abandon_negotiation_view,

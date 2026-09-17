@@ -21,12 +21,20 @@ import datetime
 from ..tasks import handle_negotiation_archive_and_summary_task, send_reopen_notification_email_task
 from drt.services.history import get_archive_history, map_archives_to_versions
 from drt.services.clocks import mark_reopened, reopen_description
+from drt.services.fulfillment import (
+    DESC_FULFILLMENT_DELIVERED,
+    DESC_FULFILLMENT_WITHDRAWN,
+    mark_delivered,
+    mark_withdrawn,
+)
 from datastore.views import fetch_questionnaire_json, fetch_license_template
 from datastore.cache_keys import (
+    KEY_LINK_TABLE,
     KEY_OWNER_TABLE,
     license_template_key,
     questionnaire_json_key,
 )
+from datastore.contexthub import link_is_requestable
 from drt.services.license import build_license_context, render_license
 from .questionnaire import create_archive_snapshot
 from django.conf import settings
@@ -140,6 +148,41 @@ def summary_clocks_payload(nlink_filter, date_field):
     }
 
 
+def summary_fulfillment_payload(nlink_filter):
+    """Accepted-case delivery counts for the filtered queryset.
+
+    Historical accepted rows that stayed ``not_applicable`` are omitted; they
+    are not a delivery queue. Grouped summary rows cannot hold this mix.
+    """
+    accepted = Q(negotiation__state="accepted")
+    totals = NLink.objects.filter(nlink_filter).aggregate(
+        pending=Count(
+            "negotiation",
+            filter=accepted
+            & Q(negotiation__fulfillment_status=Negotiation.FULFILLMENT_PENDING),
+        ),
+        delivered=Count(
+            "negotiation",
+            filter=accepted
+            & Q(
+                negotiation__fulfillment_status=Negotiation.FULFILLMENT_DELIVERED
+            ),
+        ),
+        withdrawn=Count(
+            "negotiation",
+            filter=accepted
+            & Q(
+                negotiation__fulfillment_status=Negotiation.FULFILLMENT_WITHDRAWN
+            ),
+        ),
+    )
+    return {
+        "pending": totals["pending"] or 0,
+        "delivered": totals["delivered"] or 0,
+        "withdrawn": totals["withdrawn"] or 0,
+    }
+
+
 @admin_auth_required
 def delete_old_negotiations_view(request):
     """Manually trigger the deletion of old negotiations."""
@@ -153,7 +196,7 @@ def delete_old_negotiations_view(request):
 @owner_auth_required
 def owner_links_api(request):
 
-    raw_owner_cache = cache.get("owner_table") or {}
+    raw_owner_cache = cache.get(KEY_OWNER_TABLE) or {}
 
     user_email = request.owner_email
 
@@ -174,12 +217,12 @@ def owner_links_api(request):
 
     logger.debug(f"owner_links_api: owner_ids = {owner_ids}")
 
-    raw_link_cache = cache.get("link_table") or {}
+    raw_link_cache = cache.get(KEY_LINK_TABLE) or {}
     base_url = getattr(settings, "FRONTEND_BASE_URL", "http://127.0.0.1:3000").rstrip("/")
 
     entries = []
     for cache_key, row in raw_link_cache.items():
-        if row.get("owner_id") in owner_ids:
+        if row.get("owner_id") in owner_ids and link_is_requestable(row):
             link_uuid = row.get("link_uuid")
             url = f"{base_url}/negotiation/generate/{link_uuid}" if link_uuid else cache_key
             entries.append(
@@ -479,6 +522,7 @@ def summary_statistics_view(request):
         return JsonResponse({
             'summary_statistics': statistics_data,
             'clocks': summary_clocks_payload(nlink_filter, date_field),
+            'fulfillment': summary_fulfillment_payload(nlink_filter),
         })
 
     except ObjectDoesNotExist:
@@ -669,6 +713,11 @@ def negotiation_list_api(request):
     tags_filter = [tag.strip() for tag in request.GET.getlist("tags") if tag and tag.strip()]
     record_label_filter = [lbl.strip() for lbl in request.GET.getlist("record_label") if lbl and lbl.strip()]
     data_label_filter = [lbl.strip() for lbl in request.GET.getlist("data_label") if lbl and lbl.strip()]
+    fulfillment_status_filter = [
+        value.strip()
+        for value in request.GET.getlist("fulfillment_status")
+        if value and value.strip()
+    ]
     search_term = request.GET.get("search", "").strip()
 
     # Pagination parameters
@@ -709,6 +758,14 @@ def negotiation_list_api(request):
     # Apply filters BEFORE pagination
     if status_filter:
         qs = qs.filter(state__in=status_filter)
+
+    if fulfillment_status_filter:
+        allowed = {choice[0] for choice in Negotiation.FULFILLMENT_CHOICES}
+        wanted = [value for value in fulfillment_status_filter if value in allowed]
+        if wanted:
+            qs = qs.filter(fulfillment_status__in=wanted)
+        else:
+            qs = qs.none()
 
     if archived_filter == "archived":
         qs = qs.filter(archived=True)
@@ -793,6 +850,9 @@ def negotiation_list_api(request):
             'data_label': link.data_label if link else "",
             'visible_label': (link.visible_label or link.record_label or link.data_label or "") if link else "",
             'requestor_email': link.requestor_email if link else None,
+            'fulfillment_status': n.fulfillment_status,
+            'fulfillment_note': n.fulfillment_note,
+            'fulfillment_at': _dt_iso(n.fulfillment_at),
         }
 
         # Heavy fields included only when lightweight mode is disabled
@@ -1051,6 +1111,96 @@ def reopen_negotiation_view(request, negotiation_id):
         return JsonResponse({
             'error': 'An error occurred while reopening the negotiation'
         }, status=500)
+
+
+FULFILLMENT_CONFLICT_CODE = "fulfillment_conflict"
+
+
+def _parse_fulfillment_note(request):
+    if request.body and "application/json" in (request.content_type or ""):
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return None, JsonResponse({"error": "Invalid JSON"}, status=400)
+        if not isinstance(payload, dict):
+            payload = {}
+        note = payload.get("note") or payload.get("fulfillment_note") or ""
+        return str(note).strip() or None, None
+    note = (request.POST.get("note") or request.POST.get("fulfillment_note") or "").strip()
+    return note or None, None
+
+
+def _owner_nlink_or_error(request, negotiation):
+    nlink = getattr(negotiation, "link", None)
+    if nlink is None:
+        return None, JsonResponse({"error": "Negotiation link not found"}, status=404)
+    owner_table = cache.get(KEY_OWNER_TABLE) or {}
+    owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
+    if not owner_email or owner_email != request.owner_email:
+        return None, JsonResponse(
+            {"error": "Unauthorized access to this negotiation"},
+            status=403,
+        )
+    return nlink, None
+
+
+def _fulfillment_action(request, negotiation_id, action):
+    negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+    _nlink, error = _owner_nlink_or_error(request, negotiation)
+    if error:
+        return error
+    note, error = _parse_fulfillment_note(request)
+    if error:
+        return error
+
+    if action == "deliver":
+        ok = mark_delivered(negotiation, note=note)
+        description = DESC_FULFILLMENT_DELIVERED
+        message = "Access marked delivered"
+    else:
+        ok = mark_withdrawn(negotiation, note=note)
+        description = DESC_FULFILLMENT_WITHDRAWN
+        message = "Access withdrawn"
+
+    if not ok:
+        return JsonResponse(
+            {
+                "error": "Illegal fulfillment transition",
+                "code": FULFILLMENT_CONFLICT_CODE,
+            },
+            status=409,
+        )
+
+    try:
+        create_archive_snapshot(
+            negotiation,
+            changed_by=request.owner_email or "owner",
+            change_description=description,
+            state=negotiation.state,
+        )
+    except Exception as exc:
+        logger.error("Failed to archive fulfillment %s: %s", action, exc)
+
+    return JsonResponse({
+        "message": message,
+        "fulfillment_status": negotiation.fulfillment_status,
+        "fulfillment_note": negotiation.fulfillment_note,
+        "fulfillment_at": _dt_iso(negotiation.fulfillment_at),
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@owner_auth_required
+def mark_fulfillment_delivered_view(request, negotiation_id):
+    return _fulfillment_action(request, negotiation_id, "deliver")
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@owner_auth_required
+def mark_fulfillment_withdrawn_view(request, negotiation_id):
+    return _fulfillment_action(request, negotiation_id, "withdraw")
 
 
 @admin_auth_required

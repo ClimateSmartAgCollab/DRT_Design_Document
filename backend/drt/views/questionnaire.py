@@ -33,12 +33,18 @@ from drt.services.clocks import (
     mark_first_owner_open,
     mark_submitted,
 )
+from drt.services.fulfillment import DESC_FULFILLMENT_PENDING, mark_pending
 from datastore.cache_keys import (
     KEY_LINK_TABLE,
     KEY_QUESTIONNAIRE_TABLE,
     TTL_24H,
     questionnaire_inflight_key,
     questionnaire_json_key,
+)
+from datastore.contexthub import (
+    LINK_NOT_REQUESTABLE_CODE,
+    LINK_NOT_REQUESTABLE_MESSAGE,
+    link_is_requestable,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,6 +77,16 @@ def generate_nlinks(request, link_id):
     if example_link is None:
         logger.warning(f"Link ID {link_id} not found in cache.")
         return Response({'error': f'Link ID {link_id} not found'}, status=404)
+
+    if not link_is_requestable(example_link):
+        logger.info("generate_nlinks: catalog status refused for %s", link_id)
+        return Response(
+            {
+                'error': LINK_NOT_REQUESTABLE_MESSAGE,
+                'code': LINK_NOT_REQUESTABLE_CODE,
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     try:
         negotiation = Negotiation.objects.create(
@@ -432,7 +448,16 @@ def owner_review(request, link_id):
                 nlink.save(update_fields=['last_activity'])
                 mark_first_owner_open(negotiation)
                 mark_decided(negotiation)
+                mark_pending(negotiation)
                 try:
+                    create_archive_snapshot(
+                        negotiation,
+                        changed_by=owner_email or "owner",
+                        change_description=DESC_FULFILLMENT_PENDING,
+                        owner_responses=negotiation.owner_responses,
+                        comments=negotiation.comments,
+                        state='accepted',
+                    )
                     create_archive_snapshot(
                         negotiation,
                         changed_by=owner_email or "owner",

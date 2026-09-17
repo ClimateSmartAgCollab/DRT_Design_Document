@@ -32,6 +32,7 @@ export default function OwnerNegotiationListContent() {
     setRecordLabel,
     setDataLabel,
     setDateField,
+    toggleFulfillmentStatus,
     resetFilters,
   } = useFilterState();
 
@@ -49,6 +50,10 @@ export default function OwnerNegotiationListContent() {
     search: filters.searchTerm || undefined,
     sort: filters.sortOption !== "created_desc" ? filters.sortOption : undefined,
     dateField: filters.dateField !== "created" ? filters.dateField : undefined,
+    fulfillmentStatus:
+      filters.fulfillmentStatusFilter.length > 0
+        ? filters.fulfillmentStatusFilter
+        : undefined,
   }), [currentPage, filters]);
 
   const { data: negs, error, isLoading, reload, total, totalPages, page } = useNegotiations(apiFilters);
@@ -168,7 +173,7 @@ export default function OwnerNegotiationListContent() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, filters.searchTerm, filters.sortOption, filters.tags, filters.recordLabel, filters.dataLabel]);
+  }, [filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, filters.searchTerm, filters.sortOption, filters.tags, filters.recordLabel, filters.dataLabel, filters.dateField, filters.fulfillmentStatusFilter]);
 
   // Sync currentPage with API response page
   useEffect(() => {
@@ -222,6 +227,8 @@ export default function OwnerNegotiationListContent() {
               dataLabelOptions={dataLabelOptions}
               selectedDataLabel={filters.dataLabel}
               onDataLabelChange={setDataLabel}
+              fulfillmentStatusFilter={filters.fulfillmentStatusFilter}
+              onToggleFulfillmentStatus={toggleFulfillmentStatus}
             />
 
             <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">

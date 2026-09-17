@@ -470,7 +470,7 @@ def refresh_data_task():
     """
     try:
         from datastore.views import warm_github_cache
-        result = warm_github_cache()
+        result = warm_github_cache(force=True)
         if result.get("ok"):
             logger.info(
                 "Data refresh completed: %s (%.2fs)",

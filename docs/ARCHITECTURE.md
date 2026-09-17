@@ -72,7 +72,7 @@ graph LR;
 ## Key decisions
 
 - **Dynamic vs static data.** PostgreSQL tracks negotiations and auditing. GitHub holds immutable datasets, questionnaires, and license templates.
-- **Caching.** Redis caches GitHub payloads and owner lookups to stay under API rate limits. There is **no stale-on-error fallback** — operators rely on webhook + cron pre-warm. Details: [cache-architecture.md](cache-architecture.md).
+- **Caching.** Redis caches GitHub / ContextHub payloads and owner lookups to stay under API rate limits. There is **no stale-on-error fallback** — operators rely on webhook + cron pre-warm. Catalog link `status` lives in the cached `link_table`. Missing status is treated as `active`; any other value refuses **new** cases at `generate_nlinks` (in-flight negotiations continue). ContextHub has no status webhook — after a blob edit, run `manage.py refresh_datastore_cache` (force-rewarm). DRT does not write `status` back. Details: [cache-architecture.md](cache-architecture.md).
 - **In-request work.** Email, license generation, and cache refresh run in the Django process. There is no Celery. Keep `EMAIL_TIMEOUT` at 5–10s so a hung SMTP call cannot occupy a gunicorn worker for the full 120s timeout.
 - **Scheduled jobs (remote only).** Host cron runs `process_abandonment_policy` (02:00) and `refresh_datastore_cache` (every 12 hours) via `infra/cron/run-job.sh`. Local has no cron.
 - **Composable UI.** The Next.js frontend consumes the Django API and reuses shared design tokens for multiple client themes (`frontend/theme/tokens.*.ts`).
@@ -84,6 +84,8 @@ graph LR;
 1. **Access initiation**
    - Requestors receive a UUID-backed email link (no account creation) and land on the questionnaire for that dataset.
    - Owners join via invitation links tied to `NLink` records populated from the GitHub datastore.
+   - `GET /drt/generate_nlinks/<link_id>/` refuses a cached catalog `status` other than `active` with 403 `link_not_requestable`. The owner links list omits those doors so owners do not share a dead generate URL.
+   - Closing a catalog door is not the same as withdrawing one requestor. DRT does not write `status` back to ContextHub, and withdrawing a case does not disable the blob.
 2. **Questionnaire completion**
    - The frontend renders dynamic JSON schemas fetched from GitHub, cached in Redis (24h TTL).
    - Responses persist in PostgreSQL on the `Negotiation` entity.
@@ -99,7 +101,8 @@ graph LR;
    - The owner **Summary Statistics** page live-aggregates `NLink` / `Negotiation` state counts for the signed-in owner (`GET /drt/summary-statistics/?group_by=true`). It reports request decisions, not file access, and it is not a historical time series.
    - Filters are tag **AND**, `data_label`, `record_label`, and a date window. The window defaults to **request created** (`Negotiation.timestamps`). Owners can switch it to **decided** (`Negotiation.decided_at`); rows with a null decision clock drop out of that mode.
    - Median time-to-first-look and time-to-decision are filter-scoped scalars over rows that have both clock ends. Sparse or missing clocks show an em dash and a sample size, not a fake 0-day SLA. `decided_at` / `abandoned_at` are **current-cycle** clocks: reopen clears them on purpose so the live row is the cycle in progress. First-decision SLA after a reopen remains in `Archive` (`Owner accepted` / `Owner rejected` + `archived_timestamp`).
-   - The page shows queue / decided / abandoned KPIs (acceptance rate = accepted / (accepted + rejected)), median first-look / decision times, a stacked outcome mix (accepted / rejected / abandoned / still open), and a table. KPI cards and status counts click through to the owner list with matching `status`, `tags`, `record_label`, `data_label`, dates, and `dateField`.
+   - Delivery KPIs (`pending` / `delivered` / `withdrawn`) are a second, filter-scoped strip over **accepted** rows only. They are top-level scalars, not mixed into grouped table rows. Historical accepted rows that stayed `not_applicable` are omitted from this strip and its click-through; they are not a delivery queue. Fulfillment is current-cycle (reopen clears it). There is still no access time series, and raw `accepted` is never relabeled as access granted.
+   - The page shows queue / decided / abandoned KPIs (acceptance rate = accepted / (accepted + rejected)), median first-look / decision times, delivery cards, a stacked outcome mix (accepted / rejected / abandoned / still open), and a table. KPI cards and status counts click through to the owner list with matching `status`, `tags`, `record_label`, `data_label`, dates, and `dateField`. Delivery cards add `fulfillment_status`.
    - There is no stored aggregate table. Counts are always computed from live `NLink` / `Negotiation` rows. These figures are request decisions, not file access.
 
 ---

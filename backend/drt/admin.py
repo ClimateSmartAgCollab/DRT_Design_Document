@@ -28,6 +28,9 @@ class NegotiationAdmin(admin.ModelAdmin):
         'decided_at',
         'abandoned_at',
         'reopen_count',
+        'fulfillment_status',
+        'fulfillment_note',
+        'fulfillment_at',
     )
 
 @admin.register(Archive)

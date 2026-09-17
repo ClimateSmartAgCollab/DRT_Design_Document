@@ -1,4 +1,4 @@
-import { Status, ArchivedFilter, SortOption, ALL_STATUSES } from '../types';
+import { Status, ArchivedFilter, SortOption, ALL_STATUSES, isFulfillmentStatus, type FulfillmentStatus } from '../types';
 
 export function parseStatusFilter(statusParam: string | null): Status[] {
   if (!statusParam) return [];
@@ -43,6 +43,16 @@ export type DateField = 'created' | 'decided';
 
 export function parseDateField(param: string | null): DateField {
   return param === 'decided' ? 'decided' : 'created';
+}
+
+export function parseFulfillmentStatus(
+  param: string | null
+): FulfillmentStatus[] {
+  if (!param) return [];
+  return param
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item): item is FulfillmentStatus => isFulfillmentStatus(item));
 }
 
 export function validateDate(dateString: string): boolean {

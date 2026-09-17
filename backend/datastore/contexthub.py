@@ -69,6 +69,25 @@ def fetch_owner_table():
     return fetch_json("owner-table")
 
 
+LINK_NOT_REQUESTABLE_CODE = "link_not_requestable"
+LINK_NOT_REQUESTABLE_MESSAGE = "This dataset is not currently requestable."
+
+
+def link_is_requestable(entry):
+    """True when a cached link row may start a new negotiation.
+
+    Missing/blank ``status`` is treated as active (GitHub CSV and old Redis
+    shapes). Any explicit value other than ``active`` refuses new cases.
+    """
+    raw = (entry or {}).get("status")
+    if raw is None:
+        return True
+    status = str(raw).strip().lower()
+    if not status:
+        return True
+    return status == "active"
+
+
 def link_table_from_payload(payload):
     """Map ContextHub link-table JSON to DRT's Redis link_table dict."""
     table = {}
@@ -83,7 +102,7 @@ def link_table_from_payload(payload):
         if isinstance(tags, str):
             tags = [part.strip() for part in tags.split(",") if part.strip()]
         visible = (row.get("visibleLabel") or row.get("dataLabel") or "").strip()
-        table[link_uuid] = {
+        entry = {
             "questionnaire_id": row.get("questionnaireId") or "",
             "license_id": row.get("licenseId") or "",
             "owner_id": row.get("ownerId") or "",
@@ -94,6 +113,10 @@ def link_table_from_payload(payload):
             "visible_label": visible,
             "link_uuid": link_uuid,
         }
+        status = (row.get("status") or "").strip()
+        if status:
+            entry["status"] = status
+        table[link_uuid] = entry
     return table
 
 

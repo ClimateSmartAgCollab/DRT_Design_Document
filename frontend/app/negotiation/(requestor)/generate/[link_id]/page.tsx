@@ -6,11 +6,28 @@ import { useRouter, useParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
 
+const LINK_NOT_REQUESTABLE_CODE = "link_not_requestable";
+const LINK_NOT_REQUESTABLE_MESSAGE =
+  "This dataset is not currently requestable.";
+
+class GenerateLinkError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "GenerateLinkError";
+    this.code = code;
+  }
+}
+
 async function generateLinkApi(linkId: string): Promise<string> {
   const res = await fetchApi(`/drt/generate_nlinks/${linkId}/`);
   const data = await res.json();
   if (!res.ok || !data.requestor_link_id) {
-    throw new Error(data.error || "Failed to generate link");
+    throw new GenerateLinkError(
+      data.error || "Failed to generate link",
+      data.code
+    );
   }
   return data.requestor_link_id as string;
 }
@@ -22,7 +39,7 @@ export default function GenerateLinkPage() {
 
   const { mutate, isPending, isError, error } = useMutation<
     string,
-    Error,
+    GenerateLinkError,
     void
   >({
     mutationFn: () => generateLinkApi(linkId!),
@@ -33,16 +50,21 @@ export default function GenerateLinkPage() {
   });
 
   const loading = isPending || redirecting;
+  const notRequestable = isError && error.code === LINK_NOT_REQUESTABLE_CODE;
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <section className="bg-white w-full max-w-sm p-6 rounded-xl shadow-lg text-center space-y-6">
         <h1 className="text-2xl font-semibold text-gray-800">
-          Start a New Data Request
+          {notRequestable
+            ? "Dataset not requestable"
+            : "Start a New Data Request"}
         </h1>
 
         {loading ? (
           <p className="text-gray-600">Generating link…</p>
+        ) : notRequestable ? (
+          <p className="text-gray-600">{LINK_NOT_REQUESTABLE_MESSAGE}</p>
         ) : isError ? (
           <p className="text-red-600">{error.message}</p>
         ) : (

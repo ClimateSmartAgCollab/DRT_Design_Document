@@ -75,6 +75,26 @@ class Negotiation(models.Model):
     abandoned_at = models.DateTimeField(null=True, blank=True)
     reopen_count = models.IntegerField(default=0)
 
+    FULFILLMENT_NOT_APPLICABLE = "not_applicable"
+    FULFILLMENT_PENDING = "pending"
+    FULFILLMENT_DELIVERED = "delivered"
+    FULFILLMENT_WITHDRAWN = "withdrawn"
+    FULFILLMENT_CHOICES = [
+        (FULFILLMENT_NOT_APPLICABLE, "Not applicable"),
+        (FULFILLMENT_PENDING, "Pending"),
+        (FULFILLMENT_DELIVERED, "Delivered"),
+        (FULFILLMENT_WITHDRAWN, "Withdrawn"),
+    ]
+
+    fulfillment_status = models.CharField(
+        max_length=32,
+        choices=FULFILLMENT_CHOICES,
+        default=FULFILLMENT_NOT_APPLICABLE,
+        db_index=True,
+    )
+    fulfillment_note = models.TextField(blank=True, null=True)
+    fulfillment_at = models.DateTimeField(null=True, blank=True)
+
 
 class Archive(models.Model):
     # Now a many-to-one history store

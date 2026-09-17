@@ -6,6 +6,7 @@ export type OwnerListHrefFilters = {
   startDate?: string;
   endDate?: string;
   dateField?: "created" | "decided";
+  fulfillmentStatus?: string[];
 };
 
 export const TABLE_COUNT_STATUS = {
@@ -42,6 +43,7 @@ export function buildOwnerListHref(filters: OwnerListHrefFilters): string {
   if (filters.dateField && filters.dateField !== "created") {
     params.set("dateField", filters.dateField);
   }
+  setCsvParam(params, "fulfillment_status", filters.fulfillmentStatus);
   const query = params.toString();
   return query ? `/negotiation/owner/list?${query}` : "/negotiation/owner/list";
 }

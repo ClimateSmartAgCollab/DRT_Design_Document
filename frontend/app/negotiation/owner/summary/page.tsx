@@ -15,8 +15,11 @@ import { SummaryResultsTable } from "./components/SummaryResultsTable";
 import { summaryRowLabel } from "./utils/outcomeMix";
 import {
   EMPTY_CLOCKS,
+  EMPTY_FULFILLMENT,
+  parseSummaryFulfillment,
   type DateField,
   type SummaryClocks,
+  type SummaryFulfillment,
 } from "./utils/summaryKpis";
 
 interface SummaryStat {
@@ -56,7 +59,7 @@ async function fetchSummaryStats(
   endDate?: string,
   groupBy?: boolean,
   dateField?: DateField
-): Promise<{ rows: SummaryStat[]; clocks: SummaryClocks }> {
+): Promise<{ rows: SummaryStat[]; clocks: SummaryClocks; fulfillment: SummaryFulfillment }> {
   const params = new URLSearchParams();
   if (tags && tags.length > 0) {
     tags.forEach((tag) => params.append("tags", tag));
@@ -106,6 +109,7 @@ async function fetchSummaryStats(
           decision_sample_size: json.clocks.decision_sample_size || 0,
         }
       : EMPTY_CLOCKS,
+    fulfillment: parseSummaryFulfillment(json.fulfillment),
   };
 }
 
@@ -180,7 +184,7 @@ export default function OwnerSummaryPage() {
   const [endDate, setEndDate] = useState<string>("");
   const [dateField, setDateField] = useState<DateField>("created");
 
-  const summaryQuery = useQuery<{ rows: SummaryStat[]; clocks: SummaryClocks }, Error>({
+  const summaryQuery = useQuery<{ rows: SummaryStat[]; clocks: SummaryClocks; fulfillment: SummaryFulfillment }, Error>({
     queryKey: [
       "owner",
       "summary-statistics",
@@ -207,7 +211,7 @@ export default function OwnerSummaryPage() {
     enabled: !!whoamiQuery.data,
   });
 
-  const allStatsQuery = useQuery<{ rows: SummaryStat[]; clocks: SummaryClocks }, Error>({
+  const allStatsQuery = useQuery<{ rows: SummaryStat[]; clocks: SummaryClocks; fulfillment: SummaryFulfillment }, Error>({
     queryKey: ["owner", "summary-statistics", "all", "options"],
     queryFn: () => fetchSummaryStats(undefined, undefined, undefined, true),
     staleTime: 1000 * 60 * 5,
@@ -224,6 +228,7 @@ export default function OwnerSummaryPage() {
     return summaryQuery.data?.rows ?? [];
   }, [summaryQuery.data, hasNoDataError]);
   const clocks = summaryQuery.data?.clocks ?? EMPTY_CLOCKS;
+  const fulfillment = summaryQuery.data?.fulfillment ?? EMPTY_FULFILLMENT;
   const allStatsForOptions = useMemo(
     () => allStatsQuery.data?.rows ?? [],
     [allStatsQuery.data]
@@ -381,6 +386,7 @@ export default function OwnerSummaryPage() {
                   endDate={endDate}
                   dateField={dateField}
                   clocks={clocks}
+                  fulfillment={fulfillment}
                 />
 
                 <OutcomeMixChart rows={groupedData} />

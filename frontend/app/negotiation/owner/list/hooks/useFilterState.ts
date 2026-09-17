@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Status, ArchivedFilter, SortOption } from '../types';
+import { Status, ArchivedFilter, SortOption, type FulfillmentStatus } from '../types';
 import { useDebounce } from './useDebounce';
 import { 
   parseStatusFilter, 
@@ -8,6 +8,7 @@ import {
   parseSortOption, 
   parseCsvList,
   parseDateField,
+  parseFulfillmentStatus,
   validateDate,
   buildQueryString 
 } from '../utils/urlParams';
@@ -23,6 +24,7 @@ interface FilterState {
   recordLabel: string[];
   dataLabel: string[];
   dateField: 'created' | 'decided';
+  fulfillmentStatusFilter: FulfillmentStatus[];
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -36,6 +38,7 @@ const DEFAULT_FILTERS: FilterState = {
   recordLabel: [],
   dataLabel: [],
   dateField: 'created',
+  fulfillmentStatusFilter: [],
 };
 
 function filtersFromSearchParams(searchParams: URLSearchParams): FilterState {
@@ -57,6 +60,9 @@ function filtersFromSearchParams(searchParams: URLSearchParams): FilterState {
     recordLabel: parseCsvList(searchParams.get('record_label')),
     dataLabel: parseCsvList(searchParams.get('data_label')),
     dateField: parseDateField(searchParams.get('dateField')),
+    fulfillmentStatusFilter: parseFulfillmentStatus(
+      searchParams.get('fulfillment_status')
+    ),
   };
 }
 
@@ -84,6 +90,9 @@ export function useFilterState() {
     if (newFilters.dataLabel.length > 0) params.data_label = newFilters.dataLabel;
     if (newFilters.dateField && newFilters.dateField !== 'created') {
       params.dateField = newFilters.dateField;
+    }
+    if (newFilters.fulfillmentStatusFilter.length > 0) {
+      params.fulfillment_status = newFilters.fulfillmentStatusFilter;
     }
     
     const queryString = buildQueryString(params);
@@ -150,6 +159,13 @@ export function useFilterState() {
     updateFilters({ dateField });
   }, [updateFilters]);
 
+  const toggleFulfillmentStatus = useCallback((status: FulfillmentStatus) => {
+    const next = filters.fulfillmentStatusFilter.includes(status)
+      ? filters.fulfillmentStatusFilter.filter((value) => value !== status)
+      : [...filters.fulfillmentStatusFilter, status];
+    updateFilters({ fulfillmentStatusFilter: next });
+  }, [filters.fulfillmentStatusFilter, updateFilters]);
+
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
     router.replace('/negotiation/owner/list', { scroll: false });
@@ -170,6 +186,7 @@ export function useFilterState() {
     setRecordLabel,
     setDataLabel,
     setDateField,
+    toggleFulfillmentStatus,
     resetFilters,
   };
 }

@@ -101,3 +101,33 @@ export const EMPTY_CLOCKS: SummaryClocks = {
   first_look_sample_size: 0,
   decision_sample_size: 0,
 };
+
+export type FulfillmentKpiId = "pending" | "delivered" | "withdrawn";
+
+export type SummaryFulfillment = Record<FulfillmentKpiId, number>;
+
+export const EMPTY_FULFILLMENT: SummaryFulfillment = {
+  pending: 0,
+  delivered: 0,
+  withdrawn: 0,
+};
+
+export const FULFILLMENT_LIST_STATUS: Record<FulfillmentKpiId, string[]> = {
+  pending: ["pending"],
+  delivered: ["delivered"],
+  withdrawn: ["withdrawn"],
+};
+
+export function parseSummaryFulfillment(raw: unknown): SummaryFulfillment {
+  const source =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const toCount = (value: unknown) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  return {
+    pending: toCount(source.pending),
+    delivered: toCount(source.delivered),
+    withdrawn: toCount(source.withdrawn),
+  };
+}
