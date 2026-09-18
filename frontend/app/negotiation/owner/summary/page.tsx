@@ -12,6 +12,7 @@ import { SummarySidebar } from "./components/SummarySidebar";
 import { KpiStrip } from "./components/KpiStrip";
 import { OutcomeMixChart } from "./components/OutcomeMixChart";
 import { SummaryResultsTable } from "./components/SummaryResultsTable";
+import { nextTagSelection } from "../components/TagChip";
 import { summaryRowLabel } from "./utils/outcomeMix";
 import {
   EMPTY_CLOCKS,
@@ -21,12 +22,17 @@ import {
   type SummaryClocks,
   type SummaryFulfillment,
 } from "./utils/summaryKpis";
+import {
+  facetOptionValues,
+  useNegotiationFacets,
+} from "../hooks/useNegotiationFacets";
 
 interface SummaryStat {
   dataset_ID?: string;
   visible_label?: string;
   data_label: string;
   tag: string;
+  tags?: string[];
   record_label?: string;
   total_requests: number;
   accepted_requests: number;
@@ -54,11 +60,11 @@ async function fetchSummaryStats(
   tags?: string[],
   dataLabels?: string[],
   recordLabels?: string[],
-  includeAllTags?: boolean,
   startDate?: string,
   endDate?: string,
   groupBy?: boolean,
-  dateField?: DateField
+  dateField?: DateField,
+  tagMatch?: "all" | "any"
 ): Promise<{ rows: SummaryStat[]; clocks: SummaryClocks; fulfillment: SummaryFulfillment }> {
   const params = new URLSearchParams();
   if (tags && tags.length > 0) {
@@ -70,8 +76,8 @@ async function fetchSummaryStats(
   if (recordLabels && recordLabels.length > 0) {
     recordLabels.forEach((rl) => params.append("record_label", rl));
   }
-  if (includeAllTags) {
-    params.set("include_all_tags", "true");
+  if (tagMatch && tagMatch !== "all") {
+    params.set("tag_match", tagMatch);
   }
   if (startDate) {
     params.set("startDate", startDate);
@@ -111,11 +117,6 @@ async function fetchSummaryStats(
       : EMPTY_CLOCKS,
     fulfillment: parseSummaryFulfillment(json.fulfillment),
   };
-}
-
-function splitTags(tag: string | undefined): string[] {
-  if (!tag || !tag.trim()) return [];
-  return tag.split(",").map((t) => t.trim()).filter(Boolean);
 }
 
 function sortKey(item: SummaryStat): number {
@@ -179,6 +180,7 @@ export default function OwnerSummaryPage() {
 
   const [dataLabel, setDataLabel] = useState<string[]>([]);
   const [tag, setTag] = useState<string[]>([]);
+  const [tagMatch, setTagMatch] = useState<"all" | "any">("all");
   const [recordLabel, setRecordLabel] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
@@ -189,6 +191,7 @@ export default function OwnerSummaryPage() {
       "owner",
       "summary-statistics",
       tag,
+      tagMatch,
       dataLabel,
       recordLabel,
       startDate,
@@ -200,24 +203,18 @@ export default function OwnerSummaryPage() {
         tag,
         dataLabel.length > 0 ? dataLabel : undefined,
         recordLabel.length > 0 ? recordLabel : undefined,
-        false,
         startDate || undefined,
         endDate || undefined,
         true,
-        dateField
+        dateField,
+        tagMatch
       ),
     staleTime: 1000 * 60 * 5,
     retry: 1,
     enabled: !!whoamiQuery.data,
   });
 
-  const allStatsQuery = useQuery<{ rows: SummaryStat[]; clocks: SummaryClocks; fulfillment: SummaryFulfillment }, Error>({
-    queryKey: ["owner", "summary-statistics", "all", "options"],
-    queryFn: () => fetchSummaryStats(undefined, undefined, undefined, true),
-    staleTime: 1000 * 60 * 5,
-    retry: 1,
-    enabled: !!whoamiQuery.data,
-  });
+  const facets = useNegotiationFacets();
 
   const hasNoDataError =
     summaryQuery.isError &&
@@ -229,43 +226,18 @@ export default function OwnerSummaryPage() {
   }, [summaryQuery.data, hasNoDataError]);
   const clocks = summaryQuery.data?.clocks ?? EMPTY_CLOCKS;
   const fulfillment = summaryQuery.data?.fulfillment ?? EMPTY_FULFILLMENT;
-  const allStatsForOptions = useMemo(
-    () => allStatsQuery.data?.rows ?? [],
-    [allStatsQuery.data]
-  );
 
   const dataLabelOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          allStatsForOptions
-            .map((d) => d.data_label)
-            .filter((dl): dl is string => Boolean(dl))
-        )
-      ),
-    [allStatsForOptions]
+    () => facetOptionValues(facets.dataLabels, dataLabel),
+    [facets.dataLabels, dataLabel]
   );
-  const tagOptions = useMemo(() => {
-    const allTags = new Set<string>();
-    allStatsForOptions.forEach((d) => {
-      splitTags(d.tag).forEach((t) => allTags.add(t));
-    });
-    return Array.from(allTags).sort();
-  }, [allStatsForOptions]);
+  const tagOptions = useMemo(
+    () => facetOptionValues(facets.tags, tag),
+    [facets.tags, tag]
+  );
   const recordLabelOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          allStatsForOptions
-            .map((d) =>
-              typeof d.record_label === "string" && d.record_label
-                ? d.record_label
-                : undefined
-            )
-            .filter((l): l is string => typeof l === "string" && Boolean(l))
-        )
-      ),
-    [allStatsForOptions]
+    () => facetOptionValues(facets.recordLabels, recordLabel),
+    [facets.recordLabels, recordLabel]
   );
 
   const groupedData = useMemo(
@@ -343,6 +315,8 @@ export default function OwnerSummaryPage() {
                   tagOptions={tagOptions}
                   selectedTag={tag}
                   onTagChange={setTag}
+                  tagMatch={tagMatch}
+                  onTagMatchChange={setTagMatch}
                   recordLabelOptions={recordLabelOptions}
                   selectedRecordLabel={recordLabel}
                   onRecordLabelChange={setRecordLabel}
@@ -356,6 +330,7 @@ export default function OwnerSummaryPage() {
                   onReset={() => {
                     setDataLabel([]);
                     setTag([]);
+                    setTagMatch("all");
                     setRecordLabel([]);
                     setStartDate("");
                     setEndDate("");
@@ -399,11 +374,19 @@ export default function OwnerSummaryPage() {
                     <div className="ml-3">
                       <p className="text-sm text-[rgb(55,125,28)]">
                         {tag.length > 0 ? (
-                          <>
-                            <strong>Tag filter (AND):</strong> Showing cases that have{" "}
-                            <strong>all</strong> of the selected tags. Each row is still one
-                            dataset (record label + data label), not a summed total.
-                          </>
+                          tagMatch === "any" ? (
+                            <>
+                              <strong>Tag filter (OR):</strong> Showing cases that have{" "}
+                              <strong>any</strong> of the selected tags. Each row is still one
+                              dataset (record label + data label), not a summed total.
+                            </>
+                          ) : (
+                            <>
+                              <strong>Tag filter (AND):</strong> Showing cases that have{" "}
+                              <strong>all</strong> of the selected tags. Each row is still one
+                              dataset (record label + data label), not a summed total.
+                            </>
+                          )
                         ) : (
                           <>
                             <strong>Record label view:</strong> Statistics are grouped by
@@ -440,6 +423,7 @@ export default function OwnerSummaryPage() {
                 <SummaryResultsTable
                   rows={groupedData}
                   tags={tag}
+                  onToggleTag={(value) => setTag(nextTagSelection(tag, value))}
                   startDate={startDate}
                   endDate={endDate}
                   dateField={dateField}

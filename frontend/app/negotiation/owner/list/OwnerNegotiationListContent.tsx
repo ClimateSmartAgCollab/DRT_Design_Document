@@ -3,6 +3,10 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useNegotiations } from "./hooks/useNegotiations";
+import {
+  facetOptionValues,
+  useNegotiationFacets,
+} from "../hooks/useNegotiationFacets";
 import { useFilterState } from "./hooks/useFilterState";
 import { Sidebar } from "./components/Sidebar";
 import { BulkActionBar } from "./components/BulkActionBar";
@@ -29,10 +33,12 @@ export default function OwnerNegotiationListContent() {
     setDateRange,
     setSortOption,
     setTags,
+    toggleTag,
     setRecordLabel,
     setDataLabel,
     setDateField,
     toggleFulfillmentStatus,
+    setTagMatch,
     resetFilters,
   } = useFilterState();
 
@@ -54,36 +60,31 @@ export default function OwnerNegotiationListContent() {
       filters.fulfillmentStatusFilter.length > 0
         ? filters.fulfillmentStatusFilter
         : undefined,
+    tagMatch: filters.tagMatch !== "all" ? filters.tagMatch : undefined,
   }), [currentPage, filters]);
 
   const { data: negs, error, isLoading, reload, total, totalPages, page } = useNegotiations(apiFilters);
+  const facets = useNegotiationFacets();
 
-  const tagOptions = useMemo(() => {
-    const tags = new Set<string>(filters.tags);
-    negs.forEach(n => {
-      if (Array.isArray(n.tags)) n.tags.forEach(t => t && tags.add(t));
-      else if (typeof n.tags === 'string' && n.tags) tags.add(n.tags);
-    });
-    return Array.from(tags);
-  }, [negs, filters.tags]);
-  const recordLabelOptions = useMemo(() => {
-    const labels = new Set<string>(filters.recordLabel);
-    negs.forEach(n => {
-      if (n.record_label) labels.add(n.record_label);
-    });
-    return Array.from(labels);
-  }, [negs, filters.recordLabel]);
-  const dataLabelOptions = useMemo(() => {
-    const labels = new Set<string>(filters.dataLabel);
-    negs.forEach(n => {
-      if (n.data_label) labels.add(n.data_label);
-    });
-    return Array.from(labels);
-  }, [negs, filters.dataLabel]);
+  const tagOptions = useMemo(
+    () => facetOptionValues(facets.tags, filters.tags),
+    [facets.tags, filters.tags]
+  );
+  const recordLabelOptions = useMemo(
+    () => facetOptionValues(facets.recordLabels, filters.recordLabel),
+    [facets.recordLabels, filters.recordLabel]
+  );
+  const dataLabelOptions = useMemo(
+    () => facetOptionValues(facets.dataLabels, filters.dataLabel),
+    [facets.dataLabels, filters.dataLabel]
+  );
 
   const deleteOne = useMutation({
     mutationFn: (id: string) => deleteNegotiation(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["negotiations"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["negotiations"] });
+      qc.invalidateQueries({ queryKey: ["negotiation-facets"] });
+    },
   });
 
   const logoutMutation = useMutation({
@@ -173,7 +174,7 @@ export default function OwnerNegotiationListContent() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, filters.searchTerm, filters.sortOption, filters.tags, filters.recordLabel, filters.dataLabel, filters.dateField, filters.fulfillmentStatusFilter]);
+  }, [filters.statusFilter, filters.archivedFilter, filters.startDate, filters.endDate, filters.searchTerm, filters.sortOption, filters.tags, filters.recordLabel, filters.dataLabel, filters.dateField, filters.fulfillmentStatusFilter, filters.tagMatch]);
 
   // Sync currentPage with API response page
   useEffect(() => {
@@ -221,6 +222,8 @@ export default function OwnerNegotiationListContent() {
               tagOptions={tagOptions}
               selectedTag={filters.tags}
               onTagChange={setTags}
+              tagMatch={filters.tagMatch}
+              onTagMatchChange={setTagMatch}
               recordLabelOptions={recordLabelOptions}
               selectedRecordLabel={filters.recordLabel}
               onRecordLabelChange={setRecordLabel}
@@ -272,6 +275,8 @@ export default function OwnerNegotiationListContent() {
                         isSelected={selected.has(n.negotiation_id)}
                         onToggleSelect={handleToggleSelect}
                         onReload={reload}
+                        selectedTags={filters.tags}
+                        onToggleTag={toggleTag}
                       />
                     ))}
                   </ul>

@@ -1,6 +1,6 @@
 // drt_frontend\app\negotiation\owner\list\services\negotiationApi.ts
 import fetchApi from "@/app/api/apiHelper";
-import type { Negotiation } from "../types";
+import type { Negotiation, TagMatch } from "../types";
 
 export interface NegotiationListResponse {
   results: Negotiation[];
@@ -24,6 +24,7 @@ export interface NegotiationFilters {
   sort?: string;
   dateField?: "created" | "decided";
   fulfillmentStatus?: string[];
+  tagMatch?: TagMatch;
 }
 
 export async function fetchNegotiations(
@@ -43,6 +44,7 @@ export async function fetchNegotiations(
     sort,
     dateField,
     fulfillmentStatus,
+    tagMatch,
   } = filters;
 
   const searchParams = new URLSearchParams({
@@ -86,6 +88,9 @@ export async function fetchNegotiations(
     fulfillmentStatus.forEach((value) =>
       searchParams.append("fulfillment_status", value)
     );
+  }
+  if (tagMatch && tagMatch !== "all") {
+    searchParams.set("tag_match", tagMatch);
   }
 
   const res = await fetchApi(`/drt/negotiations/?${searchParams.toString()}`);

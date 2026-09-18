@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.conf import settings
+from django.db import connection
 from django.db.models.signals import post_save
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -161,6 +162,67 @@ class SummaryStatisticsViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         rows = response.json()["summary_statistics"]
         self.assertEqual(len(rows), 2)
+        labels = {(row["data_label"], row["record_label"]) for row in rows}
+        self.assertEqual(
+            labels,
+            {
+                ("basic_data_request", "basic_a"),
+                ("detailed_data_request", "detailed_b"),
+            },
+        )
+        for row in rows:
+            self.assertEqual(row["tag"], "2026")
+            self.assertEqual(row["tags"], ["2026"])
+
+    def test_tags_are_anded(self):
+        self._make_case(
+            data_label="basic_data_request",
+            record_label="basic_a",
+            dataset_id="ds-a",
+            visible_label="Basic A",
+            tags=["2026", "basic_data_request"],
+        )
+        self._make_case(
+            data_label="detailed_data_request",
+            record_label="detailed_b",
+            dataset_id="ds-b",
+            visible_label="Detailed B",
+            tags=["2026"],
+        )
+
+        response = self._get(tags=["2026", "basic_data_request"])
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["summary_statistics"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["record_label"], "basic_a")
+        self.assertEqual(rows[0]["tag"], "2026, basic_data_request")
+        self.assertEqual(rows[0]["tags"], ["2026", "basic_data_request"])
+
+    def test_tag_match_any_is_overlap(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("ArrayField overlap requires Postgres")
+
+        self._make_case(
+            data_label="basic_data_request",
+            record_label="basic_a",
+            dataset_id="ds-a",
+            visible_label="Basic A",
+            tags=["2026", "basic_data_request"],
+        )
+        self._make_case(
+            data_label="detailed_data_request",
+            record_label="detailed_b",
+            dataset_id="ds-b",
+            visible_label="Detailed B",
+            tags=["2026"],
+        )
+
+        response = self._get(
+            tags=["2026", "basic_data_request"],
+            tag_match="any",
+        )
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["summary_statistics"]
         labels = {(row["data_label"], row["record_label"]) for row in rows}
         self.assertEqual(
             labels,

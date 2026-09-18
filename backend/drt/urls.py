@@ -8,7 +8,8 @@ from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_vi
                     csrf_token, regenerate_license_view, negotiation_history_view,
                     negotiation_history_view_req, requestor_logout, owner_logout,
                     reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view,
-                    mark_fulfillment_delivered_view, mark_fulfillment_withdrawn_view
+                    mark_fulfillment_delivered_view, mark_fulfillment_withdrawn_view,
+                    negotiation_facets_api
                     )
 from .views.admin import (
     admin_email_entry, verify_admin_magic_link, admin_whoami, admin_logout,
@@ -170,6 +171,10 @@ urlpatterns = [
     path('negotiations/process-abandonment-policy/',
          process_abandonment_policy_view,
          name='process_abandonment_policy'),  # Process abandonment policy
+
+    path('negotiations/facets/',
+         negotiation_facets_api,
+         name='negotiation_facets_api'),
 
     path('negotiations/',
          negotiation_list_api,

@@ -9,6 +9,8 @@ from urllib.parse import quote
 
 import requests
 
+from drt.utils.tags import normalize_tags
+
 logger = logging.getLogger(__name__)
 
 DRT_API_PREFIX = "/api/v1/drt"
@@ -98,9 +100,7 @@ def link_table_from_payload(payload):
         link_uuid = (row.get("linkUuid") or "").strip()
         if not link_uuid:
             continue
-        tags = row.get("tags") or []
-        if isinstance(tags, str):
-            tags = [part.strip() for part in tags.split(",") if part.strip()]
+        tags = normalize_tags(row.get("tags"))
         visible = (row.get("visibleLabel") or row.get("dataLabel") or "").strip()
         entry = {
             "questionnaire_id": row.get("questionnaireId") or "",

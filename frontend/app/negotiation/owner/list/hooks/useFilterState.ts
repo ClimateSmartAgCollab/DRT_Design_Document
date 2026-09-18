@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Status, ArchivedFilter, SortOption, type FulfillmentStatus } from '../types';
+import { Status, ArchivedFilter, SortOption, type FulfillmentStatus, type TagMatch } from '../types';
+import { nextTagSelection } from '../../components/TagChip';
 import { useDebounce } from './useDebounce';
 import { 
   parseStatusFilter, 
@@ -9,6 +10,7 @@ import {
   parseCsvList,
   parseDateField,
   parseFulfillmentStatus,
+  parseTagMatch,
   validateDate,
   buildQueryString 
 } from '../utils/urlParams';
@@ -25,6 +27,7 @@ interface FilterState {
   dataLabel: string[];
   dateField: 'created' | 'decided';
   fulfillmentStatusFilter: FulfillmentStatus[];
+  tagMatch: TagMatch;
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -39,6 +42,7 @@ const DEFAULT_FILTERS: FilterState = {
   dataLabel: [],
   dateField: 'created',
   fulfillmentStatusFilter: [],
+  tagMatch: 'all',
 };
 
 function filtersFromSearchParams(searchParams: URLSearchParams): FilterState {
@@ -63,6 +67,7 @@ function filtersFromSearchParams(searchParams: URLSearchParams): FilterState {
     fulfillmentStatusFilter: parseFulfillmentStatus(
       searchParams.get('fulfillment_status')
     ),
+    tagMatch: parseTagMatch(searchParams.get('tag_match')),
   };
 }
 
@@ -93,6 +98,9 @@ export function useFilterState() {
     }
     if (newFilters.fulfillmentStatusFilter.length > 0) {
       params.fulfillment_status = newFilters.fulfillmentStatusFilter;
+    }
+    if (newFilters.tagMatch === 'any') {
+      params.tag_match = 'any';
     }
     
     const queryString = buildQueryString(params);
@@ -147,6 +155,10 @@ export function useFilterState() {
     updateFilters({ tags });
   }, [updateFilters]);
 
+  const toggleTag = useCallback((tag: string) => {
+    updateFilters({ tags: nextTagSelection(filters.tags, tag) });
+  }, [filters.tags, updateFilters]);
+
   const setRecordLabel = useCallback((recordLabel: string[]) => {
     updateFilters({ recordLabel });
   }, [updateFilters]);
@@ -166,6 +178,10 @@ export function useFilterState() {
     updateFilters({ fulfillmentStatusFilter: next });
   }, [filters.fulfillmentStatusFilter, updateFilters]);
 
+  const setTagMatch = useCallback((tagMatch: TagMatch) => {
+    updateFilters({ tagMatch });
+  }, [updateFilters]);
+
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
     router.replace('/negotiation/owner/list', { scroll: false });
@@ -183,10 +199,12 @@ export function useFilterState() {
     setDateRange,
     setSortOption,
     setTags,
+    toggleTag,
     setRecordLabel,
     setDataLabel,
     setDateField,
     toggleFulfillmentStatus,
+    setTagMatch,
     resetFilters,
   };
 }

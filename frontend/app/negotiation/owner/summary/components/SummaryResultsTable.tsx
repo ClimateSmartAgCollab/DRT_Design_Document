@@ -7,12 +7,14 @@ import {
   filtersForSummaryRow,
 } from "../utils/buildOwnerListHref";
 import { summaryRowLabel } from "../utils/outcomeMix";
+import { TagChip } from "../../components/TagChip";
 
 export interface SummaryTableRow {
   dataset_ID?: string;
   visible_label?: string;
   data_label: string;
   tag: string;
+  tags?: string[];
   record_label?: string;
   total_requests: number;
   accepted_requests: number;
@@ -58,9 +60,12 @@ const COUNT_LINK_CLASS =
 const IDENTITY_LINK_CLASS =
   "cursor-pointer text-[rgb(55,125,28)] underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-[rgb(70,160,35)] rounded";
 
-function splitTags(tag: string | undefined): string[] {
-  if (!tag || !tag.trim()) return [];
-  return tag.split(",").map((t) => t.trim()).filter(Boolean);
+function rowTags(row: { tags?: string[]; tag?: string }): string[] {
+  if (Array.isArray(row.tags)) {
+    return row.tags.filter((t) => typeof t === "string" && t.trim());
+  }
+  if (!row.tag?.trim()) return [];
+  return row.tag.split(",").map((t) => t.trim()).filter(Boolean);
 }
 
 function CountCell({
@@ -153,6 +158,7 @@ function ActivityDatesCell({
 interface SummaryResultsTableProps {
   rows: SummaryTableRow[];
   tags: string[];
+  onToggleTag: (tag: string) => void;
   startDate: string;
   endDate: string;
   dateField?: "created" | "decided";
@@ -161,6 +167,7 @@ interface SummaryResultsTableProps {
 export function SummaryResultsTable({
   rows,
   tags,
+  onToggleTag,
   startDate,
   endDate,
   dateField,
@@ -189,7 +196,7 @@ export function SummaryResultsTable({
             </tr>
           ) : (
             rows.map((d, idx) => {
-              const tagsList = splitTags(d.tag);
+              const tagsList = rowTags(d);
               const invalid = Boolean(
                 d.validation_status && !d.validation_status.is_valid
               );
@@ -225,12 +232,12 @@ export function SummaryResultsTable({
                     {tagsList.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {tagsList.map((t) => (
-                          <span
+                          <TagChip
                             key={t}
-                            className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-medium px-2 py-1 rounded"
-                          >
-                            {t}
-                          </span>
+                            tag={t}
+                            pressed={tags.includes(t)}
+                            onToggle={onToggleTag}
+                          />
                         ))}
                       </div>
                     )}

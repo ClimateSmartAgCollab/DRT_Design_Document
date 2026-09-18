@@ -84,3 +84,5 @@ export type SortOption =
   | "status_asc"
   | "status_desc";
 
+export type TagMatch = "all" | "any";
+
