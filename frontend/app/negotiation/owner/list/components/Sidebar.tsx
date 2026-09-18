@@ -9,6 +9,7 @@ import {
   STATUS_DISPLAY_NAMES,
   FULFILLMENT_DISPLAY_NAMES,
   type FulfillmentStatus,
+  type TagMatch,
 } from "../types";
 
 interface SidebarProps {
@@ -29,6 +30,8 @@ interface SidebarProps {
   tagOptions: string[];
   selectedTag: string[];
   onTagChange: (tags: string[]) => void;
+  tagMatch: TagMatch;
+  onTagMatchChange: (value: TagMatch) => void;
   recordLabelOptions: string[];
   selectedRecordLabel: string[];
   onRecordLabelChange: (labels: string[]) => void;
@@ -57,6 +60,8 @@ export function Sidebar({
   tagOptions,
   selectedTag,
   onTagChange,
+  tagMatch,
+  onTagMatchChange,
   recordLabelOptions,
   selectedRecordLabel,
   onRecordLabelChange,
@@ -280,6 +285,30 @@ export function Sidebar({
           ))}
           {tagOptions.length === 0 && <span className="text-gray-400">No tags</span>}
         </div>
+        {selectedTag.length > 1 && (
+          <div className="mt-2 flex gap-4 text-xs text-gray-600">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="list-tag-match"
+                checked={tagMatch === "all"}
+                onChange={() => onTagMatchChange("all")}
+                className="mr-1"
+              />
+              Match all
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="list-tag-match"
+                checked={tagMatch === "any"}
+                onChange={() => onTagMatchChange("any")}
+                className="mr-1"
+              />
+              Match any
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Record Label Filter */}

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import GinIndex
 import uuid
 from datetime import timedelta
 from django.utils.timezone import now
@@ -21,8 +22,7 @@ class NLink(models.Model):
     dataset_ID = models.CharField(max_length=255, null=True, blank=True)
 
     data_label = models.CharField(max_length=255, default='', db_index=True)
-    tags = ArrayField(models.CharField(max_length=64),
-                      default=list, db_index=True)
+    tags = ArrayField(models.CharField(max_length=64), default=list)
     record_label = models.CharField(max_length=255, default='', db_index=True)
     visible_label = models.CharField(max_length=255, default='', blank=True, db_index=True)
 
@@ -32,6 +32,11 @@ class NLink(models.Model):
     # state = models.CharField(max_length=50, default='requestor_open')
     expiration_date = models.DateTimeField(default=default_expiration_date)
     last_activity = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            GinIndex(fields=["tags"], name="drt_nlink_tags_gin"),
+        ]
 
 
 class Requestor(models.Model):

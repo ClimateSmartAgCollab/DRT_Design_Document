@@ -2,6 +2,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 from django.conf import settings
+from django.db import connection
 from django.db.models.signals import post_save
 from django.test import TestCase
 from django.urls import reverse
@@ -103,6 +104,31 @@ class NegotiationListApiFilterTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self._ids(response), {str(both.negotiation_id)})
+
+    def test_tag_match_any_is_overlap(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("ArrayField overlap requires Postgres")
+
+        both = self._make_case(
+            data_label="basic_data_request",
+            record_label="basic_a",
+            tags=["2026", "basic_data_request"],
+        )
+        year_only = self._make_case(
+            data_label="detailed_data_request",
+            record_label="detailed_b",
+            tags=["2026"],
+        )
+
+        response = self.client.get(
+            self.url,
+            {"tags": ["2026", "basic_data_request"], "tag_match": "any"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self._ids(response),
+            {str(both.negotiation_id), str(year_only.negotiation_id)},
+        )
 
     def test_data_label_getlist_restricts_results(self):
         alpha = self._make_case(
@@ -254,6 +280,24 @@ class NegotiationListApiFilterTests(TestCase):
         self.assertEqual(row["fulfillment_status"], "pending")
         self.assertIn("fulfillment_note", row)
         self.assertIn("fulfillment_at", row)
+
+    def test_search_matches_exact_tag(self):
+        tagged = self._make_case(
+            data_label="alpha",
+            record_label="door-a",
+            tags=["2026"],
+            visible_label="Visible",
+        )
+        self._make_case(
+            data_label="beta",
+            record_label="door-b",
+            tags=["basic_data_request"],
+            visible_label="Other",
+        )
+
+        response = self.client.get(self.url, {"search": "2026"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._ids(response), {str(tagged.negotiation_id)})
 
     def test_fulfillment_status_filter(self):
         pending = self._make_case(

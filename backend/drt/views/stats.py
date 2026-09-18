@@ -2,11 +2,11 @@ from django.urls import NoReverseMatch, reverse
 from django.http import HttpResponse, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-from django.db.models import Count, Q, Min, Max
+from django.db.models import CharField, Count, Func, Min, Max, Q
 from django.utils.translation import gettext_lazy as _
 from django.utils.dateparse import parse_datetime, parse_date
 from ..models import NLink, Archive, Negotiation
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from ..services.negotiation import delete_old_negotiations, handle_negotiation_archive_and_summary, process_abandonment_policy, abandon_negotiation_by_requestor
@@ -36,6 +36,7 @@ from datastore.cache_keys import (
 )
 from datastore.contexthub import link_is_requestable
 from drt.services.license import build_license_context, render_license
+from drt.utils.tags import apply_tag_filter, normalize_tags, parse_tag_match
 from .questionnaire import create_archive_snapshot
 from django.conf import settings
 
@@ -44,6 +45,59 @@ logger = logging.getLogger(__name__)
 
 DATE_FIELD_CREATED = "created"
 DATE_FIELD_DECIDED = "decided"
+
+
+class Unnest(Func):
+    """Expand a Postgres ArrayField into one row per element."""
+
+    function = "UNNEST"
+    arity = 1
+    output_field = CharField()
+
+
+def _owner_ids_for_email(email):
+    cache_data = cache.get("owner_table") or {}
+    return [
+        owner_id
+        for owner_id, info in cache_data.items()
+        if info.get("owner_email") == email
+    ]
+
+
+def _facet_values(queryset, field):
+    rows = (
+        queryset
+        .exclude(**{field: ""})
+        .exclude(**{f"{field}__isnull": True})
+        .values(field)
+        .annotate(count=Count("pk"))
+        .order_by(field)
+    )
+    return [{"value": row[field], "count": row["count"]} for row in rows]
+
+
+def _tag_facets(queryset):
+    """Distinct ArrayField tags via UNNEST, counted in a subquery.
+
+    PostgreSQL rejects GROUP BY unnest(...), so expand first, then count.
+    """
+    inner = (
+        queryset
+        .annotate(tag=Unnest("tags"))
+        .values("tag")
+        .order_by()
+    )
+    sql, params = inner.query.sql_with_params()
+    wrapped = (
+        "SELECT tag AS value, COUNT(*) AS count "
+        f"FROM ({sql}) AS tag_rows "
+        "WHERE tag IS NOT NULL AND tag <> '' "
+        "GROUP BY tag "
+        "ORDER BY tag"
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(wrapped, params)
+        return [{"value": row[0], "count": row[1]} for row in cursor.fetchall()]
 
 
 def _parse_date_field(raw):
@@ -112,16 +166,13 @@ def _median(values):
     return (ordered[mid - 1] + ordered[mid]) / 2.0
 
 
-def summary_clocks_payload(nlink_filter, date_field):
+def summary_clocks_payload(nlink_qs, date_field):
     first_look = []
     decision = []
-    rows = (
-        NLink.objects.filter(nlink_filter)
-        .values_list(
-            "negotiation__submitted_at",
-            "negotiation__first_owner_open_at",
-            "negotiation__decided_at",
-        )
+    rows = nlink_qs.values_list(
+        "negotiation__submitted_at",
+        "negotiation__first_owner_open_at",
+        "negotiation__decided_at",
     )
     for submitted_at, first_owner_open_at, decided_at in rows:
         if submitted_at and first_owner_open_at:
@@ -148,14 +199,14 @@ def summary_clocks_payload(nlink_filter, date_field):
     }
 
 
-def summary_fulfillment_payload(nlink_filter):
+def summary_fulfillment_payload(nlink_qs):
     """Accepted-case delivery counts for the filtered queryset.
 
     Historical accepted rows that stayed ``not_applicable`` are omitted; they
     are not a delivery queue. Grouped summary rows cannot hold this mix.
     """
     accepted = Q(negotiation__state="accepted")
-    totals = NLink.objects.filter(nlink_filter).aggregate(
+    totals = nlink_qs.aggregate(
         pending=Count(
             "negotiation",
             filter=accepted
@@ -318,7 +369,7 @@ def _summary_group_key(row):
     )
 
 
-def _summary_row_from_group(grp, *, tag=''):
+def _summary_row_from_group(grp, *, tag='', tags=None):
     now_iso = timezone.now().isoformat()
     date_range = grp.get('negotiation_date_range')
     if isinstance(date_range, dict):
@@ -337,6 +388,7 @@ def _summary_row_from_group(grp, *, tag=''):
         'visible_label': grp.get('visible_label') or '',
         'data_label': grp.get('data_label') or '',
         'tag': tag,
+        'tags': list(tags) if tags is not None else [],
         'record_label': grp.get('record_label') or '',
         'total_requests': grp.get('total_requests', 0) or 0,
         'accepted_requests': grp.get('accepted_requests', 0) or 0,
@@ -375,6 +427,7 @@ def _group_summary_statistics(statistics_data):
                 'record_label': d.get('record_label', ''),
                 'data_label': d.get('data_label', ''),
                 'tag': d.get('tag') or '',
+                'tags': list(d.get('tags') or []),
                 'total_requests': d.get('total_requests', 0),
                 'accepted_requests': d.get('accepted_requests', 0),
                 'rejected_requests': d.get('rejected_requests', 0),
@@ -446,73 +499,38 @@ def summary_statistics_view(request):
         return JsonResponse({'summary_statistics': []})
 
     # Get filter parameters
-    tags_filter = [tag.strip() for tag in request.GET.getlist("tags") if tag and tag.strip()]
+    tags_filter = normalize_tags(request.GET.getlist("tags"))
+    tag_match = parse_tag_match(request.GET.get("tag_match"))
     data_label_filter = [lbl.strip() for lbl in request.GET.getlist("data_label") if lbl and lbl.strip()]
     record_label_filter = [lbl.strip() for lbl in request.GET.getlist("record_label") if lbl and lbl.strip()]
-    include_all_tags = request.GET.get("include_all_tags", "false").lower() == "true"
     group_by = request.GET.get("group_by", "false").lower() == "true"
     start_date = request.GET.get("startDate")
     end_date = request.GET.get("endDate")
     date_field = _parse_date_field(request.GET.get("dateField"))
 
     try:
-        if include_all_tags:
-            nlink_qs = NLink.objects.filter(owner_id__in=owner_ids)
-            
-            logger.debug(f"include_all_tags query: owner_ids={owner_ids}, found {nlink_qs.count()} NLink records")
-            
-            if not nlink_qs.exists():
-                logger.warning(
-                    f"No NLink found for owner_ids={owner_ids}, email={email}")
-                return JsonResponse({'summary_statistics': []})
-
-            grouped_data = (
-                nlink_qs
-                .values('dataset_ID', 'data_label', 'record_label', 'visible_label', 'tags')
-                .annotate(**_summary_state_annotations())
-            )
-
-            statistics_data = []
-            for grp in grouped_data:
-                tags_list = grp.get('tags') or []
-                tags_cleaned = [t for t in tags_list if t and str(t).strip()]
-                tag_str = ', '.join(sorted(tags_cleaned)) if tags_cleaned else ''
-                statistics_data.append(_summary_row_from_group(grp, tag=tag_str))
-
-            return JsonResponse({'summary_statistics': statistics_data})
-
-        nlink_filter = Q(owner_id__in=owner_ids)
-
-        if tags_filter:
-            for tag in tags_filter:
-                tag_q = (
-                    Q(tags__contains=[tag])
-                    | Q(tags__contains=[f' {tag}'])
-                    | Q(tags__contains=[f'{tag} '])
-                    | Q(tags__contains=[f' {tag} '])
-                )
-                nlink_filter = nlink_filter & tag_q
+        nlink_qs = NLink.objects.filter(owner_id__in=owner_ids)
 
         if data_label_filter:
-            nlink_filter &= Q(data_label__in=data_label_filter)
+            nlink_qs = nlink_qs.filter(data_label__in=data_label_filter)
 
         if record_label_filter:
-            nlink_filter &= Q(record_label__in=record_label_filter)
+            nlink_qs = nlink_qs.filter(record_label__in=record_label_filter)
 
-        nlink_filter &= date_window_q(
-            start_date, end_date, date_field, nlink=True
+        nlink_qs = nlink_qs.filter(
+            date_window_q(start_date, end_date, date_field, nlink=True)
         )
+        nlink_qs = apply_tag_filter(nlink_qs, tags_filter, match=tag_match)
 
         grouped_stats = (
-            NLink.objects
-            .filter(nlink_filter)
+            nlink_qs
             .values('dataset_ID', 'data_label', 'record_label', 'visible_label')
             .annotate(**_summary_state_annotations())
         )
 
         filter_tag = ', '.join(sorted(tags_filter)) if tags_filter else ''
         statistics_data = [
-            _summary_row_from_group(grp, tag=filter_tag)
+            _summary_row_from_group(grp, tag=filter_tag, tags=tags_filter)
             for grp in grouped_stats
         ]
 
@@ -521,8 +539,8 @@ def summary_statistics_view(request):
 
         return JsonResponse({
             'summary_statistics': statistics_data,
-            'clocks': summary_clocks_payload(nlink_filter, date_field),
-            'fulfillment': summary_fulfillment_payload(nlink_filter),
+            'clocks': summary_clocks_payload(nlink_qs, date_field),
+            'fulfillment': summary_fulfillment_payload(nlink_qs),
         })
 
     except ObjectDoesNotExist:
@@ -688,6 +706,29 @@ def negotiation_list_api_req(request):
 
 
 @owner_auth_required
+def negotiation_facets_api(request):
+    """Distinct tag/label counts for the owner's NLink set.
+
+    Unfiltered in this slice: no status, date, or fulfillment constraints.
+    """
+    email = request.owner_email
+    if not email:
+        return JsonResponse({"error": "Email parameter is required"}, status=400)
+
+    owner_ids = _owner_ids_for_email(email)
+    empty = {"tags": [], "record_labels": [], "data_labels": []}
+    if not owner_ids:
+        return JsonResponse(empty)
+
+    nlink_qs = NLink.objects.filter(owner_id__in=owner_ids)
+    return JsonResponse({
+        "tags": _tag_facets(nlink_qs),
+        "record_labels": _facet_values(nlink_qs, "record_label"),
+        "data_labels": _facet_values(nlink_qs, "data_label"),
+    })
+
+
+@owner_auth_required
 def negotiation_list_api(request):
 
     email = request.owner_email
@@ -710,7 +751,6 @@ def negotiation_list_api(request):
     start_date = request.GET.get("startDate")
     end_date = request.GET.get("endDate")
     date_field = _parse_date_field(request.GET.get("dateField"))
-    tags_filter = [tag.strip() for tag in request.GET.getlist("tags") if tag and tag.strip()]
     record_label_filter = [lbl.strip() for lbl in request.GET.getlist("record_label") if lbl and lbl.strip()]
     data_label_filter = [lbl.strip() for lbl in request.GET.getlist("data_label") if lbl and lbl.strip()]
     fulfillment_status_filter = [
@@ -773,17 +813,12 @@ def negotiation_list_api(request):
         qs = qs.filter(archived=False)
 
     qs = qs.filter(date_window_q(start_date, end_date, date_field, nlink=False))
-
-    if tags_filter:
-        # AND: each selected tag must be present, matching summary-statistics.
-        for tag in tags_filter:
-            tag_q = (
-                Q(link__tags__contains=[tag])
-                | Q(link__tags__contains=[f" {tag}"])
-                | Q(link__tags__contains=[f"{tag} "])
-                | Q(link__tags__contains=[f" {tag} "])
-            )
-            qs = qs.filter(tag_q)
+    qs = apply_tag_filter(
+        qs,
+        request.GET.getlist("tags"),
+        match=parse_tag_match(request.GET.get("tag_match")),
+        field="link__tags",
+    )
 
     if record_label_filter:
         qs = qs.filter(link__record_label__in=record_label_filter)
@@ -792,12 +827,16 @@ def negotiation_list_api(request):
         qs = qs.filter(link__data_label__in=data_label_filter)
 
     if search_term:
-        qs = qs.filter(
+        search_q = (
             Q(negotiation_id__icontains=search_term) |
             Q(conversation_id__icontains=search_term) |
             Q(link__visible_label__icontains=search_term) |
             Q(link__record_label__icontains=search_term)
         )
+        tag_terms = normalize_tags([search_term])
+        if tag_terms:
+            search_q |= Q(link__tags__contains=tag_terms)
+        qs = qs.filter(search_q)
 
     # Apply sorting
     if sort_option == "created_asc":

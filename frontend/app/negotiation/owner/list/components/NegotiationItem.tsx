@@ -10,12 +10,15 @@ import {
 import Link from "next/link";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { FulfillmentActions, FulfillmentBadge } from "./FulfillmentActions";
+import { TagChip } from "../../components/TagChip";
 
 interface NegotiationItemProps {
   negotiation: Negotiation;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onReload: () => void;
+  selectedTags: string[];
+  onToggleTag: (tag: string) => void;
 }
 
 export function NegotiationItem({
@@ -23,6 +26,8 @@ export function NegotiationItem({
   isSelected,
   onToggleSelect,
   onReload,
+  selectedTags,
+  onToggleTag,
 }: NegotiationItemProps) {
 
   const [isRegenerating, setIsRegenerating] = React.useState(false);
@@ -171,22 +176,16 @@ export function NegotiationItem({
             <span className="text-gray-600">
               Created: {new Date(n.timestamps).toLocaleDateString()}
             </span>
-            {n.tags && n.tags.length > 0 && (
-              <span className="flex items-center gap-1">
-                {Array.isArray(n.tags)
-                  ? n.tags.map((tag, idx) => (
-                      <span
-                        key={tag + idx}
-                        className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-semibold px-2 py-0.5 rounded-full border border-[rgb(55,125,28)]"
-                      >
-                        {tag}
-                      </span>
-                    ))
-                  : (
-                      <span className="inline-block bg-[rgba(180,230,160,0.3)] text-[rgb(55,125,28)] text-xs font-semibold px-2 py-0.5 rounded-full border border-[rgb(55,125,28)]">
-                        {n.tags}
-                      </span>
-                    )}
+            {Array.isArray(n.tags) && n.tags.length > 0 && (
+              <span className="flex items-center gap-1 flex-wrap">
+                {n.tags.map((tag) => (
+                  <TagChip
+                    key={tag}
+                    tag={tag}
+                    pressed={selectedTags.includes(tag)}
+                    onToggle={onToggleTag}
+                  />
+                ))}
               </span>
             )}
             {n.record_label && (

@@ -46,6 +46,7 @@ from datastore.contexthub import (
     LINK_NOT_REQUESTABLE_MESSAGE,
     link_is_requestable,
 )
+from drt.utils.tags import normalize_tags
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ def generate_nlinks(request, link_id):
         license_id=example_link['license_id'],
         # dataset_ID=example_link['data_label'],
         data_label=example_link['data_label'],
-        tags=example_link['tags'],
+        tags=normalize_tags(example_link['tags']),
         record_label=example_link['record_label'],
         visible_label=example_link.get('visible_label', '') or example_link.get('data_label', ''),
         requestor_link=requestor_link_id,

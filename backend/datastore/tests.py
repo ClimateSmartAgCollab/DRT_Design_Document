@@ -302,7 +302,7 @@ OWNER_PAYLOAD = {
 }
 
 
-class ContextHubMapperTests(TestCase):
+class ContextHubMapperTests(SimpleTestCase):
     def test_link_table_maps_camel_case_and_keys_by_uuid(self):
         table = contexthub_client.link_table_from_payload(LINK_PAYLOAD)
         entry = table["75cb9450-01af-40b2-9cd5-e7fb0d82b59d"]
@@ -312,6 +312,29 @@ class ContextHubMapperTests(TestCase):
         self.assertEqual(entry["visible_label"], "Basic Data Request")
         self.assertEqual(entry["tags"], ["2026", "basic_data_request"])
         self.assertNotIn("status", entry)
+
+    def test_link_table_normalizes_csv_tags(self):
+        payload = {
+            "links": [
+                {**LINK_PAYLOAD["links"][0], "tags": " 2026, 2026 "},
+            ]
+        }
+        table = contexthub_client.link_table_from_payload(payload)
+        entry = table["75cb9450-01af-40b2-9cd5-e7fb0d82b59d"]
+        self.assertEqual(entry["tags"], ["2026"])
+
+    def test_link_table_normalizes_list_tags(self):
+        payload = {
+            "links": [
+                {
+                    **LINK_PAYLOAD["links"][0],
+                    "tags": [" 2026 ", "", "2026", " basic_data_request"],
+                },
+            ]
+        }
+        table = contexthub_client.link_table_from_payload(payload)
+        entry = table["75cb9450-01af-40b2-9cd5-e7fb0d82b59d"]
+        self.assertEqual(entry["tags"], ["2026", "basic_data_request"])
 
     def test_link_table_keeps_catalog_status(self):
         payload = {

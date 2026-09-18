@@ -1,4 +1,4 @@
-import { Status, ArchivedFilter, SortOption, ALL_STATUSES, isFulfillmentStatus, type FulfillmentStatus } from '../types';
+import { Status, ArchivedFilter, SortOption, ALL_STATUSES, isFulfillmentStatus, type FulfillmentStatus, type TagMatch } from '../types';
 
 export function parseStatusFilter(statusParam: string | null): Status[] {
   if (!statusParam) return [];
@@ -53,6 +53,10 @@ export function parseFulfillmentStatus(
     .split(',')
     .map((item) => item.trim())
     .filter((item): item is FulfillmentStatus => isFulfillmentStatus(item));
+}
+
+export function parseTagMatch(param: string | null): TagMatch {
+  return param?.trim().toLowerCase() === 'any' ? 'any' : 'all';
 }
 
 export function validateDate(dateString: string): boolean {
