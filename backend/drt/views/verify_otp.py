@@ -1,4 +1,3 @@
-from django.urls import reverse
 from django.core.cache import cache
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -48,10 +47,8 @@ def verify_magic_link_view(request, link_id):
         }, cache_timeout)
         cache.set(email_link_key, token, cache_timeout)
 
-        # Update expiry/token in DB for reference
         requestor.otp_expiry = expiry
-        requestor.otp = token
-        requestor.save()
+        requestor.save(update_fields=["otp_expiry"])
 
         magic_link = f"{settings.FRONTEND_BASE_URL}/negotiation/{link_id}/magic-link-verification?token={token}"
 
@@ -94,10 +91,7 @@ def verify_magic_link_view(request, link_id):
         cache.delete(f"magic_token:{token}")
         cache.delete(email_link_key)
 
-        # Optionally, set session/cookie here if needed
-
-        access_url = reverse('request_access', kwargs={'link_id': link_id})
-        return Response({'redirect_url': access_url})
+        return Response({'message': 'Verified'})
 
     return Response({'error': 'Method not allowed.'},
                     status=status.HTTP_405_METHOD_NOT_ALLOWED)

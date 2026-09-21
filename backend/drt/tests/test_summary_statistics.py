@@ -589,6 +589,11 @@ class TerminalNegotiationArchiveTests(TestCase):
             side_effect=lambda key, default=None: OWNER_TABLE if key == "owner_table" else default,
         )
         self.cache_patcher.start()
+        self.owner_email_patcher = patch(
+            "drt.services.access.owner_email_for_nlink",
+            return_value=OWNER_EMAIL,
+        )
+        self.owner_email_patcher.start()
         session = self.client.session
         session["owner_email"] = OWNER_EMAIL
         session.save()
@@ -596,6 +601,7 @@ class TerminalNegotiationArchiveTests(TestCase):
 
     def tearDown(self):
         self.cache_patcher.stop()
+        self.owner_email_patcher.stop()
 
     def _make_open_case(self):
         negotiation = Negotiation.objects.create(

@@ -26,9 +26,8 @@ export function PermissionInfo({ isAuthenticated }: PermissionInfoProps) {
             Permission Information
           </h3>
           <p className="text-sm mt-1 text-[rgb(55,125,28)]">
-            Anyone with this link can view and save comments. Actions that
-            change the negotiation status (accept, reject, request
-            clarification) require email verification.
+            Opening this review requires email verification for the dataset
+            owner. The link is a bookmark, not a credential.
           </p>
         </div>
       </div>

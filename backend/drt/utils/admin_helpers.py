@@ -3,6 +3,9 @@ Admin helper utilities for environment-based admin authentication.
 """
 import os
 import logging
+from functools import wraps
+
+from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +70,24 @@ def is_admin_enabled():
     """
     enabled = os.environ.get("ADMIN_ENABLED", "false").lower() == "true"
     return enabled
+
+
+def admin_auth_required(view_func):
+    """Require a session whose admin_email is listed in ADMIN_EMAILS."""
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        admin_email = request.session.get("admin_email")
+        if not admin_email:
+            return JsonResponse({
+                "error": "Admin authentication required"
+            }, status=401)
+
+        if not is_admin_email(admin_email):
+            return JsonResponse({
+                "error": "Unauthorized admin access"
+            }, status=403)
+
+        request.admin_email = admin_email
+        return view_func(request, *args, **kwargs)
+    return _wrapped
+

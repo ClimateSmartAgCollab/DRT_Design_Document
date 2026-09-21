@@ -1,21 +1,25 @@
 # drt\views\questionnaire.py
 
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.core.cache import cache
 from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext_lazy as _
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes
 from rest_framework.response import Response
 from rest_framework import status
 from ..models import NLink, Negotiation
 import uuid
 import datetime
 import logging
-import json
 import traceback
-from .utils import requestor_auth_required
+from .utils import (
+    CSRFEnforcedSessionAuthentication,
+    owner_auth_required,
+    requestor_auth_required,
+)
+from drt.services.access import owner_nlink_or_error, requestor_nlink_or_error
 from ..tasks import (
     send_notification_emails_task, 
     fetch_questionnaire_task, 
@@ -35,6 +39,7 @@ from drt.services.clocks import (
     mark_submitted,
 )
 from drt.services.fulfillment import DESC_FULFILLMENT_PENDING, mark_pending
+from drt.services.license import email_issued_license
 from datastore.cache_keys import (
     KEY_LINK_TABLE,
     KEY_QUESTIONNAIRE_TABLE,
@@ -52,20 +57,21 @@ from drt.utils.tags import normalize_tags
 logger = logging.getLogger(__name__)
 
 try:
-    from datastore.views import fetch_questionnaire_json, warm_github_cache
+    from datastore.views import fetch_questionnaire_json, warm_datastore_cache
 except ImportError as e:
     logger.error(f"Failed to import datastore helpers: {e}")
     fetch_questionnaire_json = None
-    warm_github_cache = None
+    warm_datastore_cache = None
 
-@csrf_exempt
+warm_github_cache = warm_datastore_cache
+
 @api_view(['GET'])
 def generate_nlinks(request, link_id):
     link_table = cache.get(KEY_LINK_TABLE)
     if not link_table:
         logger.warning("generate_nlinks: cache cold, warming synchronously")
-        if warm_github_cache is not None:
-            warm_github_cache()
+        if warm_datastore_cache is not None:
+            warm_datastore_cache()
         link_table = cache.get(KEY_LINK_TABLE)
     if not link_table:
         logger.error("generate_nlinks: cache still empty after warm-up")
@@ -125,19 +131,6 @@ def generate_nlinks(request, link_id):
     })
 
 
-@api_view()
-def request_access(request, link_id):
-    """Send the requestor a direct link to access the questionnaire."""
-
-    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-test.canadacentral.cloudapp.azure.com/')
-
-    questionnaire_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
-
-    return Response({'status': 'Link sent successfully!', 'link': questionnaire_url})
-
-
-@csrf_exempt
 @api_view(['GET'])
 def preview_questionnaire(_request):
     """
@@ -157,14 +150,14 @@ def preview_questionnaire(_request):
         if not questionnaire_table:
             logger.info("Preview: questionnaire_table cache is empty; attempting cache warm-up")
 
-            if warm_github_cache is None:
-                logger.error("Preview: warm_github_cache function not available")
+            if warm_datastore_cache is None:
+                logger.error("Preview: warm_datastore_cache function not available")
                 return Response({
                     'error': 'Questionnaire table not found in cache and automatic warm-up is unavailable.',
                     'hint': 'Verify CONTEXT_HUB_URL and CONTEXT_HUB_API_KEY (or GITHUB_API_URL if DATASTORE_BACKEND=github)',
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            result = warm_github_cache()
+            result = warm_datastore_cache()
             if not result.get("ok"):
                 logger.error("Preview: cache warm-up failed: %s", result.get("error"))
                 return Response({
@@ -260,11 +253,14 @@ def preview_questionnaire(_request):
 
 
 @never_cache
-@csrf_exempt
 @api_view(['GET', 'POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 @requestor_auth_required
 def fill_questionnaire(request, link_id):
     nlink = get_object_or_404(NLink, requestor_link=link_id)
+    _nlink, error = requestor_nlink_or_error(request, nlink=nlink)
+    if error:
+        return error
     negotiation = nlink.negotiation
 
     # Handle questionnaire submission state checks
@@ -277,10 +273,8 @@ def fill_questionnaire(request, link_id):
         return JsonResponse({'error': state_messages[negotiation.state]}, status=400)
 
     if request.method == 'POST':
-        # Parse JSON data from the request body
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
+        data = request.data
+        if not isinstance(data, dict):
             return JsonResponse({'error': 'Invalid JSON data provided.'}, status=400)
 
         if data.get('save'):
@@ -318,8 +312,7 @@ def fill_questionnaire(request, link_id):
             except Exception as e:
                 logger.error(f"Failed to archive requestor submission: {e}")
 
-            # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-            frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-test.canadacentral.cloudapp.azure.com/')
+            frontend_base_url = settings.FRONTEND_BASE_URL.rstrip("/")
             owner_review_url = f"{frontend_base_url}/negotiation/owner/{nlink.owner_link}/owner-review"
 
             send_notification_emails_task(nlink.link_id, owner_review_url)
@@ -360,8 +353,13 @@ def fill_questionnaire(request, link_id):
 
 @never_cache
 @api_view(['GET', 'POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
+@owner_auth_required
 def owner_review(request, link_id):
     nlink = get_object_or_404(NLink, owner_link=link_id)
+    _nlink, error = owner_nlink_or_error(request, nlink=nlink)
+    if error:
+        return error
     negotiation = nlink.negotiation
 
     if request.method == 'GET':
@@ -406,7 +404,6 @@ def owner_review(request, link_id):
         data = request.data
 
         if 'save' in data:
-            # Save action doesn't require authentication
             negotiation.owner_responses = data.get('owner_responses', '')
             negotiation.comments = data.get('comments', '')
             negotiation.save()
@@ -418,7 +415,7 @@ def owner_review(request, link_id):
             try:
                 create_archive_snapshot(
                     negotiation,
-                    changed_by="owner",
+                    changed_by=request.owner_email or "owner",
                     change_description=DESC_OWNER_SAVED,
                     owner_responses=negotiation.owner_responses,
                     comments=negotiation.comments,
@@ -438,10 +435,8 @@ def owner_review(request, link_id):
                 break
         
         if action_found:
-            owner_email = request.session.get("owner_email")
-            if not owner_email:
-                return Response({'error': 'Owner authentication required for this action'}, status=401)
-            
+            owner_email = request.owner_email
+
             if action_found == 'accept':
                 # Update owner responses and comments before changing state
                 negotiation.owner_responses = data.get('owner_responses', '')
@@ -532,16 +527,16 @@ def owner_review(request, link_id):
                 return Response({'message': 'Clarification requested!'})
 
             elif action_found == 'resend':
-                generate_license_and_notify_owner_task(nlink.link_id)
-                
-                return Response({'message': 'Email resend started!'})
+                if not email_issued_license(nlink):
+                    return Response(
+                        {'error': 'No issued license to resend'},
+                        status=400,
+                    )
+                return Response({'message': 'Issued license email resent'})
 
 
 def send_clarification_email(requestor_email, link_id):
-
-    # frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'http://127.0.0.1:3000')
-    frontend_base_url = getattr('drt_core/settings/local.py', 'FRONTEND_BASE_URL', 'https://drt-test.canadacentral.cloudapp.azure.com/')
-
+    frontend_base_url = settings.FRONTEND_BASE_URL.rstrip("/")
     clarification_url = f"{frontend_base_url}/negotiation/{link_id}/fill-questionnaire"
 
     # Send email directly (no threading needed since called with threading from view)

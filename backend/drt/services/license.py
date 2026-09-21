@@ -1,29 +1,38 @@
 """License generation for data-access negotiations.
 
-Turns a stored questionnaire submission into a rendered license document and
-emails it to the dataset owner. The main entry points are:
+Turns a stored questionnaire submission into a rendered license document,
+persists that artifact on the negotiation, and emails it to both parties.
+The main entry points are:
 
 - ``flatten_form_data``     normalize stored submission JSON into a flat dict
 - ``build_license_context`` assemble the Jinja render context
 - ``render_license``        render a datastore template (with local fallback)
-- ``generate_license_and_notify_owner`` end-to-end orchestration
+- ``generate_license_and_notify_owner`` issue + persist + email
 """
 
+import hashlib
 import json
 import logging
 import re
 from typing import Any, Optional
 
-from jinja2 import Environment, FileSystemLoader, Template, select_autoescape
+from jinja2 import FileSystemLoader, select_autoescape
+from jinja2.sandbox import SandboxedEnvironment
 
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import EmailMultiAlternatives
+from django.utils import timezone
 
 from datastore.cache_keys import KEY_OWNER_TABLE, TTL_24H, license_template_key
+from drt.models import Negotiation
+from drt.services.access import owner_email_for_nlink
+from drt.services.history import create_archive_snapshot
 from drt.utils.email_helpers import get_license_email_html
 
 logger = logging.getLogger(__name__)
+
+DESC_ISSUED_LICENSE_PREFIX = "Issued license v"
 
 # Control flags the frontend stores alongside answers; not questionnaire fields.
 _SUBMISSION_FLAGS = frozenset({"save", "submit"})
@@ -144,6 +153,8 @@ def build_license_context(negotiation=None, nlink=None, submission_data=None) ->
             "license_id": nlink.license_id,
             "link_id": str(nlink.link_id),
         })
+        if nlink.requestor_email:
+            dr.setdefault("email", nlink.requestor_email)
 
     if negotiation is not None:
         dr.update({
@@ -154,7 +165,7 @@ def build_license_context(negotiation=None, nlink=None, submission_data=None) ->
         })
 
     context = dict(details)
-    context.update({"submission": details, "dr": dr, "owner_table": owner_table})
+    context.update({"submission": details, "dr": dr})
     return context
 
 
@@ -187,10 +198,13 @@ def render_license(license_template_content: Any, context: dict) -> str:
     default template when no Jinja source is available."""
     jinja_source = extract_jinja_source(license_template_content)
     if jinja_source:
-        return Template(jinja_source).render(**context)
+        env = SandboxedEnvironment(
+            autoescape=select_autoescape(["html", "xml", "json"]),
+        )
+        return env.from_string(jinja_source).render(**context)
 
     logger.warning("Using fallback license template")
-    env = Environment(
+    env = SandboxedEnvironment(
         loader=FileSystemLoader("drt/templates"),
         autoescape=select_autoescape(["html", "xml", "json"]),
     )
@@ -220,9 +234,43 @@ def _load_license_template(license_id: Optional[str]) -> Any:
         return None
 
 
-def _send_owner_license_email(nlink, owner_email: str, attachment: tuple) -> None:
-    """Send the license agreement email (HTML + plain text) to the owner."""
-    dashboard_url = f"{settings.FRONTEND_BASE_URL}/negotiation/owner/homepage"
+def issued_license_description(version: int) -> str:
+    return f"{DESC_ISSUED_LICENSE_PREFIX}{version}"
+
+
+def persist_issued_license(negotiation, nlink, license_text: str) -> int:
+    """Store the rendered license on the current-cycle negotiation row."""
+    version = (negotiation.issued_license_version or 0) + 1
+    digest = hashlib.sha256(license_text.encode("utf-8")).hexdigest()
+    at = timezone.now()
+    said = getattr(nlink, "license_id", None) or ""
+    Negotiation.objects.filter(pk=negotiation.pk).update(
+        license_SAID=said,
+        issued_license_text=license_text,
+        issued_license_sha256=digest,
+        issued_license_at=at,
+        issued_license_version=version,
+    )
+    negotiation.license_SAID = said
+    negotiation.issued_license_text = license_text
+    negotiation.issued_license_sha256 = digest
+    negotiation.issued_license_at = at
+    negotiation.issued_license_version = version
+
+    try:
+        create_archive_snapshot(
+            negotiation,
+            changed_by=owner_email_for_nlink(nlink) or "owner",
+            change_description=issued_license_description(version),
+            state=negotiation.state,
+        )
+    except Exception:
+        logger.exception("Failed to archive issued license")
+    return version
+
+
+def _send_license_email(nlink, recipient: str, dashboard_url: str, attachment: tuple) -> None:
+    """Send the stored license agreement (HTML + plain text) to one recipient."""
     html_content = get_license_email_html(
         record_label=nlink.record_label,
         data_label=nlink.data_label,
@@ -250,31 +298,60 @@ def _send_owner_license_email(nlink, owner_email: str, attachment: tuple) -> Non
         subject=f"License Agreement for Record – {nlink.record_label}",
         body=plain_text_content,
         from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[owner_email],
+        to=[recipient],
     )
     email.attach_alternative(html_content, "text/html")
     email.attach(*attachment)
     email.send(fail_silently=False)
 
 
+def email_issued_license(nlink) -> bool:
+    """Email the stored issued license to owner and requestor. Returns False if none."""
+    negotiation = nlink.negotiation
+    license_text = negotiation.issued_license_text
+    if not license_text:
+        logger.error(
+            "No issued license to email for negotiation %s",
+            negotiation.negotiation_id,
+        )
+        return False
+
+    attachment = (
+        f"license_{negotiation.negotiation_id}.txt",
+        license_text,
+        "text/plain",
+    )
+    owner_email = owner_email_for_nlink(nlink)
+    requestor_email = nlink.requestor_email
+    recipients = []
+    if owner_email:
+        recipients.append((
+            owner_email,
+            f"{settings.FRONTEND_BASE_URL}/negotiation/owner/homepage",
+        ))
+    if requestor_email and requestor_email not in {email for email, _url in recipients}:
+        recipients.append((
+            requestor_email,
+            f"{settings.FRONTEND_BASE_URL}/negotiation/homepage",
+        ))
+    if not recipients:
+        logger.error("No license email recipients for owner_id %s", nlink.owner_id)
+        return False
+
+    for recipient, dashboard_url in recipients:
+        _send_license_email(nlink, recipient, dashboard_url, attachment)
+        logger.info("License email sent successfully to %s", recipient)
+    return True
+
+
 def generate_license_and_notify_owner(nlink) -> None:
-    """Render the license for a negotiation and email it to the dataset owner."""
+    """Render once, persist the issued license, and email that stored body."""
     try:
         negotiation = nlink.negotiation
         context = build_license_context(negotiation=negotiation, nlink=nlink)
-
         template = _load_license_template(getattr(nlink, "license_id", None))
         license_text = render_license(template, context)
-
-        owner_table = cache.get(KEY_OWNER_TABLE, {})
-        owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
-        if not owner_email:
-            logger.error("Owner email not found for ID: %s", nlink.owner_id)
-            return
-
-        attachment = (f"license_{negotiation.negotiation_id}.txt", license_text, "text/plain")
-        _send_owner_license_email(nlink, owner_email, attachment)
-        logger.info("License email sent successfully to %s", owner_email)
-
+        persist_issued_license(negotiation, nlink, license_text)
+        email_issued_license(nlink)
     except Exception:
         logger.exception("Error in license generation")

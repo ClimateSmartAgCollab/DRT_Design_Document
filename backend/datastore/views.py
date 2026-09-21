@@ -10,6 +10,7 @@ import io
 from django.views.decorators.csrf import csrf_exempt
 import logging
 from drt.tasks import refresh_data_task
+from drt.utils.admin_helpers import admin_auth_required
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
@@ -302,6 +303,7 @@ def fetch_license_template(license_id):
         logger.error(f"Error fetching license template for {license_id}: {str(e)}")
         return None
 
+@admin_auth_required
 def get_questionnaire_json(_request, questionnaire_id):
     try:
         cached_json = cache.get(questionnaire_json_key(questionnaire_id))
@@ -318,6 +320,7 @@ def get_questionnaire_json(_request, questionnaire_id):
     except Exception as e:
         return JsonResponse({'error': f'Error fetching questionnaire: {str(e)}'}, status=500)
 
+@admin_auth_required
 def get_license_template(_request, license_id):
     try:
         cached_template = cache.get(license_template_key(license_id))
@@ -334,6 +337,7 @@ def get_license_template(_request, license_id):
     except Exception as e:
         return JsonResponse({'error': f'Error fetching license template: {str(e)}'}, status=500)
 
+@admin_auth_required
 def get_license_table(_request):
     try:
         license_table = cache.get(KEY_LICENSE_TABLE)
@@ -345,6 +349,7 @@ def get_license_table(_request):
     except Exception as e:
         return JsonResponse({'error': f'Error fetching license table: {str(e)}'}, status=500)
 
+@admin_auth_required
 def get_cached_data(_request, key):
     cached_data = cache.get(key)
     if cached_data is None:

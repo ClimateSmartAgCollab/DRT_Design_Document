@@ -10,6 +10,7 @@ import { parseJsonToFormStructure } from "@/app/components/parser";
 import { Field } from "@/app/components/type";
 import { Providers } from "@/app/providers";
 import Header from "@/app/components/Header";
+import { regenerateLicense } from "@/app/negotiation/owner/list/services/negotiationApi";
 
 interface CommentCycle {
   id: string;
@@ -851,11 +852,7 @@ export default function NegotiationHistoryPage() {
   const regenerateLicenseMutation = useMutation({
     mutationFn: async () => {
       if (!history) throw new Error("No history data available");
-      const res = await fetchApi(
-        `/drt/negotiations/regenerate-license/${history.negotiation_id}/`
-      );
-      if (!res.ok) throw new Error("Failed to regenerate license");
-      return res.blob();
+      return regenerateLicense(history.negotiation_id);
     },
     onSuccess: (blob) => {
       if (!history) return;
@@ -1027,8 +1024,8 @@ export default function NegotiationHistoryPage() {
                           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           {regenerateLicenseMutation.isPending
-                            ? "Generating..."
-                            : "Regenerate License"}
+                            ? "Downloading..."
+                            : "Download issued license"}
                         </button>
                       )}
                     </div>

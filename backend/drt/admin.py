@@ -31,6 +31,10 @@ class NegotiationAdmin(admin.ModelAdmin):
         'fulfillment_status',
         'fulfillment_note',
         'fulfillment_at',
+        'license_SAID',
+        'issued_license_sha256',
+        'issued_license_at',
+        'issued_license_version',
     )
 
 @admin.register(Archive)

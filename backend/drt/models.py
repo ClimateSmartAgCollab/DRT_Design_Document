@@ -100,6 +100,12 @@ class Negotiation(models.Model):
     fulfillment_note = models.TextField(blank=True, null=True)
     fulfillment_at = models.DateTimeField(null=True, blank=True)
 
+    license_SAID = models.CharField(max_length=255, blank=True, default="")
+    issued_license_text = models.TextField(null=True, blank=True)
+    issued_license_sha256 = models.CharField(max_length=64, null=True, blank=True)
+    issued_license_at = models.DateTimeField(null=True, blank=True)
+    issued_license_version = models.IntegerField(default=0)
+
 
 class Archive(models.Model):
     # Now a many-to-one history store

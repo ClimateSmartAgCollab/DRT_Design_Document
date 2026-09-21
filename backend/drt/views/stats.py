@@ -12,9 +12,14 @@ from django.dispatch import receiver
 from ..services.negotiation import delete_old_negotiations, handle_negotiation_archive_and_summary, process_abandonment_policy, abandon_negotiation_by_requestor
 from django.shortcuts import get_object_or_404
 from .utils import admin_auth_required, owner_auth_required, requestor_auth_required
+from drt.services.access import (
+    emails_match,
+    owner_nlink_or_error,
+    party_nlink_or_error,
+    requestor_nlink_or_error,
+)
 from django.core.cache import cache
 from django.views.decorators.cache import never_cache
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
 import logging
@@ -28,15 +33,13 @@ from drt.services.fulfillment import (
     mark_delivered,
     mark_withdrawn,
 )
-from datastore.views import fetch_questionnaire_json, fetch_license_template
+from datastore.views import fetch_questionnaire_json
 from datastore.cache_keys import (
     KEY_LINK_TABLE,
     KEY_OWNER_TABLE,
-    license_template_key,
     questionnaire_json_key,
 )
 from datastore.contexthub import link_is_requestable
-from drt.services.license import build_license_context, render_license
 from drt.utils.tags import apply_tag_filter, normalize_tags, parse_tag_match
 from .questionnaire import create_archive_snapshot
 from django.conf import settings
@@ -57,11 +60,11 @@ class Unnest(Func):
 
 
 def _owner_ids_for_email(email):
-    cache_data = cache.get("owner_table") or {}
+    cache_data = cache.get(KEY_OWNER_TABLE) or {}
     return [
         owner_id
         for owner_id, info in cache_data.items()
-        if info.get("owner_email") == email
+        if emails_match(email, (info or {}).get("owner_email"))
     ]
 
 
@@ -247,18 +250,11 @@ def delete_old_negotiations_view(request):
 
 @owner_auth_required
 def owner_links_api(request):
-
-    raw_owner_cache = cache.get(KEY_OWNER_TABLE) or {}
-
     user_email = request.owner_email
 
     logger.debug(f"owner_links_api: user_email = {user_email}")
 
-    owner_ids = [
-        owner_id
-        for owner_id, info in raw_owner_cache.items()
-        if info.get("owner_email") == user_email
-    ]
+    owner_ids = _owner_ids_for_email(user_email)
 
     # If no owner_id matches, return empty list
     if not owner_ids:
@@ -482,18 +478,12 @@ def summary_statistics_view(request):
     """ Endpoint for retrieving summary statistics with optional tag filtering."""
 
     email = request.owner_email
-    cache_data = cache.get("owner_table") or {}
-
     if not email:
         return JsonResponse({'error': 'Email parameter is required'}, status=400)
 
-    owner_ids = [
-        owner_id
-        for owner_id, info in cache_data.items()
-        if info.get("owner_email") == email
-    ]
+    owner_ids = _owner_ids_for_email(email)
 
-    logger.debug(f"summary_statistics_view: email={email}, found owner_ids={owner_ids}, cache_size={len(cache_data)}")
+    logger.debug(f"summary_statistics_view: email={email}, found owner_ids={owner_ids}")
 
     # If no owner_ids found, return empty array
     if not owner_ids:
@@ -587,6 +577,9 @@ def archive_negotiation(negotiation):
 def archive_view(request, negotiation_id):
     """Manually archive a negotiation if it meets the required state."""
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+    _nlink, error = party_nlink_or_error(request, negotiation)
+    if error:
+        return error
     if negotiation.state in ['accepted', 'canceled', 'rejected', 'abandoned']:
         return handle_negotiation_archive_and_summary(negotiation)
     else:
@@ -618,36 +611,10 @@ def handle_negotiation_archive_and_summary_async(negotiation, owner_id=None):
 @require_http_methods(["DELETE"])
 def delete_negotiation_files(request, negotiation_id):
     """Delete a negotiation owned by the logged-in owner or requestor."""
-    owner_email = request.session.get("owner_email")
-    requestor_email = request.session.get("requestor_email")
-    if not owner_email and not requestor_email:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
-    try:
-        nlink = negotiation.link
-    except ObjectDoesNotExist:
-        nlink = None
-    if nlink is None:
-        return JsonResponse(
-            {"error": "Unauthorized access to this negotiation"},
-            status=403,
-        )
-
-    allowed = False
-    if owner_email:
-        owner_table = cache.get("owner_table", {}) or {}
-        row_owner = owner_table.get(nlink.owner_id, {}).get("owner_email")
-        if row_owner and row_owner == owner_email:
-            allowed = True
-    if not allowed and requestor_email and nlink.requestor_email == requestor_email:
-        allowed = True
-
-    if not allowed:
-        return JsonResponse(
-            {"error": "Unauthorized access to this negotiation"},
-            status=403,
-        )
+    _nlink, error = party_nlink_or_error(request, negotiation)
+    if error:
+        return error
 
     with transaction.atomic():
         archive = Archive.objects.filter(negotiation=negotiation).first()
@@ -782,16 +749,10 @@ def negotiation_list_api(request):
     # Sort option 
     sort_option = request.GET.get("sort", "created_desc")
 
-    cache_data = cache.get("owner_table") or {}
-
     if not email:
         return JsonResponse({'error': 'Email parameter is required'}, status=400)
 
-    owner_ids = [
-        owner_id
-        for owner_id, info in cache_data.items()
-        if info.get("owner_email") == email
-    ]
+    owner_ids = _owner_ids_for_email(email)
 
     qs = Negotiation.objects.select_related('link') \
         .filter(link__owner_id__in=owner_ids)
@@ -936,84 +897,33 @@ def negotiation_list_api(request):
 #     )
 #     return JsonResponse({'message': 'Request canceled successfully!'})
 
-@csrf_exempt
-def submission_view(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
-
-    submission = json.loads(request.body)
-    fmt = request.GET.get("format", "json").lower()
-    license_id = request.GET.get("license_id", "l-001-test")  # Get license_id from query params
-
-    if fmt == "license":
-        print(f"📄 rendering license template from GitHub for license_id: {license_id}")
-        # Get license template from cache or fetch from GitHub
-        cache_key = license_template_key(license_id)
-        license_template_content = cache.get(cache_key)
-        if not license_template_content:
-            license_template_content = fetch_license_template(license_id)
-        
-        content_type = "text/plain"
-        filename = "license.txt"
-        context = build_license_context(submission_data=submission)
-        rendered = render_license(license_template_content, context)
-
-    # elif fmt == "odrl":
-    #     print("📃 rendering license_odrl.xml.jinja")
-    #     template = env.get_template("license_odrl.xml.jinja")
-    #     content_type = "application/xml"
-    #     filename = "license.xml"
-    #     context = {"submission": submission}
-
-    # else:
-    #     print("🔧 rendering catalog_response.jinja")
-    #     template = env.get_template("catalog_response.jinja")
-    #     content_type = "application/json"
-    #     filename = "standardized_openAIRE.json"
-    #     context = {"submission": submission}
-
-    response = HttpResponse(rendered, content_type=content_type)
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return response
-
 
 @owner_auth_required
 def regenerate_license_view(request, negotiation_id):
-    """Regenerate license for a specific negotiation and return it for download"""
+    """Serve the stored issued license. Does not re-render the live template."""
     try:
-        
-        
         negotiation = get_object_or_404(Negotiation, negotiation_id=negotiation_id)
-        nlink = get_object_or_404(NLink, negotiation=negotiation)
-        
-        owner_table = cache.get("owner_table", {})
-        owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
-        
-        if not owner_email or owner_email != request.owner_email:
-            return JsonResponse({"error": "Unauthorized access to this negotiation"}, status=403)
-        
-        submission = negotiation.requestor_responses
-        if not submission:
-            return JsonResponse({"error": "No requestor responses found for this negotiation"}, status=400)
-        
-        context = build_license_context(negotiation=negotiation, nlink=nlink)
+        _nlink, error = owner_nlink_or_error(request, negotiation)
+        if error:
+            return error
 
-        license_id = getattr(nlink, 'license_id', None) or 'l-001-test'
-        cache_key = license_template_key(license_id)
-        license_template_content = cache.get(cache_key)
+        if not negotiation.issued_license_text:
+            return JsonResponse(
+                {"error": "No issued license for this negotiation"},
+                status=404,
+            )
 
-        if not license_template_content:
-            license_template_content = fetch_license_template(license_id)
-
-        rendered = render_license(license_template_content, context)
-
-        response = HttpResponse(rendered, content_type="text/plain")
-        response["Content-Disposition"] = f'attachment; filename="license_{negotiation_id}.txt"'
+        response = HttpResponse(
+            negotiation.issued_license_text, content_type="text/plain"
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="license_{negotiation_id}.txt"'
+        )
         return response
-        
+
     except Exception as e:
-        logger.error(f"Error regenerating license for negotiation {negotiation_id}: {str(e)}")
-        return JsonResponse({"error": "Failed to regenerate license"}, status=500)
+        logger.error(f"Error downloading license for negotiation {negotiation_id}: {str(e)}")
+        return JsonResponse({"error": "Failed to download issued license"}, status=500)
 
 
 def _build_history_response(negotiation):
@@ -1058,6 +968,9 @@ def negotiation_history_view(request, negotiation_id):
     """
     try:
         negotiation = get_object_or_404(Negotiation, negotiation_id=negotiation_id)
+        _nlink, error = owner_nlink_or_error(request, negotiation)
+        if error:
+            return error
         return _build_history_response(negotiation)
     except Exception as e:
         logger.error(
@@ -1078,25 +991,9 @@ def negotiation_history_view_req(request, negotiation_id):
             Negotiation.objects.select_related('link'),
             negotiation_id=negotiation_id,
         )
-
-        link = getattr(negotiation, 'link', None)
-        link_requestor = (
-            (link.requestor_email or '').strip().lower() if link else ''
-        )
-        session_requestor = (request.requestor_email or '').strip().lower()
-
-        if not link_requestor or link_requestor != session_requestor:
-            logger.warning(
-                "negotiation_history_view_req: access denied for "
-                "negotiation_id=%s (session=%r, link=%r)",
-                negotiation_id,
-                session_requestor or None,
-                link_requestor or None,
-            )
-            return JsonResponse(
-                {"error": "You do not have permission to view this negotiation."},
-                status=403,
-            )
+        _nlink, error = requestor_nlink_or_error(request, negotiation)
+        if error:
+            return error
 
         return _build_history_response(negotiation)
     except Exception as e:
@@ -1113,6 +1010,9 @@ def reopen_negotiation_view(request, negotiation_id):
     """Reopen a previously Accepted/Rejected/Abandoned negotiation"""
     try:
         negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
+        _nlink, error = owner_nlink_or_error(request, negotiation)
+        if error:
+            return error
         previous_state = negotiation.state
         
         if negotiation.state not in ['accepted', 'rejected', 'abandoned']:
@@ -1175,23 +1075,9 @@ def _parse_fulfillment_note(request):
     return note or None, None
 
 
-def _owner_nlink_or_error(request, negotiation):
-    nlink = getattr(negotiation, "link", None)
-    if nlink is None:
-        return None, JsonResponse({"error": "Negotiation link not found"}, status=404)
-    owner_table = cache.get(KEY_OWNER_TABLE) or {}
-    owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
-    if not owner_email or owner_email != request.owner_email:
-        return None, JsonResponse(
-            {"error": "Unauthorized access to this negotiation"},
-            status=403,
-        )
-    return nlink, None
-
-
 def _fulfillment_action(request, negotiation_id, action):
     negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
-    _nlink, error = _owner_nlink_or_error(request, negotiation)
+    _nlink, error = owner_nlink_or_error(request, negotiation)
     if error:
         return error
     note, error = _parse_fulfillment_note(request)
@@ -1234,14 +1120,12 @@ def _fulfillment_action(request, negotiation_id, action):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @owner_auth_required
 def mark_fulfillment_delivered_view(request, negotiation_id):
     return _fulfillment_action(request, negotiation_id, "deliver")
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @owner_auth_required
 def mark_fulfillment_withdrawn_view(request, negotiation_id):
@@ -1259,19 +1143,15 @@ def process_abandonment_policy_view(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@csrf_exempt
 @requestor_auth_required
 def abandon_negotiation_view(request, negotiation_id):
     """Allow requestor to abandon their own negotiation."""
     try:
         negotiation = get_object_or_404(Negotiation, pk=negotiation_id)
-        
-        if not hasattr(negotiation, 'link') or not negotiation.link:
-            return JsonResponse({'error': 'Negotiation link not found'}, status=404)
-            
-        if negotiation.link.requestor_email != request.requestor_email:
-            return JsonResponse({'error': 'Unauthorized access to this negotiation'}, status=403)
-        
+        _nlink, error = requestor_nlink_or_error(request, negotiation)
+        if error:
+            return error
+
         if negotiation.state not in ['requestor_open', 'owner_open']:
             return JsonResponse({
                 'error': 'Only active negotiations can be abandoned'

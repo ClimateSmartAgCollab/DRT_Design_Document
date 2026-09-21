@@ -12,7 +12,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from rest_framework.decorators import api_view, authentication_classes
 from rest_framework.response import Response
-from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.core.cache import cache
 from django.conf import settings
 from ..utils.admin_helpers import get_admin_emails, is_admin_email, is_admin_enabled
@@ -22,8 +22,8 @@ from .utils import admin_auth_required, CSRFEnforcedSessionAuthentication
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
 @api_view(['POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def admin_email_entry(request):
     """
     Request a magic link for admin authentication.

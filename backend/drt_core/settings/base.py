@@ -111,6 +111,8 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+CSRF_FAILURE_VIEW = "drt.views.utils.csrf_failure"
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True

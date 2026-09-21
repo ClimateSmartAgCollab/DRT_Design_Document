@@ -4,9 +4,9 @@ from django.utils.translation import gettext_lazy as _
 from ..models import Negotiation
 import datetime
 import logging
-from django.core.cache import cache
 from django.http import JsonResponse
 from ..tasks import send_abandonment_reminder_email_task, send_abandonment_notification_email_task
+from .access import owner_email_for_nlink
 from ..services.history import create_archive_snapshot
 from ..services.clocks import (
     DESC_ABANDONED_INACTIVITY,
@@ -103,10 +103,8 @@ def send_abandonment_reminder_email(negotiation):
             
         elif negotiation.state == 'owner_open':
             # Owner needs to act - send email to owner
-            
-            owner_table = cache.get("owner_table", {})
-            owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
-            
+            owner_email = owner_email_for_nlink(nlink)
+
             if not owner_email:
                 logger.warning(f"No owner email found for negotiation {negotiation.negotiation_id}")
                 return False
