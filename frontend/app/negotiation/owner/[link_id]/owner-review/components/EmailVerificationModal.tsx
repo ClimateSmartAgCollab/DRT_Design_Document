@@ -6,6 +6,8 @@ interface EmailVerificationModalProps {
   onVerify: (email: string) => void;
   isLoading: boolean;
   error: string | null;
+  title?: string;
+  description?: string;
 }
 
 export function EmailVerificationModal({
@@ -14,22 +16,22 @@ export function EmailVerificationModal({
   onVerify,
   isLoading,
   error,
+  title = "Email Verification Required",
+  description,
 }: EmailVerificationModalProps) {
   const [email, setEmail] = useState("");
 
   if (!isOpen) return null;
 
+  const body =
+    description ??
+    "To perform this action, please verify your email address. We'll send you a verification link. After verification, your action will be automatically completed.";
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-        <h3 className="text-lg font-semibold mb-4">
-          Email Verification Required
-        </h3>
-        <p className="text-gray-600 mb-4">
-          To perform this action, please verify your email address. We&apos;ll
-          send you a verification link. After verification, your action will be
-          automatically completed.
-        </p>
+        <h3 className="text-lg font-semibold mb-4">{title}</h3>
+        <p className="text-gray-600 mb-4">{body}</p>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">

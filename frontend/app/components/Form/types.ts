@@ -76,7 +76,6 @@ export interface UseDynamicFormReturn {
   reviewOutput: { title?: string; questions: any[] } | null;
   setReviewOutput: (v: { title?: string; questions: any[] } | null) => void;
   handleSubmit: () => void;
-  handleVerifyAndSubmit: (format: "json" | "license" | "odrl") => void;
 
   isNewChild: boolean;
   setIsNewChild: (v: boolean) => void;

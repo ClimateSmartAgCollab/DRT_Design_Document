@@ -257,7 +257,6 @@ export function useDynamicForm(parsedSteps: Step[] = []) {
     reviewOutput: reviewData,
     setReviewOutput: setReviewData,
     handleSubmit,
-    handleVerifyAndSubmit,
   } = useSubmissionMapping(parsedSteps, formData, parentFormData, language);
 
   // Prefill / clear helpers (unchanged)
@@ -451,7 +450,6 @@ export function useDynamicForm(parsedSteps: Step[] = []) {
     isNewChild,
     setIsNewChild,
     editExistingChild,
-    handleVerifyAndSubmit,
     prefillCurrentPageData,
     clearCurrentStepFormData,
     debugMode,

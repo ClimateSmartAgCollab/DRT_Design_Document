@@ -1,10 +1,10 @@
 from django.urls import path
-from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_view, request_access,
+from .views import (generate_nlinks, requestor_email_entry, verify_magic_link_view,
                     fill_questionnaire, preview_questionnaire, verify_req_magic_link, negotiation_list_api_req,
                     owner_email_entry, verify_owner_magic_link, owner_review, archive_view,
                     negotiation_list_api, delete_negotiation_files,
-                    delete_old_negotiations_view, summary_statistics_view, submission_view,
-                    req_email_entry, owner_links_api, whoami, req_whoami, test_endpoint, public_config,
+                    delete_old_negotiations_view, summary_statistics_view,
+                    req_email_entry, owner_links_api, whoami, req_whoami, public_config,
                     csrf_token, regenerate_license_view, negotiation_history_view,
                     negotiation_history_view_req, requestor_logout, owner_logout,
                     reopen_negotiation_view, process_abandonment_policy_view, abandon_negotiation_view,
@@ -17,11 +17,6 @@ from .views.admin import (
 )
 
 urlpatterns = [
-    # Test endpoint
-    path('test/',
-         test_endpoint,
-         name='test_endpoint'),
-
     path('public-config/',
          public_config,
          name='public_config'),
@@ -63,10 +58,6 @@ urlpatterns = [
     path("requestor/logout/",
          requestor_logout,
          name="requestor-logout"),
-
-    path('request_access/<str:link_id>/',
-         request_access,
-         name='request_access'),
 
     path('fill_questionnaire/<str:link_id>/',
          fill_questionnaire,
@@ -193,6 +184,4 @@ urlpatterns = [
          name='summary_statistics'),
 
     path("owner/links/", owner_links_api, name="owner_links_api"),
-
-    path('api/submission/<uuid:uuid>', submission_view, name='submission'),
 ]

@@ -22,13 +22,6 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 @api_view(['GET'])
-def test_endpoint(request):
-    """Simple test endpoint to check if the server is working"""
-    return Response({'message': 'Test endpoint working'}, status=200)
-
-
-@csrf_exempt
-@api_view(['GET'])
 @authentication_classes([])
 def public_config(request):
     """Public sandbox configuration for the frontend testing UI."""
@@ -43,8 +36,8 @@ def public_config(request):
     return Response(payload, status=200)
 
 
-@csrf_exempt
 @api_view(['POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def owner_email_entry(request):
     try:
         email = request.data.get('email')
@@ -179,8 +172,8 @@ def csrf_token(request):
     return JsonResponse({"detail": "CSRF cookie set"}, status=200)
 
 
-@csrf_exempt
 @api_view(['POST'])
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def req_email_entry(request):
     try:
         email = request.data.get('email')

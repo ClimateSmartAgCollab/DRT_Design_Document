@@ -1,10 +1,10 @@
 # Backend (Django)
 
-Django 5.1 API for negotiations, magic-link auth, license generation, and the GitHub datastore gateway. Global install, env catalog, and `npm run dev` live in the [root README](../README.md). System shape: [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
+Django 5.1 API for negotiations, magic-link auth, license generation, and the ContextHub (default) / GitHub (rollback) datastore gateway. Global install, env catalog, and `npm run dev` live in the [root README](../README.md). System shape: [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
 ## Why it is separate
 
-This package is the source of truth for negotiation state (PostgreSQL), in-request email/license work, and cache-aware fetches from GitHub (`datastore/`). The frontend is a client of this API.
+This package is the source of truth for negotiation state (PostgreSQL), in-request email/license work, and cache-aware fetches from ContextHub (`datastore/`; GitHub when `DATASTORE_BACKEND=github`). The frontend is a client of this API.
 
 ## Prerequisites
 

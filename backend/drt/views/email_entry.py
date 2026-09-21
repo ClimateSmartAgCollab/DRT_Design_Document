@@ -3,10 +3,10 @@ from django.shortcuts import get_object_or_404
 from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes
 from rest_framework import status
 from rest_framework.response import Response
 import datetime
@@ -14,13 +14,14 @@ from ..models import Requestor, NLink
 import logging
 import secrets
 from ..tasks import send_requestor_verification_email_task
+from .utils import CSRFEnforcedSessionAuthentication
 
 logger = logging.getLogger(__name__)
 
 
 @api_view(['GET', 'POST'])
 @ensure_csrf_cookie
-@csrf_exempt
+@authentication_classes([CSRFEnforcedSessionAuthentication])
 def requestor_email_entry(request, link_id):
     try:
         email = request.data.get('email')
@@ -52,11 +53,11 @@ def requestor_email_entry(request, link_id):
         }, cache_timeout)
         cache.set(email_link_key, token, cache_timeout)
 
-        # Update the Requestor with the new token and expiry
-        requestor.otp = token  # Reusing otp field for token
+        # Live token lives in Redis only (`magic_token:{token}`). Do not write it
+        # to Requestor.otp; that column is leftover and is not the credential.
         requestor.otp_expiry = expiry
         requestor.is_verified = False
-        requestor.save()
+        requestor.save(update_fields=["otp_expiry", "is_verified"])
 
         nlink = get_object_or_404(NLink, requestor_link=link_id)
         nlink.requestor_email = email
@@ -66,8 +67,7 @@ def requestor_email_entry(request, link_id):
 
         send_requestor_verification_email_task(email, magic_link, expiry)
 
-        magic_link_path = f"/negotiation/{link_id}/magic-link-verification?token={token}"
-        return Response({'redirect_url': settings.FRONTEND_BASE_URL + magic_link_path})
+        return Response({'message': 'Access link sent to your email'})
 
     except ValidationError:
         return Response({'error': 'Please enter a valid email address.'},

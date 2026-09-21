@@ -2,6 +2,7 @@ import logging
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from django.core.cache import cache
+from .services.access import owner_email_for_nlink
 from .utils.email_helpers import (
     get_verification_email_html, get_notification_email_html, get_rejection_email_html,
     get_clarification_email_html, get_reopen_email_html, get_abandonment_reminder_html,
@@ -124,10 +125,7 @@ def send_notification_emails_task(nlink_id, owner_review_url):
         from .models import NLink
         from .views.auth import generate_owner_magic_link_with_target
         nlink = NLink.objects.get(link_id=nlink_id)
-
-        # Get owner email from cache
-        owner_table = cache.get("owner_table", {})
-        owner_email = owner_table.get(nlink.owner_id, {}).get("owner_email")
+        owner_email = owner_email_for_nlink(nlink)
 
         if not owner_email:
             logger.error(f"Owner email not found for ID: {nlink.owner_id}")

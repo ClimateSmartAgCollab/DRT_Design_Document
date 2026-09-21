@@ -322,3 +322,15 @@ class NegotiationListApiFilterTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self._ids(response), {str(pending.negotiation_id)})
+
+    def test_list_is_case_insensitive_for_owner_email(self):
+        negotiation = self._make_case(
+            data_label="alpha",
+            record_label="door-a",
+            tags=["2026"],
+            state="owner_open",
+        )
+        self._set_session(owner_email=OWNER_EMAIL.upper())
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._ids(response), {str(negotiation.negotiation_id)})

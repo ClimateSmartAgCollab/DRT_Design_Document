@@ -4,12 +4,14 @@ interface LoadingStatesProps {
   isActing: boolean;
   isVerifyingEmail: boolean;
   emailSent: boolean;
+  pendingAction?: string | null;
 }
 
 export function LoadingStates({
   isActing,
   isVerifyingEmail,
   emailSent,
+  pendingAction,
 }: LoadingStatesProps) {
   if (isActing || isVerifyingEmail) {
     return (
@@ -54,7 +56,9 @@ export function LoadingStates({
             </h2>
             <p className="text-gray-600 mb-6">
               Please check your inbox and click the link to verify your email.
-              After verification, your action will be automatically completed.
+              {pendingAction
+                ? " After verification, your action will be automatically completed."
+                : " After verification, this review will open."}
             </p>
             <div className="text-sm text-gray-500">
               <p>You can close this page and return to your email.</p>

@@ -1,6 +1,6 @@
 # Cache architecture
 
-GitHub-backed caching for questionnaires, license templates, and related static assets. System-wide picture: [ARCHITECTURE.md](ARCHITECTURE.md). Clone-and-run: [root README](../README.md).
+ContextHub is the default catalog (`DATASTORE_BACKEND=contexthub`). GitHub is the rollback backend; the HMAC webhook applies only then. System-wide picture: [ARCHITECTURE.md](ARCHITECTURE.md). Clone-and-run: [root README](../README.md).
 
 ## Cache-backed data flow
 
@@ -14,10 +14,10 @@ graph TD;
     DRT_Django_Backend --> |Cache-first reads| Cache;
     Cache --> DRT_Django_Backend;
 
-    DRT_Django_Backend --> |Fetches static assets on miss| GitHub;
-    DRT_Django_Backend --> |Warms cache from GitHub| Cache;
+    DRT_Django_Backend --> |Fetches static assets on miss| Datastore[ContextHub or GitHub];
+    DRT_Django_Backend --> |Warms cache from datastore| Cache;
 
-    GitHub --Webhook--> DRT_Django_Backend;
+    GitHub -. webhook when DATASTORE_BACKEND=github .-> DRT_Django_Backend;
     DRT_Django_Backend --> |Warms cache in-request| Cache;
 
     subgraph "DRT System"
@@ -32,7 +32,7 @@ graph TD;
 
     subgraph "Data Store"
 
-        GitHub
+        Datastore
 
     end
 ```
@@ -42,27 +42,29 @@ graph TD;
 ## Diagram Walkthrough
 
 - **User Interaction:** Users submit requests through the Django web service (e.g., completing questionnaires or negotiating licenses).
-- **Cache-first Reads:** Django checks the cache for recently accessed or frequently used GitHub assets before reaching out to GitHub directly.
-- **Cache Refresh:** GitHub is the source of truth for static content. Changes in GitHub trigger cache refreshes via the webhook handler, and host cron re-warms every 12 hours (`infra/cron/run-job.sh cache`). There is no polling for change detection.
+- **Cache-first Reads:** Django checks the cache for recently accessed catalog assets before reaching ContextHub (default) or GitHub (rollback).
+- **Cache Refresh:** The selected datastore is the source of truth for static content. Host cron re-warms every 12 hours (`infra/cron/run-job.sh cache`). ContextHub has no DRT webhook — after a blob edit, run `manage.py refresh_datastore_cache`. When `DATASTORE_BACKEND=github`, GitHub changes can also trigger refresh via the HMAC webhook.
 - **Dynamic State:** Negotiation data lives in PostgreSQL, and Django reads/writes relational state there throughout the workflow.
-- **GitHub Reads:** When cached content is missing, Django fetches the questionnaire or license template directly from GitHub and stores the result in Redis for next time. For questionnaires, the process that wins the inflight lock fetches synchronously and returns JSON; concurrent requests may still see `_loading` until that fetch completes.
-- **Future Work:** Automated upload of generated licenses to GitHub is planned but not yet implemented; current workflows deliver artifacts via email.
-- **Failure Behavior:** There is **no stale-on-error fallback**. If a GitHub fetch fails on a cold key, the endpoint returns 404/500 (or keeps returning `_loading` until the inflight fetch succeeds). Operators should rely on webhook + cron pre-warm, not stale-serve semantics.
+- **Datastore Reads:** When cached content is missing, Django fetches the questionnaire or license template from the active backend and stores the result in Redis for next time. For questionnaires, the process that wins the inflight lock fetches synchronously and returns JSON; concurrent requests may still see `_loading` until that fetch completes.
+- **Issued license:** Approval persists the rendered bytes on `Negotiation`. Download serves that stored blob; it does not re-render. Automated upload of generated licenses to GitHub is not implemented.
+- **Failure Behavior:** There is **no stale-on-error fallback**. If a datastore fetch fails on a cold key, the endpoint returns 404/500 (or keeps returning `_loading` until the inflight fetch succeeds). Operators should rely on cron (and the GitHub webhook when that backend is on), not stale-serve semantics.
 
 ---
 
 ## Full Workflow Summary
 
 1. **Request Submission:** Requestors access DRT through UUID-backed links and submit data via dynamic questionnaires served by Django.
-2. **Cache Coordination:** Django retrieves questionnaire metadata and related assets from the cache; cache misses fall back to GitHub and repopulate the cache.
-3. **GitHub Synchronization:** GitHub changes trigger cache refreshes via the webhook handler. As a backstop, host cron runs `refresh_datastore_cache` every 12 hours to re-warm the cache regardless of webhook delivery.
+2. **Cache Coordination:** Django retrieves questionnaire metadata and related assets from the cache; cache misses fall back to ContextHub (or GitHub) and repopulate the cache.
+3. **Datastore Synchronization:** Host cron runs `refresh_datastore_cache` every 12 hours. ContextHub has no DRT webhook. When `DATASTORE_BACKEND=github`, GitHub changes can also trigger refresh via the HMAC webhook.
 4. **Negotiation Management:** Negotiation states, conversations, and reminders reside in PostgreSQL, orchestrated by Django (email and license work run in-request).
-5. **Artifact Delivery:** Completed negotiations generate licenses that are emailed to requestors/owners; system-side archival to GitHub is a future enhancement.
-6. **Ongoing Serving:** Subsequent requests benefit from cached data, reducing GitHub traffic while ensuring freshness when updates occur.
+5. **Artifact Delivery:** Completed negotiations persist the issued license on `Negotiation` and email that stored body to owner and requestor. Download serves the stored blob. System-side archival to GitHub is not implemented.
+6. **Ongoing Serving:** Subsequent requests benefit from cached data, reducing datastore traffic while ensuring freshness when updates occur.
 
 ---
 
 ## Cache Refresh Sequence
+
+GitHub webhook path (`DATASTORE_BACKEND=github` only). ContextHub has no DRT webhook; use `manage.py refresh_datastore_cache`.
 
 ```mermaid
 sequenceDiagram
@@ -112,9 +114,9 @@ flowchart TD
 
 ### Notes
 
-- All GitHub-backed assets share a uniform 24-hour TTL (`TTL_24H` in `cache_keys.py`). Freshness is driven by the webhook + cron refresh path, not by TTL expiry.
-- There is **no stale fallback**. A GitHub outage either keeps serving cache-warm content until the next invalidation, or surfaces 404/500 once keys are missing. Build a runbook around this rather than relying on graceful degradation.
-- Questionnaire JSON uses an inflight lock: the request that wins the lock fetches now; other concurrent requests may see `_loading`. List endpoints read cache-only and never fetch GitHub inline.
+- All catalog assets share a uniform 24-hour TTL (`TTL_24H` in `cache_keys.py`). Freshness is driven by cron (and the GitHub webhook when that backend is on), not by TTL expiry.
+- There is **no stale fallback**. A datastore outage either keeps serving cache-warm content until the next invalidation, or surfaces 404/500 once keys are missing. Build a runbook around this rather than relying on graceful degradation.
+- Questionnaire JSON uses an inflight lock: the request that wins the lock fetches now; other concurrent requests may see `_loading`. List endpoints read cache-only and never fetch the datastore inline.
 
 ---
 
@@ -172,7 +174,7 @@ graph LR
     subgraph Data Services
         RedisCache[(Redis Cache)]
         PostgresDB[(PostgreSQL)]
-        GitHubRepo[(GitHub Data Store)]
+        Catalog[(ContextHub default / GitHub rollback)]
     end
 
     Browser --> Frontend
@@ -180,9 +182,8 @@ graph LR
     Nginx --> DjangoAPI
     DjangoAPI <--> RedisCache
     DjangoAPI <--> PostgresDB
-    DjangoAPI --> GitHubRepo
+    DjangoAPI --> Catalog
     HostCron -->|manage.py via compose exec| DjangoAPI
-    GitHubRepo -. webhooks .-> DjangoAPI
 ```
 
 ### Notes
@@ -213,12 +214,12 @@ All datastore cache keys and TTLs are centralized in `backend/datastore/cache_ke
 
 ## Cache Warm-Up Paths
 
-There are four paths that populate the GitHub-backed cache; all call `warm_github_cache()`:
+There are four paths that populate the datastore cache; all call `warm_datastore_cache()` (`warm_github_cache` is an alias):
 
 1. **Container start (remote)** -- `backend/entrypoint.sh` waits for Redis, then runs `manage.py refresh_datastore_cache` once before gunicorn. This is the production path: gunicorn workers do not set `RUN_MAIN`.
 2. **App startup (backstop)** -- `DatastoreConfig.ready()` spawns a daemon thread for the `runserver` reloader child or a gunicorn worker. A Redis lock (`datastore_prewarm_lock`) ensures only one worker fetches.
 3. **Host cron** -- `infra/cron/run-job.sh cache` runs `manage.py refresh_datastore_cache` every 12 hours (`refresh_data_task` → `warm_github_cache(force=True)`).
-4. **GitHub webhook** -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then calls `refresh_data_task` (which force-rewarms).
+4. **GitHub webhook** (`DATASTORE_BACKEND=github` only) -- `POST /datastore/webhook/` (HMAC-validated) deletes keys synchronously, then calls `refresh_data_task` (which force-rewarms). Returns 410 when ContextHub is the backend.
 
 `warm_github_cache()` / `warm_datastore_cache()` short-circuits when all four `HOT_CACHE_KEYS` are present **and truthy** — empty dicts from a previously failed warm do not count as "already warm." That skip is for in-request cold paths (`generate_nlinks` when Redis is empty). **Cron and `manage.py refresh_datastore_cache` pass `force=True`**, so they overwrite `link_table` even when keys are warm. ContextHub has no DRT webhook; a catalog `status` flip (`active` → `disabled` / `review-required`) only reaches DRT after a force-rewarm. Operators who edit `drt/v1/link-table.json` must run that command. DRT does not write `status` back to ContextHub.
 
@@ -235,11 +236,11 @@ Cached `link_table` rows may include `status`. Missing or blank status is treate
 
 ## Client-Side Cache (TanStack Query)
 
-The frontend uses React Query as a second cache tier. GitHub-backed assets stay on long `staleTime`. Live PostgreSQL negotiation status does not — another party (or another tab) can change it at any time.
+The frontend uses React Query as a second cache tier. Catalog assets stay on long `staleTime`. Live PostgreSQL negotiation status does not — another party (or another tab) can change it at any time.
 
 - **Live status** (owner/requestor lists, summary statistics, history, owner review, fill-questionnaire payload): `LIVE_STATUS_QUERY` — `staleTime: 0`, `refetchOnMount: "always"`, refetch on window focus and reconnect. Browser `fetch` uses `cache: "no-store"`. Django live GETs are `@never_cache`. Do not interval-poll negotiation state (the questionnaire `_loading` poll is the exception). Mutations that change a negotiation invalidate `negotiations`, `owner`/`summary-statistics`, `ownerReview`, and `negotiationHistory`.
 - **Identity / static:** whoami, owner links catalog, preview questionnaire, and datastore debug keep 5m+ (or Infinity) `staleTime`. The providers default remains 5 minutes for those queries.
-- **`/datastore/cached-data/{key}/`:** dev/debug-only viewer, 5m stale, manual reload via mutation.
+- **`/datastore/cached-data/{key}/`:** admin-only dump viewer. Requires an admin session; 5m stale, manual reload via mutation.
 
 ## Related References
 

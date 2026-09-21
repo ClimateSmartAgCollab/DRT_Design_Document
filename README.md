@@ -9,7 +9,7 @@ This repository is the **Data Hub** implementation of DRT. The platform itself i
 - **Guided data requests** — dataset-specific questionnaires with branching logic and inline guidance
 - **Negotiation lifecycle** — owners review, request clarification, reject with rationale, or approve
 - **Email workflows** — verification, reminders, approvals, and rejections sent in-request
-- **License automation** — approved negotiations produce Jinja-rendered licenses, emailed to stakeholders
+- **License automation** — approved negotiations persist a sandboxed Jinja render on the case and email that stored body to owner and requestor
 - **Magic-link access** — UUID email links instead of heavyweight accounts
 - **Role-specific dashboards** — open negotiations, outstanding actions, historical archives
 - **Analytics hooks** — activity aggregated by owner, dataset, and tags
@@ -20,7 +20,7 @@ This repository is the **Data Hub** implementation of DRT. The platform itself i
 | --- | --- |
 | Frontend | Next.js 15 (App Router), TypeScript, MUI |
 | Backend | Django 5.1, Django REST Framework |
-| Data | PostgreSQL (negotiation state), Redis (cache), GitHub (questionnaires, licenses, metadata) |
+| Data | PostgreSQL (negotiation state), Redis (cache), ContextHub default / GitHub rollback (questionnaires, licenses, metadata) |
 | Infra | Docker Compose; remote stack adds gunicorn, nginx, and host cron |
 
 ## Quick start
@@ -122,7 +122,7 @@ Husky runs `npm run lint` on commit.
 | --- | --- |
 | [Architecture](docs/ARCHITECTURE.md) | Environments, diagram, workflow, data model |
 | [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md) | Deploy your own instance — datastore, theming, production |
-| [Cache architecture](docs/cache-architecture.md) | GitHub-backed cache, webhooks, failure behavior |
+| [Cache architecture](docs/cache-architecture.md) | ContextHub-default cache, GitHub webhook rollback, failure behavior |
 | [Backend](backend/README.md) · [Frontend](frontend/README.md) · [Infra](infra/README.md) | Module-level setup that differs from this README |
 
 Support: `adc@uoguelph.ca`. Example datastore: [ClimateSmartAgCollab/DRT-DS-test](https://github.com/ClimateSmartAgCollab/DRT-DS-test).

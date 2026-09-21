@@ -6,7 +6,7 @@ Architecture, deploy-your-own instructions, and operational notes for DRT. Clone
 | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Environments, system diagram, domain workflow, data model |
 | [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) | Stand up your own instance: datastore, theming, production |
-| [cache-architecture.md](cache-architecture.md) | GitHub-backed cache, webhooks, cron warm, failure behavior |
+| [cache-architecture.md](cache-architecture.md) | ContextHub-default cache, GitHub webhook rollback, cron warm, failure behavior |
 
 Module READMEs (local setup only where it differs from root):
 

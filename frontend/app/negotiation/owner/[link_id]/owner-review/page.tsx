@@ -53,13 +53,19 @@ function isRequestorOpenError(error: Error): boolean {
   return error.message.toLowerCase().includes("requestor_open");
 }
 
+function isForbiddenError(error: Error): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("unauthorized") ||
+    msg.includes("do not have permission")
+  );
+}
+
 export default function OwnerReviewPage() {
   const { link_id } = useParams();
   const router = useRouter();
   const qc = useQueryClient();
   const linkIdStr = Array.isArray(link_id) ? link_id[0] : link_id;
-
-  const [redirecting, setRedirecting] = useState(false);
 
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState(0);
   const [isViewingHistory, setIsViewingHistory] = useState(false);
@@ -90,7 +96,7 @@ export default function OwnerReviewPage() {
     queryFn: () => fetchNegotiation(linkIdStr!),
     ...LIVE_STATUS_QUERY,
     retry: 1,
-    // enabled: !!linkIdStr && isAuthenticated === true,
+    enabled: !!linkIdStr && isAuthenticated === true,
   });
 
   const { data: history, isPending: pendingHistory } = useQuery<
@@ -101,7 +107,7 @@ export default function OwnerReviewPage() {
     queryFn: () => fetchNegotiationHistory(linkIdStr!),
     ...LIVE_STATUS_QUERY,
     retry: 1,
-    // enabled: !!linkIdStr && isAuthenticated === true,
+    enabled: !!linkIdStr && isAuthenticated === true,
   });
 
   const { historyEntries } = useNegotiationHistory(history);
@@ -216,15 +222,18 @@ export default function OwnerReviewPage() {
 
   useEffect(() => {
     if (errorNegotiation && fetchError && isAuthError(fetchError)) {
-      setRedirecting(true);
-      router.replace("/negotiation/owner/email-entry");
+      setIsAuthenticated(false);
+      setShowEmailModal(true);
     }
-  }, [errorNegotiation, fetchError, router]);
+  }, [errorNegotiation, fetchError]);
 
   useEffect(() => {
     const checkAuth = async () => {
       const authStatus = await checkUserAuth();
       setIsAuthenticated(authStatus);
+      if (!authStatus) {
+        setShowEmailModal(true);
+      }
     };
     checkAuth();
   }, []);
@@ -307,8 +316,40 @@ export default function OwnerReviewPage() {
     }, 1000);
   }, [actionMutation]);
 
-  if (redirecting || (errorNegotiation && fetchError && isAuthError(fetchError))) {
-    return null;
+  if (isAuthenticated === null) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(70,160,35)] mx-auto mb-4"></div>
+          <p className="text-lg">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isActing || isVerifyingEmail || emailSent) {
+    return (
+      <LoadingStates
+        isActing={isActing}
+        isVerifyingEmail={isVerifyingEmail}
+        emailSent={emailSent}
+        pendingAction={pendingAction}
+      />
+    );
+  }
+
+  if (isAuthenticated === false) {
+    return (
+      <EmailVerificationModal
+        isOpen={true}
+        onClose={() => router.push("/negotiation/owner/homepage")}
+        onVerify={handleEmailVerification}
+        isLoading={isVerifyingEmail}
+        error={emailVerificationError}
+        title="Verify your email to open this review"
+        description="Owner review requires a signed-in owner session. We'll send you a verification link. After you click it, this page will load."
+      />
+    );
   }
 
   if (pendingNegotiation || pendingHistory) {
@@ -397,6 +438,24 @@ export default function OwnerReviewPage() {
       );
     }
 
+    if (isForbiddenError(fetchError)) {
+      return (
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center space-y-4">
+            <p className="text-lg text-gray-600">
+              You do not have permission to view this negotiation.
+            </p>
+            <Link
+              href="/negotiation/owner/homepage"
+              className="text-[rgb(70,160,35)] underline hover:text-[rgb(55,125,28)]"
+            >
+              Go to dashboard
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -426,6 +485,7 @@ export default function OwnerReviewPage() {
         isActing={isActing}
         isVerifyingEmail={isVerifyingEmail}
         emailSent={emailSent}
+        pendingAction={pendingAction}
       />
     );
   }

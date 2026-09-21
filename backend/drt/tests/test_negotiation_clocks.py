@@ -157,6 +157,13 @@ class NegotiationClockWriterTests(TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
+        owner_email = patch(
+            "drt.services.access.owner_email_for_nlink",
+            return_value=OWNER_EMAIL,
+        )
+        owner_email.start()
+        self.addCleanup(owner_email.stop)
+
     def _set_session(self, **kwargs):
         session = self.client.session
         for key, value in kwargs.items():
@@ -193,8 +200,9 @@ class NegotiationClockWriterTests(TestCase):
         )
 
     def _owner_get(self, nlink, **query):
+        self._set_session(owner_email=OWNER_EMAIL)
         with patch(
-            "drt.views.questionnaire.cache.get",
+            "drt.views.questionnaire.fetch_questionnaire_task",
             return_value={"title": "test questionnaire"},
         ):
             return self.client.get(

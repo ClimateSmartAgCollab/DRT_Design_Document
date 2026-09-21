@@ -77,10 +77,13 @@ export function NegotiationItem({
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      onReload();
     } catch (error) {
-      console.error('Error regenerating license:', error);
-      alert('Failed to regenerate license. Please try again.');
+      console.error("Error downloading issued license:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to download issued license. Please try again."
+      );
     } finally {
       setIsRegenerating(false);
     }
@@ -213,7 +216,7 @@ export function NegotiationItem({
               disabled={isRegenerating}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isRegenerating ? "Generating..." : "Regenerate License"}
+              {isRegenerating ? "Downloading..." : "Download issued license"}
             </button>
           )}
           <FulfillmentActions

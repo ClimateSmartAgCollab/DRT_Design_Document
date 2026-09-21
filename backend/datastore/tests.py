@@ -19,8 +19,10 @@ import json
 import os
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core.cache import cache
 from django.test import Client, SimpleTestCase, TestCase, override_settings
+from django.urls import reverse
 
 from datastore import views as datastore_views
 from datastore.cache_keys import (
@@ -34,6 +36,9 @@ from datastore.cache_keys import (
     questionnaire_json_key,
 )
 from datastore import contexthub as contexthub_client
+
+
+LISTED_ADMIN = "admin@example.com"
 
 
 OWNER_CSV = "owner_id,username,owner_email\nowner-1,user-1,owner1@example.com\n"
@@ -535,3 +540,46 @@ class ShouldPrewarmOnReadyTests(SimpleTestCase):
                 environ={},
             )
         )
+
+
+DUMP_URLS = (
+    ("get_cached_data", {"key": "owner_table"}),
+    ("get_license_table", {}),
+    ("get_license_template", {"license_id": "l-001"}),
+    ("get_questionnaire_json", {"questionnaire_id": "q-001"}),
+)
+
+
+@override_settings(CACHES={
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+})
+class DatastoreDumpAuthTests(SimpleTestCase):
+    def _set_session(self, **kwargs):
+        session = self.client.session
+        for key, value in kwargs.items():
+            session[key] = value
+        session.save()
+        self.client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
+
+    def test_unauthenticated_returns_401(self):
+        for name, kwargs in DUMP_URLS:
+            with self.subTest(name=name):
+                response = self.client.get(reverse(name, kwargs=kwargs))
+                self.assertEqual(response.status_code, 401)
+
+    def test_owner_session_returns_401(self):
+        self._set_session(owner_email="owner@example.com")
+        for name, kwargs in DUMP_URLS:
+            with self.subTest(name=name):
+                response = self.client.get(reverse(name, kwargs=kwargs))
+                self.assertEqual(response.status_code, 401)
+
+    @patch.dict(os.environ, {"ADMIN_EMAILS": LISTED_ADMIN})
+    def test_listed_admin_cached_data_returns_200(self):
+        cache.set(KEY_OWNER_TABLE, {"owner-1": {"owner_email": "a@b.c"}})
+        self._set_session(admin_email=LISTED_ADMIN)
+        response = self.client.get(
+            reverse("get_cached_data", kwargs={"key": "owner_table"})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("owner_table", response.json())
