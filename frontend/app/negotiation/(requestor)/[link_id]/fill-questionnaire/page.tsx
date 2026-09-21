@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import fetchApi from "@/app/api/apiHelper";
 import Form from "../../../../components/Form/Form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateLiveStatus, LIVE_STATUS_QUERY } from "@/app/lib/liveQuery";
 import { Providers } from "@/app/providers";
 import Header from "@/app/components/Header";
 
@@ -60,7 +61,7 @@ export default function FillQuestionnairePage() {
   } = useQuery<FillQuestionnaireResponse, Error>({
     queryKey: ["fillQuestionnaire", linkId],
     queryFn: () => fetchFillQuestionnaire(linkId!),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    ...LIVE_STATUS_QUERY,
     retry: false, // avoid automatic retries
     enabled: !!linkId, // only run when linkId exists
   });
@@ -74,6 +75,7 @@ export default function FillQuestionnairePage() {
         // Don't refetch data after save to avoid resetting form state
         // The form data is already up-to-date locally
       } else {
+        invalidateLiveStatus(queryClient);
         router.push(`/negotiation/${linkId}/fill-questionnaire/success`);
       }
     },

@@ -6,6 +6,7 @@ import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
+import { LIVE_STATUS_QUERY } from "@/app/lib/liveQuery";
 import { Providers } from "@/app/providers";
 import Header from "@/app/components/Header";
 import { SummarySidebar } from "./components/SummarySidebar";
@@ -209,7 +210,7 @@ export default function OwnerSummaryPage() {
         dateField,
         tagMatch
       ),
-    staleTime: 1000 * 60 * 5,
+    ...LIVE_STATUS_QUERY,
     retry: 1,
     enabled: !!whoamiQuery.data,
   });
@@ -307,7 +308,7 @@ export default function OwnerSummaryPage() {
             </div>
           ) : (
             <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
-              <aside className="w-full lg:w-80 bg-white border-r-0 lg:border-r border-b lg:border-b-0 border-gray-200 p-4 sm:p-6">
+              <aside className="w-full lg:w-80 min-w-0 bg-white border-r-0 lg:border-r border-b lg:border-b-0 border-gray-200 p-4 sm:p-6">
                 <SummarySidebar
                   dataLabelOptions={dataLabelOptions}
                   selectedDataLabel={dataLabel}

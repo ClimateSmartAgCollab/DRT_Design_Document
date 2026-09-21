@@ -142,6 +142,11 @@ class SummaryStatisticsViewTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 401)
 
+    def test_get_sets_never_cache_headers(self):
+        response = self._get()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-cache", response.get("Cache-Control", ""))
+
     def test_shared_tag_returns_two_grouped_rows(self):
         self._make_case(
             data_label="basic_data_request",

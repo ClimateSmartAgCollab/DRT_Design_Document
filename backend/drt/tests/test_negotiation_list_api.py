@@ -87,6 +87,11 @@ class NegotiationListApiFilterTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 401)
 
+    def test_get_sets_never_cache_headers(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-cache", response.get("Cache-Control", ""))
+
     def test_tags_are_anded(self):
         both = self._make_case(
             data_label="basic_data_request",

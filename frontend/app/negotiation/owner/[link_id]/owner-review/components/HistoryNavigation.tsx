@@ -18,27 +18,28 @@ export function HistoryNavigation({
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-4">
+      <div className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
         <div className="justify-self-start">
           <button
             onClick={() => onNavigate(currentIndex - 1)}
             disabled={currentIndex <= 0}
-            className="flex items-center space-x-2 px-4 py-2 bg-[rgba(180,230,160,0.2)] text-[rgb(55,125,28)] rounded-lg hover:bg-[rgba(180,230,160,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgb(55,125,28)]"
+            className="flex items-center space-x-2 px-2 sm:px-4 py-2 bg-[rgba(180,230,160,0.2)] text-[rgb(55,125,28)] rounded-lg hover:bg-[rgba(180,230,160,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgb(55,125,28)]"
           >
-            <ChevronLeftIcon className="h-4 w-4" />
-            <span>Previous</span>
+            <ChevronLeftIcon className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Previous</span>
           </button>
         </div>
 
-        <div className="justify-self-center min-w-0">
-          <div className="text-sm font-medium text-gray-700 text-center whitespace-nowrap">
+        <div className="justify-self-center min-w-0 px-1">
+          <div className="text-sm font-medium text-gray-700 text-center">
             {isHistorical
               ? `Entry ${currentIndex + 1} of ${totalEntries - 1}`
               : `Latest Version`}
           </div>
           {isHistorical && (
             <div className="text-xs text-gray-500 text-center mt-1">
-              Historical View - Read Only
+              <span className="sm:hidden">Read only</span>
+              <span className="hidden sm:inline">Historical View - Read Only</span>
             </div>
           )}
         </div>
@@ -47,10 +48,10 @@ export function HistoryNavigation({
           <button
             onClick={() => onNavigate(currentIndex + 1)}
             disabled={currentIndex >= totalEntries - 1}
-            className="flex items-center space-x-2 px-4 py-2 bg-[rgba(180,230,160,0.2)] text-[rgb(55,125,28)] rounded-lg hover:bg-[rgba(180,230,160,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgb(55,125,28)]"
+            className="flex items-center space-x-2 px-2 sm:px-4 py-2 bg-[rgba(180,230,160,0.2)] text-[rgb(55,125,28)] rounded-lg hover:bg-[rgba(180,230,160,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[rgb(55,125,28)]"
           >
-            <span>Next</span>
-            <ChevronRightIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRightIcon className="h-4 w-4 shrink-0" />
           </button>
         </div>
       </div>

@@ -13,6 +13,7 @@ from ..services.negotiation import delete_old_negotiations, handle_negotiation_a
 from django.shortcuts import get_object_or_404
 from .utils import admin_auth_required, owner_auth_required, requestor_auth_required
 from django.core.cache import cache
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
@@ -475,6 +476,7 @@ def _group_summary_statistics(statistics_data):
     return [_attach_validation(entry) for entry in grouped_map.values()]
 
 
+@never_cache
 @owner_auth_required
 def summary_statistics_view(request):
     """ Endpoint for retrieving summary statistics with optional tag filtering."""
@@ -657,6 +659,7 @@ def delete_negotiation_files(request, negotiation_id):
     )
 
 
+@never_cache
 @requestor_auth_required
 def negotiation_list_api_req(request):
     email = request.requestor_email
@@ -728,6 +731,7 @@ def negotiation_facets_api(request):
     })
 
 
+@never_cache
 @owner_auth_required
 def negotiation_list_api(request):
 
@@ -1047,6 +1051,7 @@ def _build_history_response(negotiation):
     })
 
 
+@never_cache
 @owner_auth_required
 def negotiation_history_view(request, negotiation_id):
     """Owner-facing negotiation history.
@@ -1063,6 +1068,7 @@ def negotiation_history_view(request, negotiation_id):
         )
 
 
+@never_cache
 @requestor_auth_required
 def negotiation_history_view_req(request, negotiation_id):
     """Requestor-facing negotiation history.

@@ -3,6 +3,7 @@
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.core.cache import cache
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import api_view
@@ -258,6 +259,7 @@ def preview_questionnaire(_request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@never_cache
 @csrf_exempt
 @api_view(['GET', 'POST'])
 @requestor_auth_required
@@ -356,6 +358,7 @@ def fill_questionnaire(request, link_id):
             'comments':          global_comments,
         })
 
+@never_cache
 @api_view(['GET', 'POST'])
 def owner_review(request, link_id):
     nlink = get_object_or_404(NLink, owner_link=link_id)
