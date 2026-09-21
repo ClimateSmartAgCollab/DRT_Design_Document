@@ -5,6 +5,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateLiveStatus, LIVE_STATUS_QUERY } from "@/app/lib/liveQuery";
 
 import {
   HistoryNavigation,
@@ -87,6 +88,7 @@ export default function OwnerReviewPage() {
   } = useQuery<NegotiationData, Error>({
     queryKey: ["ownerReview", linkIdStr],
     queryFn: () => fetchNegotiation(linkIdStr!),
+    ...LIVE_STATUS_QUERY,
     retry: 1,
     // enabled: !!linkIdStr && isAuthenticated === true,
   });
@@ -97,6 +99,7 @@ export default function OwnerReviewPage() {
   >({
     queryKey: ["negotiationHistory", linkIdStr],
     queryFn: () => fetchNegotiationHistory(linkIdStr!),
+    ...LIVE_STATUS_QUERY,
     retry: 1,
     // enabled: !!linkIdStr && isAuthenticated === true,
   });
@@ -250,10 +253,7 @@ export default function OwnerReviewPage() {
     },
     onSuccess(_result, action) {
       setStatusMessage(null);
-      if (!TERMINAL_ACTIONS.includes(action)) {
-        qc.invalidateQueries({ queryKey: ["ownerReview", linkIdStr] });
-        qc.invalidateQueries({ queryKey: ["negotiationHistory", linkIdStr] });
-      }
+      invalidateLiveStatus(qc);
       router.push(`/negotiation/owner/${linkIdStr}/result/${action}`);
     },
   });
@@ -434,8 +434,8 @@ export default function OwnerReviewPage() {
 
   return (
     <>
-      <div className="flex items-start justify-center min-h-screen bg-gray-50 py-8">
-        <div className="bg-white p-6 rounded shadow-md w-full max-w-3xl space-y-6">
+      <div className="flex items-start justify-center min-h-screen bg-gray-50 py-8 px-4 overflow-x-hidden">
+        <div className="bg-white p-4 sm:p-6 rounded shadow-md w-full max-w-3xl min-w-0 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Owner Review</h2>
             {isViewingHistory && (

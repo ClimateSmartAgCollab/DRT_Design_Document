@@ -15,6 +15,7 @@ import {
   deleteNegotiation,
 } from "./services/negotiationApi";
 import fetchApi from "@/app/api/apiHelper";
+import { invalidateLiveStatus } from "@/app/lib/liveQuery";
 import { Providers } from "@/app/providers";
 import Header from "@/app/components/Header";
 
@@ -79,12 +80,14 @@ export default function OwnerNegotiationListContent() {
     [facets.dataLabels, filters.dataLabel]
   );
 
+  const refreshAfterNegotiationChange = useCallback(() => {
+    invalidateLiveStatus(qc);
+    qc.invalidateQueries({ queryKey: ["negotiation-facets"] });
+  }, [qc]);
+
   const deleteOne = useMutation({
     mutationFn: (id: string) => deleteNegotiation(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["negotiations"] });
-      qc.invalidateQueries({ queryKey: ["negotiation-facets"] });
-    },
+    onSuccess: refreshAfterNegotiationChange,
   });
 
   const logoutMutation = useMutation({
@@ -274,7 +277,7 @@ export default function OwnerNegotiationListContent() {
                         negotiation={n}
                         isSelected={selected.has(n.negotiation_id)}
                         onToggleSelect={handleToggleSelect}
-                        onReload={reload}
+                        onReload={refreshAfterNegotiationChange}
                         selectedTags={filters.tags}
                         onToggleTag={toggleTag}
                       />

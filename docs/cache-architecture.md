@@ -235,9 +235,10 @@ Cached `link_table` rows may include `status`. Missing or blank status is treate
 
 ## Client-Side Cache (TanStack Query)
 
-The frontend uses React Query as a second cache tier:
+The frontend uses React Query as a second cache tier. GitHub-backed assets stay on long `staleTime`. Live PostgreSQL negotiation status does not — another party (or another tab) can change it at any time.
 
-- **Negotiations lists:** `staleTime: 5m`, refetch on focus + on mount. Mutations call `invalidateQueries({ queryKey: ["negotiations"] })` to refresh after state changes. Background polling was removed -- negotiation state only changes on user actions.
+- **Live status** (owner/requestor lists, summary statistics, history, owner review, fill-questionnaire payload): `LIVE_STATUS_QUERY` — `staleTime: 0`, `refetchOnMount: "always"`, refetch on window focus and reconnect. Browser `fetch` uses `cache: "no-store"`. Django live GETs are `@never_cache`. Do not interval-poll negotiation state (the questionnaire `_loading` poll is the exception). Mutations that change a negotiation invalidate `negotiations`, `owner`/`summary-statistics`, `ownerReview`, and `negotiationHistory`.
+- **Identity / static:** whoami, owner links catalog, preview questionnaire, and datastore debug keep 5m+ (or Infinity) `staleTime`. The providers default remains 5 minutes for those queries.
 - **`/datastore/cached-data/{key}/`:** dev/debug-only viewer, 5m stale, manual reload via mutation.
 
 ## Related References

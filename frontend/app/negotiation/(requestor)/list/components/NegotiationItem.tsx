@@ -64,16 +64,16 @@ export function NegotiationItem({
   return (
     <li className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
       <div className="px-6 py-4">
-        <div className="flex items-center mb-4">
+        <div className="flex items-start mb-4 min-w-0">
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect(n.negotiation_id)}
-            className="mr-4 h-4 w-4 text-[rgb(70,160,35)]"
+            className="mr-4 mt-1 h-4 w-4 shrink-0 text-[rgb(70,160,35)]"
             onClick={(e) => e.stopPropagation()}
           />
-          <div className="flex-1 flex flex-wrap gap-x-4 gap-y-1 items-center">
-            <div className="flex flex-col">
+          <div className="flex-1 min-w-0 flex flex-wrap gap-x-4 gap-y-1 items-center">
+            <div className="flex flex-col min-w-0 max-w-full">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -91,13 +91,13 @@ export function NegotiationItem({
                   {displaySubtext}
                 </span>
               </button>
-              <div className="flex items-center gap-1.5 mt-0.5 self-start">
-                <span className="text-xs text-gray-600 font-mono">
+              <div className="flex items-start gap-1.5 mt-0.5 self-start min-w-0 w-full">
+                <span className="text-xs text-gray-600 font-mono min-w-0 break-all">
                   <span className="font-medium text-gray-700">Negotiation ID:</span> {n.negotiation_id}
                 </span>
                 <button
                   onClick={handleCopyId}
-                  className="text-xs text-gray-400 hover:text-gray-600"
+                  className="shrink-0 text-xs text-gray-400 hover:text-gray-600"
                   title="Copy ID"
                 >
                   {copied ? "Copied!" : "Copy"}

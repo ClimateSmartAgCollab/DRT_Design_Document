@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import fetchApi from "@/app/api/apiHelper";
+import { invalidateLiveStatus } from "@/app/lib/liveQuery";
 import { Providers } from "@/app/providers";
 import { useRouter } from "next/navigation";
 import { fetchNegotiationByOwnerLink } from "../../../list/services/negotiationApi";
@@ -43,7 +44,7 @@ export default function OutcomePage() {
     },
     onSuccess: () => {
       setSubmitted(true);
-      qc.invalidateQueries({ queryKey: ["ownerReview", link_id, "result"] });
+      invalidateLiveStatus(qc);
     },
     onError(err) {
       setError(err.message);
@@ -113,8 +114,7 @@ export default function OutcomePage() {
       if (!res.ok) throw new Error(json.error || "Resend failed");
     },
     retry: 1,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["ownerReview", link_id, "result"] }),
+    onSuccess: () => invalidateLiveStatus(qc),
   });
   const isResending = resendMutation.status === "pending";
 
@@ -131,7 +131,7 @@ export default function OutcomePage() {
 
   const handleFulfillmentUpdated = () => {
     refetchAccepted();
-    qc.invalidateQueries({ queryKey: ["negotiations"] });
+    invalidateLiveStatus(qc);
   };
 
   return (

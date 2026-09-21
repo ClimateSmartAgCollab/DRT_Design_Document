@@ -11,6 +11,7 @@ import { Sidebar } from "./components/Sidebar";
 import { BulkActionBar } from "./components/BulkActionBar";
 import { NegotiationItem } from "./components/NegotiationItem";
 import fetchApi from "@/app/api/apiHelper";
+import { invalidateLiveStatus } from "@/app/lib/liveQuery";
 import { Providers } from "@/app/providers";
 import Header from "@/app/components/Header";
 
@@ -202,7 +203,7 @@ export default function NegotiationListContent() {
                     negotiation={n}
                     isSelected={selected.has(n.negotiation_id)}
                     onToggleSelect={toggleSelect}
-                    onReload={reload}
+                    onReload={() => invalidateLiveStatus(queryClient)}
                   />
                 ))}
               </ul>

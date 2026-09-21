@@ -39,7 +39,7 @@ export function ActionButtons({
   ];
 
   return (
-    <div className="flex space-x-3">
+    <div className="flex flex-wrap gap-3">
       {actions.map((action) => {
         const isRestricted = action.restricted;
         const showLock = isRestricted && isAuthenticated === false;
@@ -50,7 +50,7 @@ export function ActionButtons({
             key={action.key}
             onClick={() => onActionClick(action.key)}
             disabled={isDisabled}
-            className={`px-4 py-2 rounded text-white font-medium transition ${
+            className={`w-full sm:w-auto px-4 py-2 rounded text-white font-medium transition ${
               action.color
             } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
             title={
@@ -61,7 +61,7 @@ export function ActionButtons({
                 : undefined
             }
           >
-            <span className="flex items-center">
+            <span className="flex items-center justify-center">
               {action.label}
               {showLock && !isDisabled && (
                 <svg

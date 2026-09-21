@@ -54,7 +54,7 @@ export function SummarySidebar({
   onReset,
 }: SummarySidebarProps) {
   return (
-    <aside className="w-80 p-6 bg-white border-r border-gray-200">
+    <div className="flex flex-col min-w-0">
       <h2 className="text-2xl font-semibold mb-4">Filters</h2>
 
       <div className="mb-6">
@@ -170,7 +170,7 @@ export function SummarySidebar({
 
       <div className="mb-6">
         <p className="block text-sm font-medium mb-2">Date window</p>
-        <div className="flex gap-4 mb-3 text-sm">
+        <div className="flex flex-wrap gap-4 mb-3 text-sm">
           <label className="flex items-center">
             <input
               type="radio"
@@ -214,6 +214,6 @@ export function SummarySidebar({
       >
         Reset Filters
       </button>
-    </aside>
+    </div>
   );
 }

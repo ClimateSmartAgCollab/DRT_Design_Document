@@ -1,5 +1,6 @@
 // drt_frontend/app/negotiation/owner/list/hooks/useNegotiations.ts
 import { useQuery } from "@tanstack/react-query";
+import { LIVE_STATUS_QUERY } from "@/app/lib/liveQuery";
 import { fetchNegotiations, type NegotiationListResponse, type NegotiationFilters } from "../services/negotiationApi";
 
 export function useNegotiations(filters: NegotiationFilters = {}) {
@@ -12,9 +13,7 @@ export function useNegotiations(filters: NegotiationFilters = {}) {
   } = useQuery<NegotiationListResponse, Error>({
     queryKey: ["negotiations", filters],
     queryFn: () => fetchNegotiations(filters),
-    staleTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    ...LIVE_STATUS_QUERY,
     retry: 2,
   });
 
