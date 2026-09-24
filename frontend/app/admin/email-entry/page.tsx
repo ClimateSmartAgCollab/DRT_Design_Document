@@ -13,15 +13,6 @@ export default function AdminEmailEntry() {
   >("idle");
   const [resendError, setResendError] = useState<string | null>(null);
 
-  function getCSRFToken(): string {
-    return (
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("csrftoken="))
-        ?.split("=")[1] ?? ""
-    );
-  }
-
   const mutation = useMutation<void, Error, string>({
     mutationFn: async (emailToSend: string) => {
       const res = await fetchApi("/drt/admin/send-magic-link/", {
@@ -29,7 +20,6 @@ export default function AdminEmailEntry() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": getCSRFToken(),
         },
         body: JSON.stringify({ email: emailToSend }),
       });
@@ -38,7 +28,7 @@ export default function AdminEmailEntry() {
         let msg = "Failed to send admin access link";
         try {
           const body = await res.json();
-          msg = body.error ?? msg;
+          msg = body.detail ?? body.error ?? msg;
         } catch {
           console.error("Failed to parse error response:", error);
         }

@@ -67,6 +67,37 @@ def fetch_link_table():
     return fetch_json("link-table")
 
 
+def fetch_link(link_uuid):
+    """GET one link row. None on a blank id, 404, or an unusable body.
+
+    ContextHub returns the stored row. A one-element ``links`` envelope is
+    accepted too. This never calls :func:`fetch_link_table`.
+    """
+    link_id = (link_uuid or "").strip()
+    if not link_id:
+        return None
+    payload = fetch_json(f"links/{quote(link_id, safe='')}")
+    return link_entry_from_payload(payload, link_id)
+
+
+def link_entry_from_payload(payload, link_uuid):
+    """Map one ContextHub link body to a Redis link_table entry, or None.
+
+    Extra fields (blob keys) are dropped by :func:`link_table_from_payload`.
+    The entry is returned only when its uuid matches ``link_uuid``.
+    """
+    link_id = (link_uuid or "").strip()
+    if not link_id or not isinstance(payload, dict):
+        return None
+    if isinstance(payload.get("links"), list):
+        normalized = payload
+    elif payload.get("linkUuid"):
+        normalized = {"links": [payload]}
+    else:
+        return None
+    return link_table_from_payload(normalized).get(link_id)
+
+
 def fetch_owner_table():
     return fetch_json("owner-table")
 
