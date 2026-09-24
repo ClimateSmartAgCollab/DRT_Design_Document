@@ -41,6 +41,7 @@ from drt.services.clocks import (
 from drt.services.fulfillment import DESC_FULFILLMENT_PENDING, mark_pending
 from drt.services.license import email_issued_license
 from datastore.cache_keys import (
+    KEY_LICENSE_TABLE,
     KEY_LINK_TABLE,
     KEY_QUESTIONNAIRE_TABLE,
     TTL_24H,
@@ -50,6 +51,7 @@ from datastore.cache_keys import (
 from datastore.contexthub import (
     LINK_NOT_REQUESTABLE_CODE,
     LINK_NOT_REQUESTABLE_MESSAGE,
+    fetch_link,
     link_is_requestable,
 )
 from drt.utils.tags import normalize_tags
@@ -57,13 +59,64 @@ from drt.utils.tags import normalize_tags
 logger = logging.getLogger(__name__)
 
 try:
-    from datastore.views import fetch_questionnaire_json, warm_datastore_cache
+    from datastore.views import datastore_backend, fetch_questionnaire_json, warm_datastore_cache
 except ImportError as e:
     logger.error(f"Failed to import datastore helpers: {e}")
+    datastore_backend = None
     fetch_questionnaire_json = None
     warm_datastore_cache = None
 
 warm_github_cache = warm_datastore_cache
+
+
+def _find_cached_link(link_table, link_id):
+    if not link_table:
+        return None
+    direct = link_table.get(link_id)
+    if direct is not None:
+        return direct
+    return next(
+        (data for url, data in link_table.items() if link_id in url),
+        None,
+    )
+
+
+def _uses_contexthub():
+    if datastore_backend is None:
+        return False
+    return datastore_backend() == "contexthub"
+
+
+def _merge_fetched_link(link_table, entry):
+    """Write one Redis link row and its SAID indexes. Does not refetch the table."""
+    link_uuid = (entry or {}).get("link_uuid") or ""
+    if not link_uuid:
+        return link_table
+
+    updated = dict(link_table)
+    updated[link_uuid] = entry
+    cache.set(KEY_LINK_TABLE, updated, timeout=TTL_24H)
+
+    questionnaire_table = dict(cache.get(KEY_QUESTIONNAIRE_TABLE) or {})
+    license_table = dict(cache.get(KEY_LICENSE_TABLE) or {})
+    questionnaire_id = entry.get("questionnaire_id") or ""
+    license_id = entry.get("license_id") or ""
+    if questionnaire_id:
+        questionnaire_table[questionnaire_id] = questionnaire_id
+    if license_id:
+        license_table[license_id] = license_id
+    cache.set(KEY_QUESTIONNAIRE_TABLE, questionnaire_table, timeout=TTL_24H)
+    cache.set(KEY_LICENSE_TABLE, license_table, timeout=TTL_24H)
+    return updated
+
+
+def _fill_missing_link(link_id, link_table):
+    """One ContextHub GET when a warm cache lacks this UUID."""
+    entry = fetch_link(link_id)
+    if not entry:
+        return link_table
+    return _merge_fetched_link(link_table, entry)
+
 
 @api_view(['GET'])
 def generate_nlinks(request, link_id):
@@ -80,8 +133,11 @@ def generate_nlinks(request, link_id):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    example_link = link_table.get(link_id) or next(
-        (data for url, data in link_table.items() if link_id in url), None)
+    example_link = _find_cached_link(link_table, link_id)
+    if example_link is None and _uses_contexthub():
+        logger.info("generate_nlinks: %s missing from warm cache; fetching one row", link_id)
+        link_table = _fill_missing_link(link_id, link_table)
+        example_link = _find_cached_link(link_table, link_id)
     if example_link is None:
         logger.warning(f"Link ID {link_id} not found in cache.")
         return Response({'error': f'Link ID {link_id} not found'}, status=404)

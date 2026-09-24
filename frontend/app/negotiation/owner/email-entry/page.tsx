@@ -14,15 +14,6 @@ export default function OwnerEmailEntry() {
   >("idle");
   const [resendError, setResendError] = useState<string | null>(null);
 
-  function getCSRFToken(): string {
-    return (
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("csrftoken="))
-        ?.split("=")[1] ?? ""
-    );
-  }
-
   const mutation = useMutation<void, Error, string>({
     mutationFn: async (emailToSend: string) => {
       const res = await fetchApi("/drt/verify/owner-email/", {
@@ -30,7 +21,6 @@ export default function OwnerEmailEntry() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": getCSRFToken(),
         },
         body: JSON.stringify({ email: emailToSend }),
       });
@@ -39,7 +29,7 @@ export default function OwnerEmailEntry() {
         let msg = "Failed to send Access link";
         try {
           const body = await res.json();
-          msg = body.error ?? msg;
+          msg = body.detail ?? body.error ?? msg;
         } catch {
           console.error("Failed to parse error response:", error);
         }

@@ -367,6 +367,26 @@ class ContextHubMapperTests(SimpleTestCase):
         self.assertEqual(table["92md42wd"]["owner_email"], "alice@example.com")
         self.assertEqual(table["92md42wd"]["username"], "alice")
 
+    def test_link_table_ignores_blob_keys(self):
+        payload = {
+            "links": [
+                {
+                    **LINK_PAYLOAD["links"][0],
+                    "questionnaireBlobKey": "projects/p1/questionnaire.json",
+                    "conditionsTemplateBlobKey": "projects/p1/conditions-template.json",
+                },
+            ]
+        }
+        entry = contexthub_client.link_table_from_payload(payload)[
+            "75cb9450-01af-40b2-9cd5-e7fb0d82b59d"
+        ]
+        self.assertNotIn("questionnaireBlobKey", entry)
+        self.assertNotIn("conditionsTemplateBlobKey", entry)
+        self.assertEqual(
+            entry["questionnaire_id"],
+            LINK_PAYLOAD["links"][0]["questionnaireId"],
+        )
+
     def test_said_indexes_use_said_as_value(self):
         link_table = contexthub_client.link_table_from_payload(LINK_PAYLOAD)
         questionnaires, licenses = contexthub_client.said_indexes_from_links(link_table)
@@ -502,6 +522,53 @@ class ContextHubClientTests(TestCase):
         self.assertEqual(url, "http://ch.test/api/v1/drt/link-table")
         self.assertEqual(headers["X-DRT-API-KEY"], "secret")
         self.assertEqual(result, {"ok": True})
+
+    @patch("datastore.contexthub.fetch_link_table")
+    @patch("datastore.contexthub.fetch_json", return_value=None)
+    def test_fetch_link_404_does_not_fetch_the_table(self, mock_json, mock_table):
+        result = contexthub_client.fetch_link("75cb9450-01af-40b2-9cd5-e7fb0d82b59d")
+        self.assertIsNone(result)
+        mock_json.assert_called_once_with(
+            "links/75cb9450-01af-40b2-9cd5-e7fb0d82b59d"
+        )
+        mock_table.assert_not_called()
+
+    @patch("datastore.contexthub.fetch_link_table")
+    @patch("datastore.contexthub.fetch_json")
+    def test_fetch_link_maps_a_bare_row_and_drops_blob_keys(self, mock_json, mock_table):
+        row = {
+            **LINK_PAYLOAD["links"][0],
+            "questionnaireBlobKey": "projects/p1/questionnaire.json",
+            "conditionsTemplateBlobKey": "projects/p1/conditions-template.json",
+            "status": "active",
+        }
+        mock_json.return_value = row
+
+        entry = contexthub_client.fetch_link(row["linkUuid"])
+
+        self.assertEqual(entry["questionnaire_id"], row["questionnaireId"])
+        self.assertEqual(entry["license_id"], row["licenseId"])
+        self.assertEqual(entry["owner_id"], row["ownerId"])
+        self.assertEqual(entry["status"], "active")
+        self.assertNotIn("questionnaireBlobKey", entry)
+        self.assertNotIn("conditionsTemplateBlobKey", entry)
+        mock_table.assert_not_called()
+
+    @patch("datastore.contexthub.fetch_json")
+    def test_fetch_link_maps_a_one_element_envelope(self, mock_json):
+        mock_json.return_value = LINK_PAYLOAD
+        entry = contexthub_client.fetch_link(LINK_PAYLOAD["links"][0]["linkUuid"])
+        self.assertEqual(entry["data_label"], "basic_data_request")
+
+    @patch("datastore.contexthub.fetch_json")
+    def test_fetch_link_rejects_a_row_for_a_different_uuid(self, mock_json):
+        mock_json.return_value = LINK_PAYLOAD["links"][0]
+        self.assertIsNone(contexthub_client.fetch_link("other-uuid"))
+
+    def test_fetch_link_blank_uuid_does_not_request(self):
+        with patch("datastore.contexthub.fetch_json") as mock_json:
+            self.assertIsNone(contexthub_client.fetch_link("  "))
+            mock_json.assert_not_called()
 
 
 class ShouldPrewarmOnReadyTests(SimpleTestCase):

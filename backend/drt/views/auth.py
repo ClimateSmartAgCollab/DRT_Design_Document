@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.utils import timezone
 from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.views.decorators.http import require_GET
 from rest_framework.decorators import api_view, authentication_classes
 from rest_framework.response import Response
@@ -162,14 +163,14 @@ def whoami(request):
 @require_GET
 @ensure_csrf_cookie
 def csrf_token(request):
-    """Set the ``csrftoken`` cookie for the decoupled frontend.
+    """Set the ``csrftoken`` cookie and return the token for the SPA header.
 
-    The verify pages are often the browser's first contact with Django, so no
-    CSRF cookie exists yet. The SPA calls this once before POSTing to a
-    session-writing endpoint so it can echo the token in the X-CSRFToken
-    header. Safe to call anonymously.
+    The email-entry and verify pages are often the browser's first contact with
+    Django, so no CSRF cookie exists yet. The SPA calls this before POSTing so
+    it can send ``X-CSRFToken``. Returning ``get_token`` lets the client use the
+    JSON body instead of scraping ``document.cookie``. Safe to call anonymously.
     """
-    return JsonResponse({"detail": "CSRF cookie set"}, status=200)
+    return JsonResponse({"csrfToken": get_token(request)}, status=200)
 
 
 @api_view(['POST'])

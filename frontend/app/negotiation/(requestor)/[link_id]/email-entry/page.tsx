@@ -15,15 +15,6 @@ export default function EmailEntry() {
   const [resendError, setResendError] = useState<string | null>(null);
   const { link_id } = useParams(); // Access `link_id` with `useParams`
 
-  function getCSRFToken(): string {
-    return (
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("csrftoken="))
-        ?.split("=")[1] ?? ""
-    );
-  }
-
   const {
     mutate: sendMagicLink,
     isPending,
@@ -36,13 +27,12 @@ export default function EmailEntry() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": getCSRFToken(),
         },
         body: JSON.stringify({ email: emailToSend }),
       });
       if (!res.ok) {
         const body = await res.json();
-        throw new Error(body.error || "Failed to send Access link");
+        throw new Error(body.detail ?? body.error ?? "Failed to send Access link");
       }
     },
     onSuccess: (_data, variables) => {
