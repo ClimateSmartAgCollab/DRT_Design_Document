@@ -112,7 +112,7 @@ graph LR;
 
 ## Modules
 
-- **`backend/drt_core` and `backend/drt` (Django)** — API, negotiation models, in-request email/license helpers, management commands for abandonment and cache refresh. Mutating endpoints enforce CSRF (`CSRFEnforcedSessionAuthentication` on DRF views; Django middleware on the rest).
+- **`backend/drt_core` and `backend/drt` (Django)** — API, negotiation models, in-request email/license helpers, management commands for abandonment and cache refresh. DRF default authenticators are empty (magic-link sessions, not HTTP Basic). Mutating endpoints enforce CSRF (`CSRFEnforcedSessionAuthentication` on DRF views; Django middleware on the rest).
 - **`backend/datastore`** — gateway for ContextHub (default) or GitHub (rollback) questionnaires and metadata; cache-aware fetch used by the API and `refresh_datastore_cache`. HTTP dumps (`cached-data`, license table/template, questionnaire JSON) require an admin session. The GitHub webhook stays HMAC-gated and is disabled unless `DATASTORE_BACKEND=github`.
 - **`frontend/app` (Next.js App Router)** — requestor and owner flows, dashboards, shared components. REST client: `frontend/app/api/apiHelper.ts`. Dynamic questionnaires: [`Form`](../frontend/app/components/Form/README.md) + [`parser`](../frontend/app/components/parser/README.md).
 - **`infra`** — local Compose (Postgres, Redis, Mailpit); remote Compose (gunicorn, Next, nginx, Postgres, Redis; Mailpit on the `testing` profile); host cron wrapper. See [`infra/README.md`](../infra/README.md).

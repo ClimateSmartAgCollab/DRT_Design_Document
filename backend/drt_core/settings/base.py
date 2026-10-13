@@ -56,8 +56,12 @@ LOCAL_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # Required for drf-spectacular (avoids E001 on @api_view / WrappedAPIView during check --deploy).
+# Empty authenticators: DRT uses magic-link session keys, not Django HTTP Basic.
+# Default BasicAuthentication 403s generate_nlinks when Mailpit's origin-wide
+# Authorization: Basic tester:… header is forwarded to gunicorn.
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
 }
 
 MIDDLEWARE = [

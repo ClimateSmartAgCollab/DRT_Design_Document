@@ -24,6 +24,7 @@ Never copy production secrets onto staging (`drt-test`) and flip `TESTING_MODE`.
 
 - **Row bind.** A logged-in session is not ownership of a case. Fill, owner review (GET/save/decide), history, reopen, archive, delete, license download, and fulfillment require the session email to match that row. Helpers: [`backend/drt/services/access.py`](backend/drt/services/access.py).
 - **CSRF.** Mutating endpoints enforce CSRF (`CSRFEnforcedSessionAuthentication` on DRF views; Django middleware on the rest). The SPA sends `X-CSRFToken` after `GET /drt/auth/csrf/`.
+- **No HTTP Basic on the API.** `REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]` is empty. Mailpit’s `/mailpit` basic-auth user (`tester`) is origin-wide in the browser; DRT must not treat that `Authorization` header as a Django login. Views that mutate session state still set `CSRFEnforcedSessionAuthentication` explicitly. Django admin (`/django-admin/`) is unchanged.
 - **Datastore dumps.** `GET /datastore/cached-data/…`, license table/template, and questionnaire JSON require an admin session. The GitHub webhook is HMAC-gated and only active when `DATASTORE_BACKEND=github`.
 - **Default catalog.** ContextHub is the default datastore (`DATASTORE_BACKEND=contexthub`). GitHub is rollback.
 

@@ -405,7 +405,7 @@ EMAIL_USE_TLS=False
 TESTING_INBOX_URL=/mailpit
 ```
 
-`MP_SMTP_AUTH` is `user:password` and must match `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD`. The Mailpit web UI is proxied through nginx at `/mailpit` behind HTTP basic auth (see `infra/nginx/snippets/mailpit.conf`). Share the UI password **out of band** — it is not shown on the homepage.
+`MP_SMTP_AUTH` is `user:password` and must match `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD`. The Mailpit web UI is proxied through nginx at `/mailpit` behind HTTP basic auth (see `infra/nginx/snippets/mailpit.conf`). Share the UI password **out of band** — it is not shown on the homepage. Browsers send that basic-auth header to the whole origin (including `/drt/`); DRT ignores it because DRF `DEFAULT_AUTHENTICATION_CLASSES` is empty. Optional hardening on the Django `proxy_pass` location: `proxy_set_header Authorization "";`.
 
 ### 7.3 Production (real SMTP)
 
