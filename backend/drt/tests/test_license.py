@@ -231,7 +231,7 @@ class IssuedLicensePersistTests(TestCase):
         self.assertEqual(negotiation.license_SAID, "l-001")
         self.assertIsNotNone(negotiation.issued_license_at)
         self.assertEqual(
-            negotiation.archives.last().change_description, "Issued license v1"
+            negotiation.archives.last().change_description, "Issued conditions v1"
         )
         self.assertEqual(len(mail.outbox), 2)
         self.assertCountEqual(
@@ -265,7 +265,7 @@ class IssuedLicensePersistTests(TestCase):
         self.assertEqual(negotiation.issued_license_text, "SECOND BODY")
         self.assertEqual(negotiation.issued_license_version, 2)
         self.assertEqual(
-            negotiation.archives.last().change_description, "Issued license v2"
+            negotiation.archives.last().change_description, "Issued conditions v2"
         )
 
     def test_reopen_leaves_issued_license(self):

@@ -62,8 +62,8 @@ export default function OutcomePage() {
       title: "Thank you!",
       lines: [
         "Your acceptance has been recorded.",
-        "License generation and email delivery are being processed in the background.",
-        "The license email is not the same as delivering the data. Mark delivery below when the requestor has access.",
+        "Conditions generation and email delivery are being processed in the background.",
+        "The conditions email is not the same as delivering the data. Mark delivery below when the requestor has access.",
       ],
       color: "green",
       iconPath: "M5 13l4 4L19 7",

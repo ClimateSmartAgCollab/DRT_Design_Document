@@ -113,7 +113,7 @@ export async function deleteNegotiation(id: string): Promise<void> {
 export async function regenerateLicense(negotiationId: string): Promise<Blob> {
   const res = await fetchApi(`/drt/negotiations/regenerate-license/${negotiationId}/`);
   if (!res.ok) {
-    let message = "Failed to download issued license.";
+    let message = "Failed to download issued conditions.";
     try {
       const body = await res.json();
       message = body.error ?? message;

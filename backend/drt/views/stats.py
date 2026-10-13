@@ -909,7 +909,7 @@ def regenerate_license_view(request, negotiation_id):
 
         if not negotiation.issued_license_text:
             return JsonResponse(
-                {"error": "No issued license for this negotiation"},
+                {"error": "No issued conditions for this negotiation"},
                 status=404,
             )
 
@@ -917,13 +917,13 @@ def regenerate_license_view(request, negotiation_id):
             negotiation.issued_license_text, content_type="text/plain"
         )
         response["Content-Disposition"] = (
-            f'attachment; filename="license_{negotiation_id}.txt"'
+            f'attachment; filename="conditions_{negotiation_id}.txt"'
         )
         return response
 
     except Exception as e:
         logger.error(f"Error downloading license for negotiation {negotiation_id}: {str(e)}")
-        return JsonResponse({"error": "Failed to download issued license"}, status=500)
+        return JsonResponse({"error": "Failed to download issued conditions"}, status=500)
 
 
 def _build_history_response(negotiation):

@@ -220,7 +220,7 @@ export default function OwnerLinks() {
                         </code>
                       </p>
                       <p>
-                        <span className="font-medium">License ID:</span>{" "}
+                        <span className="font-medium">Conditions ID:</span>{" "}
                         <code className="break-all bg-gray-100 px-1 rounded">
                           {link.licenseId}
                         </code>

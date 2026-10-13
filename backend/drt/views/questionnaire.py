@@ -526,7 +526,7 @@ def owner_review(request, link_id):
                 
                 generate_license_and_notify_owner_task(nlink.link_id)
                 
-                return Response({'message': 'Request accepted, license generation started!'})
+                return Response({'message': 'Request accepted, conditions generation started!'})
 
             elif action_found == 'reject':
                 rationale = data.get('rationale', '')
@@ -585,10 +585,10 @@ def owner_review(request, link_id):
             elif action_found == 'resend':
                 if not email_issued_license(nlink):
                     return Response(
-                        {'error': 'No issued license to resend'},
+                        {'error': 'No issued conditions to resend'},
                         status=400,
                     )
-                return Response({'message': 'Issued license email resent'})
+                return Response({'message': 'Issued conditions email resent'})
 
 
 def send_clarification_email(requestor_email, link_id):

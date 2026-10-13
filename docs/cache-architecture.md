@@ -41,12 +41,12 @@ graph TD;
 
 ## Diagram Walkthrough
 
-- **User Interaction:** Users submit requests through the Django web service (e.g., completing questionnaires or negotiating licenses).
+- **User Interaction:** Users submit requests through the Django web service (e.g., completing questionnaires or negotiating conditions).
 - **Cache-first Reads:** Django checks the cache for recently accessed catalog assets before reaching ContextHub (default) or GitHub (rollback).
 - **Cache Refresh:** The selected datastore is the source of truth for static content. Host cron re-warms every 12 hours (`infra/cron/run-job.sh cache`). ContextHub has no DRT webhook — after a blob edit, run `manage.py refresh_datastore_cache`. When `DATASTORE_BACKEND=github`, GitHub changes can also trigger refresh via the HMAC webhook.
 - **Dynamic State:** Negotiation data lives in PostgreSQL, and Django reads/writes relational state there throughout the workflow.
-- **Datastore Reads:** When cached content is missing, Django fetches the questionnaire or license template from the active backend and stores the result in Redis for next time. For questionnaires, the process that wins the inflight lock fetches synchronously and returns JSON; concurrent requests may still see `_loading` until that fetch completes.
-- **Issued license:** Approval persists the rendered bytes on `Negotiation`. Download serves that stored blob; it does not re-render. Automated upload of generated licenses to GitHub is not implemented.
+- **Datastore Reads:** When cached content is missing, Django fetches the questionnaire or conditions template from the active backend and stores the result in Redis for next time. For questionnaires, the process that wins the inflight lock fetches synchronously and returns JSON; concurrent requests may still see `_loading` until that fetch completes.
+- **Issued conditions:** Approval persists the rendered bytes on `Negotiation`. Download serves that stored blob; it does not re-render. Automated upload of generated conditions to GitHub is not implemented.
 - **Failure Behavior:** There is **no stale-on-error fallback**. If a datastore fetch fails on a cold key, the endpoint returns 404/500 (or keeps returning `_loading` until the inflight fetch succeeds). Operators should rely on cron (and the GitHub webhook when that backend is on), not stale-serve semantics.
 
 ---
@@ -56,8 +56,8 @@ graph TD;
 1. **Request Submission:** Requestors access DRT through UUID-backed links and submit data via dynamic questionnaires served by Django.
 2. **Cache Coordination:** Django retrieves questionnaire metadata and related assets from the cache; cache misses fall back to ContextHub (or GitHub) and repopulate the cache.
 3. **Datastore Synchronization:** Host cron runs `refresh_datastore_cache` every 12 hours. ContextHub has no DRT webhook. When `DATASTORE_BACKEND=github`, GitHub changes can also trigger refresh via the HMAC webhook.
-4. **Negotiation Management:** Negotiation states, conversations, and reminders reside in PostgreSQL, orchestrated by Django (email and license work run in-request).
-5. **Artifact Delivery:** Completed negotiations persist the issued license on `Negotiation` and email that stored body to owner and requestor. Download serves the stored blob. System-side archival to GitHub is not implemented.
+4. **Negotiation Management:** Negotiation states, conversations, and reminders reside in PostgreSQL, orchestrated by Django (email and conditions work run in-request).
+5. **Artifact Delivery:** Completed negotiations persist the issued conditions on `Negotiation` and email that stored body to owner and requestor. Download serves the stored blob. System-side archival to GitHub is not implemented.
 6. **Ongoing Serving:** Subsequent requests benefit from cached data, reducing datastore traffic while ensuring freshness when updates occur.
 
 ---
@@ -104,7 +104,7 @@ flowchart TD
     Q --> Qfetch[Fetch questionnaire in this request]
     Qfetch --> Qresp[Return JSON, or _loading if another request holds the lock]
     Qresp --> Z
-    B -- No, table or license template --> D[Fetch from GitHub synchronously]
+    B -- No, table or conditions template --> D[Fetch from GitHub synchronously]
     D --> E{Fetch succeeded?}
     E -- Yes --> F[cache.set with TTL_24H]
     F --> Z
@@ -138,18 +138,18 @@ graph LR
 
     QStart -->|Persist JSON payload| PG
     Review -->|State transitions / comments| PG
-    Approve -->|Trigger license generation| LicenseTask[In-request license + email]
-    LicenseTask -->|Render Jinja template| License[License Artifact]
-    LicenseTask -. Planned GitHub archival .-> GH
-    LicenseTask -->|Warm cache entries| Redis
+    Approve -->|Trigger conditions generation| ConditionsTask[In-request conditions + email]
+    ConditionsTask -->|Render Jinja template| Conditions[Conditions Artifact]
+    ConditionsTask -. Planned GitHub archival .-> GH
+    ConditionsTask -->|Warm cache entries| Redis
     GH -->|Webhook event| CacheRefresh[Cache refresh]
     CacheRefresh --> Redis
 ```
 
 ### Notes
 
-- Negotiation events remain in PostgreSQL; generated licenses are currently distributed via email. GitHub archival is an open roadmap item.
-- License generation reads `owner_table` and `license_template_{id}` from Redis (and lazily fetches+caches the template on miss). It does **not** warm negotiation list state -- the negotiation list is driven by PostgreSQL plus React Query invalidation, not by Redis.
+- Negotiation events remain in PostgreSQL; generated conditions are currently distributed via email. GitHub archival is an open roadmap item.
+- Conditions generation reads `owner_table` and `license_template_{id}` from Redis (and lazily fetches+caches the template on miss). It does **not** warm negotiation list state -- the negotiation list is driven by PostgreSQL plus React Query invalidation, not by Redis.
 
 ---
 
