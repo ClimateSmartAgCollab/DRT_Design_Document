@@ -25,7 +25,7 @@ DRT is a full-stack platform built with:
 - **Backend**: Django REST Framework with PostgreSQL and Redis (cache)
 - **Frontend**: Next.js 15 (App Router) with TypeScript
 - **Infrastructure**: Docker Compose for local Postgres/Redis; the same remote Compose shape (gunicorn, Next, nginx) for staging and production
-- **Data Storage**: GitHub repository for static assets (questionnaires, licenses, metadata)
+- **Data Storage**: GitHub repository for static assets (questionnaires, conditions, metadata)
 
 The platform manages data access negotiations between requestors and dataset owners through a structured workflow.
 
@@ -97,7 +97,7 @@ Your GitHub datastore should follow this structure:
 ```
 your-datastore-repo/
 ├── owner_table.csv          # Dataset owner information
-├── linktable.csv            # Links between datasets, questionnaires, and licenses
+├── linktable.csv            # Links between datasets, questionnaires, and conditions
 ├── source_library/
 │   ├── questionnaire_table.csv
 │   ├── license_table.csv
@@ -419,7 +419,7 @@ EMAIL_HOST_PASSWORD=your-smtp-password
 DEFAULT_FROM_EMAIL=noreply@yourdomain.com
 ```
 
-### 7.4 Customize Email and License Templates
+### 7.4 Customize Email and Conditions Templates
 
 **Email content** is built in Python, not HTML files. Edit the helpers in `backend/drt/utils/email_helpers.py`:
 - `get_email_base_html()` - Shared layout and styling for all emails
@@ -427,9 +427,9 @@ DEFAULT_FROM_EMAIL=noreply@yourdomain.com
 - `get_notification_email_html()` - Owner review and requestor submission notifications
 - `get_rejection_email_html()`, `get_clarification_email_html()`, etc. - Workflow-specific emails
 
-**License templates** live in your GitHub datastore under `source_library/license/` and are referenced from `license_table.csv`. The backend fetches and caches them via `fetch_license_template()`.
+**Conditions templates** live in your GitHub datastore under `source_library/license/` and are referenced from `license_table.csv`. The backend fetches and caches them via `fetch_license_template()`.
 
-The only local template file is `backend/drt/templates/license_template_fallback.jinja`, used when a GitHub license template cannot be loaded.
+The only local template file is `backend/drt/templates/license_template_fallback.jinja`, used when a GitHub conditions template cannot be loaded.
 
 ---
 
@@ -444,7 +444,7 @@ Once the stack is up:
 - Django Admin: http://127.0.0.1:8000/django-admin/
 - Next.js Admin: http://127.0.0.1:3001/admin/email-entry
 
-Email, license generation, and cache refresh run in-request. There is no Celery. The full container stack (gunicorn, Next image, nginx) is remote only — [infra/README.md](../infra/README.md) and Step 9.
+Email, conditions generation, and cache refresh run in-request. There is no Celery. The full container stack (gunicorn, Next image, nginx) is remote only — [infra/README.md](../infra/README.md) and Step 9.
 
 ### 8.1 Verify Installation
 
@@ -616,7 +616,7 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 
 **Workflow Customization**:
 - Edit `backend/drt/views/questionnaire.py` for questionnaire handling
-- Modify `backend/drt/services/license.py` for license generation logic
+- Modify `backend/drt/services/license.py` for conditions generation logic
 - Update `backend/drt/tasks.py` for email and cache-refresh helpers
 
 ### 10.2 API Customization
@@ -663,7 +663,7 @@ pg_dump -h localhost -U drt drt > backup_$(date +%Y%m%d).sql
 - Register in `backend/drt/admin.py` (if needed)
 - Create migrations and apply
 
-### 10.5 License Template Customization
+### 10.5 Conditions Template Customization
 
 1. Create Jinja templates in your GitHub datastore: `source_library/license/`
 2. Reference templates in `license_table.csv`
@@ -735,7 +735,7 @@ After completing the basic setup:
 
 1. **Customize Branding**: Update logos, colors, and theme tokens
 2. **Create Questionnaires**: Design JSON schema questionnaires for your datasets
-3. **Configure License Templates**: Create Jinja templates for license generation
+3. **Configure Conditions Templates**: Create Jinja templates for conditions generation
 4. **Set Up Owners**: Populate `owner_table.csv` with dataset owner information
 5. **Test Workflow**: Complete end-to-end test of requestor and owner workflows
 6. **Set Up Monitoring**: Configure logging, error tracking, and performance monitoring

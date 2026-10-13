@@ -1,6 +1,6 @@
 # DRT (Data Request Tracker)
 
-An end-to-end platform for data-access negotiations between requestors and dataset owners — guided questionnaires, asynchronous review, license generation, and an audit trail.
+An end-to-end platform for data-access negotiations between requestors and dataset owners — guided questionnaires, asynchronous review, conditions generation, and an audit trail.
 
 This repository is the **Data Hub** implementation of DRT. The platform itself is general-purpose: any organization or research group can deploy their own instance. Start with the [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md). For the broader DRT concept, see the [DRT landing page](https://github.com/ClimateSmartAgCollab/drt-ad).
 
@@ -9,7 +9,7 @@ This repository is the **Data Hub** implementation of DRT. The platform itself i
 - **Guided data requests** — dataset-specific questionnaires with branching logic and inline guidance
 - **Negotiation lifecycle** — owners review, request clarification, reject with rationale, or approve
 - **Email workflows** — verification, reminders, approvals, and rejections sent in-request
-- **License automation** — approved negotiations persist a sandboxed Jinja render on the case and email that stored body to owner and requestor
+- **Conditions automation** — approved negotiations persist a sandboxed Jinja render on the case and email that stored body to owner and requestor
 - **Magic-link access** — UUID email links instead of heavyweight accounts
 - **Role-specific dashboards** — open negotiations, outstanding actions, historical archives
 - **Analytics hooks** — activity aggregated by owner, dataset, and tags
@@ -20,7 +20,7 @@ This repository is the **Data Hub** implementation of DRT. The platform itself i
 | --- | --- |
 | Frontend | Next.js 15 (App Router), TypeScript, MUI |
 | Backend | Django 5.1, Django REST Framework |
-| Data | PostgreSQL (negotiation state), Redis (cache), ContextHub default / GitHub rollback (questionnaires, licenses, metadata) |
+| Data | PostgreSQL (negotiation state), Redis (cache), ContextHub default / GitHub rollback (questionnaires, conditions, metadata) |
 | Infra | Docker Compose; remote stack adds gunicorn, nginx, and host cron |
 
 ## Quick start
@@ -59,7 +59,7 @@ npm run dev
 
 If `npm run migrate` or `npm run dev` fails with `Backend virtualenv not found`, run `npm run setup:backend` first. If the venv was created with Python 3.14 (or anything outside 3.12–3.13), delete `backend/.venv` and rerun `setup:backend`.
 
-Email, license generation, and cache refresh run in-request. There is no Celery.
+Email, conditions generation, and cache refresh run in-request. There is no Celery.
 
 The fully containerized stack (images, nginx, TLS) is remote only. On `drt-test` add `--profile testing` so Mailpit starts. Omit that profile on a real production host.
 

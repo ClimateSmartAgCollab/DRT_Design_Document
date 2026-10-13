@@ -1,6 +1,6 @@
-"""License generation for data-access negotiations.
+"""Conditions generation for data-access negotiations.
 
-Turns a stored questionnaire submission into a rendered license document,
+Turns a stored questionnaire submission into a rendered conditions document,
 persists that artifact on the negotiation, and emails it to both parties.
 The main entry points are:
 
@@ -32,7 +32,7 @@ from drt.utils.email_helpers import get_license_email_html
 
 logger = logging.getLogger(__name__)
 
-DESC_ISSUED_LICENSE_PREFIX = "Issued license v"
+DESC_ISSUED_LICENSE_PREFIX = "Issued conditions v"
 
 # Control flags the frontend stores alongside answers; not questionnaire fields.
 _SUBMISSION_FLAGS = frozenset({"save", "submit"})
@@ -270,7 +270,7 @@ def persist_issued_license(negotiation, nlink, license_text: str) -> int:
 
 
 def _send_license_email(nlink, recipient: str, dashboard_url: str, attachment: tuple) -> None:
-    """Send the stored license agreement (HTML + plain text) to one recipient."""
+    """Send the stored conditions document (HTML + plain text) to one recipient."""
     html_content = get_license_email_html(
         record_label=nlink.record_label,
         data_label=nlink.data_label,
@@ -280,9 +280,9 @@ def _send_license_email(nlink, recipient: str, dashboard_url: str, attachment: t
     )
     plain_text_content = (
         "Hello,\n\n"
-        "We hope this message finds you well. Please find attached the license agreement "
+        "We hope this message finds you well. Please find attached the conditions "
         "documents related to the dataset for your review and negotiation.\n\n"
-        "Below are the key details regarding this license request:\n"
+        "Below are the key details regarding this conditions request:\n"
         f"  • Data Label: {nlink.data_label}\n"
         f"  • Tags: {nlink.tags}\n"
         f"  • Record Label: {nlink.record_label}\n"
@@ -295,7 +295,7 @@ def _send_license_email(nlink, recipient: str, dashboard_url: str, attachment: t
     )
 
     email = EmailMultiAlternatives(
-        subject=f"License Agreement for Record – {nlink.record_label}",
+        subject=f"Conditions for Record – {nlink.record_label}",
         body=plain_text_content,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[recipient],
@@ -317,7 +317,7 @@ def email_issued_license(nlink) -> bool:
         return False
 
     attachment = (
-        f"license_{negotiation.negotiation_id}.txt",
+        f"conditions_{negotiation.negotiation_id}.txt",
         license_text,
         "text/plain",
     )

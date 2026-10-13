@@ -332,10 +332,10 @@ def get_license_template(_request, license_id):
         if template_content:
             return JsonResponse({'license_template': template_content})
         else:
-            return JsonResponse({'error': f'License template {license_id} not found'}, status=404)
+            return JsonResponse({'error': f'Conditions template {license_id} not found'}, status=404)
             
     except Exception as e:
-        return JsonResponse({'error': f'Error fetching license template: {str(e)}'}, status=500)
+        return JsonResponse({'error': f'Error fetching conditions template: {str(e)}'}, status=500)
 
 @admin_auth_required
 def get_license_table(_request):
@@ -344,10 +344,10 @@ def get_license_table(_request):
         if license_table:
             return JsonResponse({'license_table': license_table})
         else:
-            return JsonResponse({'error': 'License table not found in cache'}, status=404)
+            return JsonResponse({'error': 'Conditions table not found in cache'}, status=404)
             
     except Exception as e:
-        return JsonResponse({'error': f'Error fetching license table: {str(e)}'}, status=500)
+        return JsonResponse({'error': f'Error fetching conditions table: {str(e)}'}, status=500)
 
 @admin_auth_required
 def get_cached_data(_request, key):

@@ -133,7 +133,7 @@ export function FulfillmentActions({
                 </h3>
                 <p className="text-sm text-gray-600">
                   {action === "deliver"
-                    ? "Record that the requestor has received the data. This is separate from the license email."
+                    ? "Record that the requestor has received the data. This is separate from the conditions email."
                     : "This records that this requestor no longer has access. It does not close the catalog door for new requests."}
                 </p>
                 {action === "withdraw" && (

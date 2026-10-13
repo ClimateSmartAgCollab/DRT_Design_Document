@@ -859,7 +859,7 @@ export default function NegotiationHistoryPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `license_negotiation_id:${history.negotiation_id}.txt`;
+      a.download = `conditions_negotiation_id:${history.negotiation_id}.txt`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1025,7 +1025,7 @@ export default function NegotiationHistoryPage() {
                         >
                           {regenerateLicenseMutation.isPending
                             ? "Downloading..."
-                            : "Download issued license"}
+                            : "Download issued conditions"}
                         </button>
                       )}
                     </div>

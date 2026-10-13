@@ -576,16 +576,16 @@ def get_magic_link_resend_html(magic_link: str) -> str:
 
 
 def get_license_email_html(record_label: str, data_label: str, tags: str, requestor_email: str, dashboard_url: str) -> str:
-    """Generate HTML for license agreement emails."""
-    title = f"License Agreement for Record – {record_label}"
+    """Generate HTML for conditions emails."""
+    title = f"Conditions for Record – {record_label}"
     content = """
     <p>Hello,</p>
-    <p>Please find attached the license agreement documents related to the dataset for your review and negotiation.</p>
-    <p>Below are the key details regarding this license request:</p>
+    <p>Please find attached the conditions documents related to the dataset for your review and negotiation.</p>
+    <p>Below are the key details regarding this conditions request:</p>
     """
     
     info_box = {
-        'title': 'License Request Details',
+        'title': 'Conditions Request Details',
         'content': f'<strong>Data Label:</strong> {data_label}<br><strong>Tags:</strong> {tags}<br><strong>Record Label:</strong> {record_label}<br><strong>Requestor Email:</strong> {requestor_email}'
     }
     

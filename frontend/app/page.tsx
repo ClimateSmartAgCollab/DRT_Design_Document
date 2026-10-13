@@ -28,13 +28,13 @@ const content = {
     csdccBody1:
       "Members of the CS-DCC data hub can, as data owners, streamline their information gathering processes for determining if, when, and how to share research data.",
     csdccBody2:
-      "Develop the questionnaires and associated license templates together with the CS-DCC team and run them on CS-DCC infrastructure. Now potential data users can follow your custom links, answer questions and help you manage the flow of your data.",
+      "Develop the questionnaires and associated conditions templates together with the CS-DCC team and run them on CS-DCC infrastructure. Now potential data users can follow your custom links, answer questions and help you manage the flow of your data.",
     forOwners: "For Data Owners",
     ownersBody:
-      "A data owner can generate questions and license templates when they want to share research data. Members of the CS-DCC Data Hub can create a Data Owner account. ",
+      "A data owner can generate questions and conditions templates when they want to share research data. Members of the CS-DCC Data Hub can create a Data Owner account. ",
     emailUs: "Email us",
     ownersBody2:
-      " to begin set up your account or to have help creating questions and license templates.",
+      " to begin set up your account or to have help creating questions and conditions templates.",
     ownerDashboard: "View your owner dashboard",
     forRequestors: "For Data Requestors",
     requestorsBody:
@@ -136,12 +136,12 @@ const content = {
           desc: "Notifications to both requestor and owner in the sandbox inbox simulate their email exchange. (Sending emails from this inbox is disabled.)",
         },
         {
-          title: "Automatic License Generation",
-          desc: "Once responses are accepted, a license document is automatically generated.",
+          title: "Automatic Conditions Generation",
+          desc: "Once responses are accepted, a conditions document is automatically generated.",
         },
         {
-          title: "Review Generated License",
-          desc: "View the generated license document attached in the sandbox email sent to the <em><u>{{OWNER_EMAIL}}</u></em>.",
+          title: "Review Generated Conditions",
+          desc: "View the generated conditions document attached in the sandbox email sent to the <em><u>{{OWNER_EMAIL}}</u></em>.",
         },
       ],
       dashboardTitle: "Dashboard Overview and Alternative Testing Method",
@@ -166,13 +166,13 @@ const content = {
     csdccBody1:
       "Les membres du CS-DCC Data Hub peuvent, en tant que propriétaires de données, rationaliser leurs processus de collecte d'informations pour déterminer si, quand et comment partager des données de recherche.",
     csdccBody2:
-      "Développez les questionnaires et les modèles de licence associés avec l'équipe CS-DCC et exécutez-les sur l'infrastructure CS-DCC. Désormais, les utilisateurs potentiels de données peuvent suivre vos liens personnalisés, répondre aux questions et vous aider à gérer le flux de vos données.",
+      "Développez les questionnaires et les modèles de conditions associés avec l'équipe CS-DCC et exécutez-les sur l'infrastructure CS-DCC. Désormais, les utilisateurs potentiels de données peuvent suivre vos liens personnalisés, répondre aux questions et vous aider à gérer le flux de vos données.",
     forOwners: "Pour les propriétaires de données",
     ownersBody:
-      "Un propriétaire de données peut générer des questions et des modèles de licence lorsqu'il souhaite partager des données de recherche. Les membres du CS-DCC Data Hub peuvent créer un compte propriétaire de données. ",
+      "Un propriétaire de données peut générer des questions et des modèles de conditions lorsqu'il souhaite partager des données de recherche. Les membres du CS-DCC Data Hub peuvent créer un compte propriétaire de données. ",
     emailUs: "Envoyez-nous un courriel",
     ownersBody2:
-      " pour commencer à configurer votre compte ou pour obtenir de l'aide pour créer des questions et des modèles de licence.",
+      " pour commencer à configurer votre compte ou pour obtenir de l'aide pour créer des questions et des modèles de conditions.",
     ownerDashboard: "Voir votre tableau de bord propriétaire",
     forRequestors: "Pour les demandeurs de données",
     requestorsBody:
@@ -273,12 +273,12 @@ const content = {
           desc: "Simulez la communication entre le propriétaire et le demandeur dans la sandbox email. (Remarque : L'envoi d'e-mails depuis cette boîte de réception est désactivé.)",
         },
         {
-          title: "Génération automatique de licence",
-          desc: "Une fois les réponses acceptées, un document de licence est généré automatiquement.",
+          title: "Génération automatique des conditions",
+          desc: "Une fois les réponses acceptées, un document de conditions est généré automatiquement.",
         },
         {
-          title: "Revoir la licence générée",
-          desc: "Consultez le document de licence généré en pièce jointe dans l'e-mail envoyé au <em><u>{{OWNER_EMAIL}}</u></em>.",
+          title: "Revoir les conditions générées",
+          desc: "Consultez le document de conditions généré en pièce jointe dans l'e-mail envoyé au <em><u>{{OWNER_EMAIL}}</u></em>.",
         },
       ],
       dashboardTitle:
