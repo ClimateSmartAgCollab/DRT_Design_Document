@@ -4,6 +4,7 @@ Architecture, deploy-your-own instructions, and operational notes for DRT. Clone
 
 | Doc | Purpose |
 | --- | --- |
+| [HOSTING_AND_INTEGRATION.md](HOSTING_AND_INTEGRATION.md) | Partner brief: what you need to run DRT, and a generic catalogue-integration checklist |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Environments, system diagram, domain workflow, data model |
 | [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) | Stand up your own instance: datastore, theming, production |
 | [cache-architecture.md](cache-architecture.md) | ContextHub-default cache, GitHub webhook rollback, cron warm, failure behavior |

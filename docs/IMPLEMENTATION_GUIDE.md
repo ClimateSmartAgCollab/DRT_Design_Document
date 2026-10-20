@@ -1,6 +1,6 @@
 # DRT Implementation Guide
 
-Step-by-step instructions for standing up **your own** DRT instance from this codebase. Clone-and-run for the Data Hub laptop is the [root README](../README.md) Quick start. How the system is shaped: [ARCHITECTURE.md](ARCHITECTURE.md).
+Step-by-step instructions for standing up **your own** DRT instance from this codebase. Clone-and-run for the Data Hub laptop is the [root README](../README.md) Quick start. How the system is shaped: [ARCHITECTURE.md](ARCHITECTURE.md). What a partner needs to host DRT and plug in a catalogue (not clone-and-run): [Hosting DRT and integrating a catalogue](HOSTING_AND_INTEGRATION.md).
 
 ## Table of Contents
 - [Overview](#overview)
@@ -25,7 +25,7 @@ DRT is a full-stack platform built with:
 - **Backend**: Django REST Framework with PostgreSQL and Redis (cache)
 - **Frontend**: Next.js 15 (App Router) with TypeScript
 - **Infrastructure**: Docker Compose for local Postgres/Redis; the same remote Compose shape (gunicorn, Next, nginx) for staging and production
-- **Data Storage**: GitHub repository for static assets (questionnaires, conditions, metadata)
+- **Data storage**: HTTP catalogue by default (`DATASTORE_BACKEND=contexthub`) for questionnaires, conditions templates, and link/owner tables. GitHub CSVs are the rollback backend (`DATASTORE_BACKEND=github`). Negotiation state lives in PostgreSQL.
 
 The platform manages data access negotiations between requestors and dataset owners through a structured workflow.
 

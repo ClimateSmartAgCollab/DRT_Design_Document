@@ -2,7 +2,7 @@
 
 An end-to-end platform for data-access negotiations between requestors and dataset owners — guided questionnaires, asynchronous review, conditions generation, and an audit trail.
 
-This repository is the **Data Hub** implementation of DRT. The platform itself is general-purpose: any organization or research group can deploy their own instance. Start with the [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md). For the broader DRT concept, see the [DRT landing page](https://github.com/ClimateSmartAgCollab/drt-ad).
+This repository is the **Data Hub** implementation of DRT. The platform itself is general-purpose: any organization or research group can deploy their own instance. What you need to host it and how a catalogue plugs in: [Hosting DRT and integrating a catalogue](docs/HOSTING_AND_INTEGRATION.md). Clone-and-run and deploy commands: [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md). For the broader DRT concept, see the [DRT landing page](https://github.com/ClimateSmartAgCollab/drt-ad).
 
 ## Features
 
@@ -120,6 +120,7 @@ Husky runs `npm run lint` on commit.
 
 | Doc | What it covers |
 | --- | --- |
+| [Hosting and catalogue integration](docs/HOSTING_AND_INTEGRATION.md) | What you need to run DRT; generic checklist to add Request access on catalogue results |
 | [Architecture](docs/ARCHITECTURE.md) | Environments, diagram, workflow, data model |
 | [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md) | Deploy your own instance — datastore, theming, production |
 | [Cache architecture](docs/cache-architecture.md) | ContextHub-default cache, GitHub webhook rollback, failure behavior |
