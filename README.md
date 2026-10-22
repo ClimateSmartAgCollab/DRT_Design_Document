@@ -27,7 +27,7 @@ This repository is the **Data Hub** implementation of DRT. The platform itself i
 
 Assume zero context. Docker runs **Postgres, Redis, and Mailpit**. Django and Next.js run on the host. Root npm scripts use `backend/.venv` through `scripts/venv-python.js` — you do not activate the virtualenv.
 
-**Prerequisites:** Python 3.12 or 3.13, Node.js 20+, Docker, Git.
+**Prerequisites:** Python 3.12 or 3.13, Node.js 22.23.4+, Docker, Git.
 
 ```bash
 # First time

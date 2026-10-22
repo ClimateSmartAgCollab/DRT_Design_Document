@@ -25,8 +25,8 @@ Remote Compose always injects `../.env.production`. Staging vs production is val
 
 ## Images
 
-- Backend: `infra/docker/backend.Dockerfile` (context `backend/`). Entrypoint waits for Postgres, then optionally `collectstatic` / `migrate` / `createcachetable` when `DJANGO_MANAGE_MIGRATE=on`, waits for Redis, and runs `refresh_datastore_cache` before gunicorn.
-- Frontend: `frontend/frontend.Dockerfile` (`npm run build`, then `npm start` on port 3000).
+- Backend: `infra/docker/backend.Dockerfile` (context `backend/`, `python:3.12-slim` plus Debian `ca-certificates`). Pins `certifi==2026.10.19` via `backend/requirements.txt` for outbound TLS (`requests` to ContextHub, Mailgun, GitHub). Entrypoint waits for Postgres, then optionally `collectstatic` / `migrate` / `createcachetable` when `DJANGO_MANAGE_MIGRATE=on`, waits for Redis, and runs `refresh_datastore_cache` before gunicorn.
+- Frontend: `frontend/frontend.Dockerfile` (`node:22.23.4-alpine`, `npm run build`, then `npm start` on port 3000). Node compiles Mozilla’s CA list into the binary; 22.23.4+ rejects the Oct 2026 eMudhra intermediates. Rebuild after CA incidents — an OS `ca-certificates` update on the VM does not patch these images.
 
 ## Cron (remote only)
 

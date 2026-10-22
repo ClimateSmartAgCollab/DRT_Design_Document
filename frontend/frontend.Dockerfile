@@ -1,11 +1,11 @@
-FROM node:20-alpine AS builder
+FROM node:22.23.4-alpine AS builder
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm install --legacy-peer-deps
 
-RUN apk add --no-cache git
+RUN apk add --no-cache ca-certificates git
 
 COPY . .
 
@@ -13,7 +13,7 @@ RUN npm run build
 
 RUN npm install --omit=dev --legacy-peer-deps
 
-FROM node:20-alpine AS runner
+FROM node:22.23.4-alpine AS runner
 
 WORKDIR /app
 

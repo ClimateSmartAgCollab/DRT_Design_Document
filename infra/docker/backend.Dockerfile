@@ -5,6 +5,7 @@ WORKDIR /usr/src
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
+        ca-certificates \
         libpq-dev \
         netcat-traditional \
     && apt-get clean \

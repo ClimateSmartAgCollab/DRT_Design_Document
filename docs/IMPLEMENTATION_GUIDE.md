@@ -39,7 +39,7 @@ Before starting, ensure you have:
 
 1. **Development Environment**:
    - Python 3.12 or 3.13 (Django 5.1; `npm run setup:backend` prefers these)
-   - Node.js 20+ and npm (for Next.js frontend)
+   - Node.js 22.23.4+ and npm (for Next.js frontend)
    - Docker and Docker Compose (recommended for local Postgres, Redis, and Mailpit)
    - Git
 
@@ -587,7 +587,9 @@ After switching from Celery, remove leftover worker containers if they still exi
 
 ### 9.5 SSL/TLS Certificates
 
-Use Let's Encrypt with Certbot (included in docker-compose.yml) or your preferred certificate authority.
+Inbound TLS is Let's Encrypt with Certbot (included in `infra/docker-compose.prod.yml`) or your preferred certificate authority. Do not rotate DRT site certs for CA-bundle incidents such as the Oct 2026 eMudhra intermediate compromise.
+
+Outbound trust is separate: Django uses the pinned `certifi` in `backend/requirements.txt`; Next.js uses the CA list compiled into the `node:22.23.4-alpine` image. Rebuild the backend and frontend images after those pins change (`docker compose -f infra/docker-compose.prod.yml up -d --build`). Updating `ca-certificates` on the VM does not update either store.
 
 ### 9.6 Database Backups
 

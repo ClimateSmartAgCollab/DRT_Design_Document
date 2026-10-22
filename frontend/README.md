@@ -4,7 +4,7 @@ Requestor, owner, and admin UI for DRT — questionnaires, negotiation workspace
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 22.23.4+
 - npm 10+
 
 ## Setup that differs from root
